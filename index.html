@@ -31,18 +31,21 @@
         </header>
 
         <form id="task-form" class="task-form">
-          <label for="task-input">Add a task</label>
+          <label for="task-input">Describe your task naturally</label>
           <div class="task-entry">
             <input
               id="task-input"
               type="text"
-              placeholder="What needs to get done?"
-              maxlength="120"
+              placeholder="e.g. Submit my history essay next Friday"
+              maxlength="300"
               autocomplete="off"
               required
             />
-            <button type="submit">Add task</button>
+            <button id="add-task-button" type="submit">Ask AI</button>
           </div>
+          <p id="form-status" class="form-status" aria-live="polite">
+            AI will find the date and task for you.
+          </p>
         </form>
 
         <div class="list-heading">

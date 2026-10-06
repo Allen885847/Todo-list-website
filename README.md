@@ -1,11 +1,14 @@
 # Todo List Website
 
-A responsive to-do list MVP built with plain HTML, CSS, and JavaScript.
+A responsive, AI-powered to-do list MVP built with HTML, CSS, JavaScript, and a small Node.js server.
 
 ## Features
 
 - Renameable list title
-- Add and delete tasks
+- Add tasks using natural language
+- DeepSeek V4.1 Flash extracts the day, month, year, and task text
+- Every task is stored as an object with `date`, `task`, and `completed`
+- Delete tasks
 - Mark tasks complete with a checkbox
 - Completed-task strikethrough
 - Automatic local storage persistence
@@ -13,10 +16,12 @@ A responsive to-do list MVP built with plain HTML, CSS, and JavaScript.
 
 ## Run locally
 
-Open `index.html` in a browser, or start a local server:
+Create a local environment file and add a newly generated DeepSeek API key:
 
 ```bash
-python3 -m http.server 8000
+cp .env.example .env
+# Edit .env and replace the placeholder. Never commit this file.
+npm start
 ```
 
-Then visit `http://localhost:8000`.
+Then visit `http://127.0.0.1:4173`.

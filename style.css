@@ -88,6 +88,23 @@ input {
   font-weight: 700;
 }
 
+.form-status {
+  min-height: 1.25rem;
+  margin: 9px 2px 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.form-status.error {
+  color: var(--accent-dark);
+}
+
+.task-entry button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+  transform: none;
+}
+
 .task-entry {
   display: flex;
   gap: 10px;
@@ -208,6 +225,21 @@ input {
   line-height: 1.5;
   overflow-wrap: anywhere;
   transition: color 150ms;
+}
+
+.task-content {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+
+.task-date {
+  color: var(--accent-dark);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .task-item.completed .task-text {
