@@ -46,6 +46,7 @@ function readJson(request) {
 function isValidTask(todo) {
   if (!todo || typeof todo.task !== "string" || !todo.task.trim()) return false;
   if (todo.completed !== false) return false;
+  if (!/^\p{Extended_Pictographic}/u.test(todo.task.trim())) return false;
 
   const { day, month, year } = todo.date || {};
   if (![day, month, year].every(Number.isInteger)) return false;
@@ -86,8 +87,10 @@ async function parseTask(input) {
           content:
             `Extract one todo item from natural language. Today is ${today} in Asia/Hong_Kong. ` +
             "Resolve relative dates such as tomorrow and next Friday. If no date is stated, use today's date. " +
+            "Identify what kind of task it is, choose exactly one relevant Unicode emoji commonly available in Apple's built-in emoji keyboard, " +
+            "and place that emoji at the very beginning of the task string followed by one space. " +
             "Return JSON only in exactly this shape: " +
-            '{"date":{"day":1,"month":1,"year":2026},"task":"task description","completed":false}. ' +
+            '{"date":{"day":1,"month":1,"year":2026},"task":"📚 task description","completed":false}. ' +
             "day, month, and year must be integers. completed must always be false. Keep task concise and preserve the user's language.",
         },
         { role: "user", content: input },

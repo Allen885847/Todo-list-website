@@ -7,6 +7,7 @@ A responsive, AI-powered to-do list MVP built with HTML, CSS, JavaScript, and a 
 - Renameable list title
 - Add tasks using natural language
 - DeepSeek V4.1 Flash extracts the day, month, year, and task text
+- DeepSeek chooses one relevant Apple-compatible emoji and places it before the task text
 - Every task is stored as an object with `date`, `task`, and `completed`
 - Delete tasks
 - Mark tasks complete with a checkbox
