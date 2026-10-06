@@ -20,7 +20,6 @@ function normalizeTask(task) {
   };
 
   return {
-    id: task.id || crypto.randomUUID(),
     date: {
       day: Number(date.day),
       month: Number(date.month),
@@ -60,10 +59,9 @@ function formatDate(date) {
   }).format(new Date(date.year, date.month - 1, date.day));
 }
 
-function createTaskElement(todo) {
+function createTaskElement(todo, index) {
   const item = document.createElement("li");
   item.className = `task-item${todo.completed ? " completed" : ""}`;
-  item.dataset.id = todo.id;
 
   const checkbox = document.createElement("input");
   checkbox.className = "task-checkbox";
@@ -90,8 +88,8 @@ function createTaskElement(todo) {
   deleteButton.setAttribute("aria-label", `Delete ${todo.task}`);
   deleteButton.title = "Delete task";
 
-  checkbox.addEventListener("change", () => toggleTask(todo.id));
-  deleteButton.addEventListener("click", () => deleteTask(todo.id));
+  checkbox.addEventListener("change", () => toggleTask(index));
+  deleteButton.addEventListener("click", () => deleteTask(index));
 
   content.append(date, text);
   item.append(checkbox, content, deleteButton);
@@ -114,8 +112,8 @@ function addTask(todo) {
   render();
 }
 
-function toggleTask(id) {
-  const todo = state.tasks.find((item) => item.id === id);
+function toggleTask(index) {
+  const todo = state.tasks[index];
   if (!todo) return;
 
   todo.completed = !todo.completed;
@@ -123,8 +121,8 @@ function toggleTask(id) {
   render();
 }
 
-function deleteTask(id) {
-  state.tasks = state.tasks.filter((todo) => todo.id !== id);
+function deleteTask(index) {
+  state.tasks.splice(index, 1);
   saveState();
   render();
 }
