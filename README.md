@@ -2,6 +2,8 @@
 
 A responsive, AI-powered to-do list built with HTML, CSS, JavaScript, and a small Node.js server.
 
+Current stable release: **v2.0**.
+
 ## Features
 
 - Renameable list title

@@ -1,8 +1,8 @@
 {
   "name": "ai-todo-list",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "AI-powered todo list using DeepSeek V4.1 Flash",
+  "description": "Voice-enabled AI todo list using DeepSeek V4.1 Flash",
   "scripts": {
     "start": "node --env-file=.env server.js",
     "check": "node --check server.js && node --check script.js"
