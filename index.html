@@ -31,22 +31,70 @@
         </header>
 
         <form id="task-form" class="task-form">
-          <label for="task-input">Describe your task naturally</label>
-          <div class="task-entry">
-            <input
-              id="task-input"
-              type="text"
-              placeholder="e.g. Submit my history essay next Friday"
-              maxlength="300"
-              autocomplete="off"
-              required
-            />
-            <button id="add-task-button" type="submit">Ask AI</button>
+          <div class="input-heading">
+            <label for="task-input">Describe everything you need to do</label>
+            <label class="language-picker" for="speech-language">
+              <span>Voice language</span>
+              <select id="speech-language">
+                <option value="zh-CN">Mandarin + English</option>
+                <option value="en-US">English</option>
+              </select>
+            </label>
           </div>
-          <p id="form-status" class="form-status" aria-live="polite">
-            AI will find the date and task for you.
-          </p>
+          <div class="task-composer">
+            <textarea
+              id="task-input"
+              placeholder="Type your plans, or use the microphone below…"
+              maxlength="4000"
+              autocomplete="off"
+              rows="4"
+            ></textarea>
+            <canvas id="voice-waveform" aria-label="Live microphone waveform" hidden></canvas>
+            <div class="composer-controls">
+              <button id="add-task-button" class="ask-button" type="submit">Ask AI</button>
+              <div class="recording-controls">
+                <button id="cancel-recording" class="cancel-recording" type="button" hidden>Cancel</button>
+                <time id="recording-timer" hidden>00:00</time>
+                <button
+                  id="record-button"
+                  class="record-button"
+                  type="button"
+                  aria-label="Start voice recording"
+                  aria-pressed="false"
+                >
+                  <svg class="microphone-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="9" y="3" width="6" height="11" rx="3"></rect>
+                    <path d="M6 11a6 6 0 0 0 12 0M12 17v4M9 21h6"></path>
+                  </svg>
+                  <svg class="stop-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <rect x="9" y="9" width="6" height="6" rx="1"></rect>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="status-row">
+            <span id="status-indicator" class="status-indicator" aria-hidden="true"></span>
+            <p id="form-status" class="form-status" aria-live="polite">
+              Ready for typing or voice input.
+            </p>
+            <button id="retry-processing" class="text-button" type="button" hidden>Retry processing</button>
+          </div>
         </form>
+
+        <section id="preview-section" class="preview-section" aria-labelledby="preview-title" hidden>
+          <div class="preview-heading">
+            <div>
+              <p class="section-label">REVIEW BEFORE SAVING</p>
+              <h2 id="preview-title">Generated tasks</h2>
+            </div>
+            <button id="discard-preview" class="text-button" type="button">Discard preview</button>
+          </div>
+          <p class="preview-help">Edit titles and due dates, remove unwanted tasks, and confirm any ambiguous dates.</p>
+          <ul id="preview-list" class="preview-list"></ul>
+          <button id="save-preview" class="save-preview" type="button">Save tasks</button>
+        </section>
 
         <div class="list-heading">
           <h1 id="page-title">Tasks</h1>
