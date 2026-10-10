@@ -37,6 +37,16 @@ let recognitionError = "";
 let finalTranscript = "";
 let interimTranscript = "";
 let isProcessing = false;
+let draggedTaskIndex = null;
+let touchDrag = null;
+
+function dueDateValue(item) {
+  return Date.UTC(item.date.year, item.date.month - 1, item.date.day);
+}
+
+function sortByDueDate(items) {
+  return [...items].sort((first, second) => dueDateValue(first) - dueDateValue(second));
+}
 
 function normalizeTask(task) {
   const now = new Date();
@@ -61,15 +71,18 @@ function loadState() {
   try {
     const savedState = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (savedState && Array.isArray(savedState.tasks)) {
+      const orderMode = savedState.orderMode === "manual" ? "manual" : "date";
+      const tasks = savedState.tasks.map(normalizeTask);
       return {
         title: savedState.title || "Today’s focus",
-        tasks: savedState.tasks.map(normalizeTask),
+        tasks: orderMode === "date" ? sortByDueDate(tasks) : tasks,
+        orderMode,
       };
     }
   } catch (error) {
     console.warn("The saved todo list could not be loaded.", error);
   }
-  return { title: "Today’s focus", tasks: [] };
+  return { title: "Today’s focus", tasks: [], orderMode: "date" };
 }
 
 function saveState() {
@@ -87,6 +100,16 @@ function formatDate(date) {
 function createTaskElement(todo, index) {
   const item = document.createElement("li");
   item.className = `task-item${todo.completed ? " completed" : ""}`;
+  item.dataset.index = String(index);
+
+  const dragHandle = document.createElement("button");
+  dragHandle.className = "drag-handle";
+  dragHandle.type = "button";
+  dragHandle.draggable = true;
+  dragHandle.innerHTML = "<span aria-hidden=\"true\">⠿</span>";
+  dragHandle.setAttribute("aria-label", `Drag ${todo.task} to reorder`);
+  dragHandle.setAttribute("aria-keyshortcuts", "ArrowUp ArrowDown");
+  dragHandle.title = "Drag to reorder. Use the arrow keys for keyboard reordering.";
 
   const checkbox = document.createElement("input");
   checkbox.className = "task-checkbox";
@@ -111,6 +134,71 @@ function createTaskElement(todo, index) {
   deleteButton.setAttribute("aria-label", `Delete ${todo.task}`);
   deleteButton.title = "Delete task";
 
+  dragHandle.addEventListener("dragstart", (event) => {
+    draggedTaskIndex = index;
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(index));
+    item.classList.add("dragging");
+  });
+  dragHandle.addEventListener("dragend", () => {
+    draggedTaskIndex = null;
+    item.classList.remove("dragging");
+    clearDropIndicators();
+  });
+  dragHandle.addEventListener("keydown", (event) => {
+    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+    event.preventDefault();
+    const destination = index + (event.key === "ArrowUp" ? -1 : 1);
+    if (destination < 0 || destination >= state.tasks.length) return;
+    moveTaskToIndex(index, destination);
+  });
+  dragHandle.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse") return;
+    event.preventDefault();
+    draggedTaskIndex = index;
+    touchDrag = { pointerId: event.pointerId, fromIndex: index, targetIndex: index, position: "before" };
+    dragHandle.setPointerCapture(event.pointerId);
+    item.classList.add("dragging");
+  });
+  dragHandle.addEventListener("pointermove", (event) => {
+    if (!touchDrag || touchDrag.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest(".task-item");
+    if (!target || !taskList.contains(target)) return;
+    clearDropIndicators();
+    const position = event.clientY < target.getBoundingClientRect().top + target.offsetHeight / 2 ? "before" : "after";
+    target.classList.add(position === "before" ? "drop-before" : "drop-after");
+    touchDrag.targetIndex = Number(target.dataset.index);
+    touchDrag.position = position;
+  });
+  const finishTouchDrag = (event) => {
+    if (!touchDrag || touchDrag.pointerId !== event.pointerId) return;
+    const { fromIndex, targetIndex, position } = touchDrag;
+    touchDrag = null;
+    draggedTaskIndex = null;
+    item.classList.remove("dragging");
+    if (event.type === "pointerup") moveTaskRelative(fromIndex, targetIndex, position);
+    else clearDropIndicators();
+  };
+  dragHandle.addEventListener("pointerup", finishTouchDrag);
+  dragHandle.addEventListener("pointercancel", finishTouchDrag);
+
+  item.addEventListener("dragover", (event) => {
+    if (draggedTaskIndex === null) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    clearDropIndicators();
+    const position = event.clientY < item.getBoundingClientRect().top + item.offsetHeight / 2 ? "before" : "after";
+    item.classList.add(position === "before" ? "drop-before" : "drop-after");
+  });
+  item.addEventListener("drop", (event) => {
+    event.preventDefault();
+    const transferredIndex = event.dataTransfer.getData("text/plain");
+    const fromIndex = transferredIndex === "" ? draggedTaskIndex : Number(transferredIndex);
+    const position = item.classList.contains("drop-after") ? "after" : "before";
+    moveTaskRelative(fromIndex, index, position);
+  });
+
   checkbox.addEventListener("change", () => {
     state.tasks[index].completed = checkbox.checked;
     saveState();
@@ -123,8 +211,45 @@ function createTaskElement(todo, index) {
   });
 
   content.append(date, text);
-  item.append(checkbox, content, deleteButton);
+  item.append(dragHandle, checkbox, content, deleteButton);
   return item;
+}
+
+function clearDropIndicators() {
+  taskList.querySelectorAll(".task-item").forEach((item) => {
+    item.classList.remove("drop-before", "drop-after");
+  });
+}
+
+function saveManualOrder(focusIndex) {
+  state.orderMode = "manual";
+  saveState();
+  renderTasks();
+  setStatus("Task order updated. Your manual order will be preserved.", "success");
+  requestAnimationFrame(() => {
+    taskList.querySelector(`.task-item[data-index="${focusIndex}"] .drag-handle`)?.focus();
+  });
+}
+
+function moveTaskToIndex(fromIndex, destination) {
+  if (fromIndex === destination) return;
+  const [task] = state.tasks.splice(fromIndex, 1);
+  state.tasks.splice(destination, 0, task);
+  saveManualOrder(destination);
+}
+
+function moveTaskRelative(fromIndex, targetIndex, position) {
+  if (!Number.isInteger(fromIndex) || fromIndex < 0 || fromIndex >= state.tasks.length) return;
+  let destination = targetIndex + (position === "after" ? 1 : 0);
+  if (fromIndex < destination) destination -= 1;
+  if (destination === fromIndex) {
+    clearDropIndicators();
+    return;
+  }
+  const [task] = state.tasks.splice(fromIndex, 1);
+  state.tasks.splice(destination, 0, task);
+  draggedTaskIndex = null;
+  saveManualOrder(destination);
 }
 
 function renderTasks() {
@@ -275,13 +400,13 @@ async function processInput(input, source) {
     if (!Array.isArray(result.tasks) || result.tasks.length === 0) {
       throw new Error("No actionable tasks were found. Add a specific action and try again.");
     }
-    previewTasks = result.tasks.map((item) => ({
+    previewTasks = sortByDueDate(result.tasks.map((item) => ({
       title: item.title,
       emoji: item.emoji,
       date: item.date,
       dateAmbiguous: Boolean(item.dateAmbiguous),
       dateQuestion: item.dateQuestion || "",
-    }));
+    })));
     renderPreview();
     const ambiguousCount = previewTasks.filter((item) => item.dateAmbiguous).length;
     setStatus(
@@ -550,12 +675,14 @@ savePreviewButton.addEventListener("click", () => {
     return;
   }
 
-  const savedTasks = previewTasks.map((item) => normalizeTask({
+  const savedTasks = sortByDueDate(previewTasks.map((item) => normalizeTask({
     date: item.date,
     task: `${item.emoji} ${item.title.trim()}`,
     completed: false,
-  }));
-  state.tasks = [...savedTasks, ...state.tasks];
+  })));
+  state.tasks = state.orderMode === "manual"
+    ? [...state.tasks, ...savedTasks]
+    : sortByDueDate([...state.tasks, ...savedTasks]);
   saveState();
   renderTasks();
   const count = savedTasks.length;

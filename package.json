@@ -1,6 +1,6 @@
 {
   "name": "ai-todo-list",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "description": "Voice-enabled AI todo list using DeepSeek V4.1 Flash",
   "scripts": {
