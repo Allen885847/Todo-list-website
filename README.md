@@ -14,9 +14,9 @@ Release: **v2.1**. The desktop shortcut remains frozen on **v2.0**.
 - DeepSeek separates actionable work, corrects and translates task titles, resolves task-specific dates, and chooses one relevant emoji
 - Review, edit, remove, and confirm generated tasks before saving
 - Ambiguous dates are flagged and must be confirmed in the preview
-- Task titles consistently begin with concise action verbs for both single-task and multi-task input
+- Task titles use consistent, concise noun phrases without leading action verbs for both single-task and multi-task input
 - Generated tasks are initially sorted by due date, earliest first
-- Drag-and-drop and keyboard reordering preserve a custom manual order
+- Lifted-card drag-and-drop, animated placement gaps, touch support, and keyboard reordering preserve a custom manual order
 - Every task is stored as an object with `date`, `task`, and `completed`
 - Delete tasks
 - Mark tasks complete with a checkbox

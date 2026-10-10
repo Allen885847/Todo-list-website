@@ -1,5 +1,6 @@
 const STORAGE_KEY = "todo-list-mvp";
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const titleInput = document.querySelector("#list-title");
 const taskForm = document.querySelector("#task-form");
@@ -37,8 +38,8 @@ let recognitionError = "";
 let finalTranscript = "";
 let interimTranscript = "";
 let isProcessing = false;
-let draggedTaskIndex = null;
-let touchDrag = null;
+let pointerDrag = null;
+const taskLayoutAnimations = new WeakMap();
 
 function dueDateValue(item) {
   return Date.UTC(item.date.year, item.date.month - 1, item.date.day);
@@ -105,7 +106,6 @@ function createTaskElement(todo, index) {
   const dragHandle = document.createElement("button");
   dragHandle.className = "drag-handle";
   dragHandle.type = "button";
-  dragHandle.draggable = true;
   dragHandle.innerHTML = "<span aria-hidden=\"true\">⠿</span>";
   dragHandle.setAttribute("aria-label", `Drag ${todo.task} to reorder`);
   dragHandle.setAttribute("aria-keyshortcuts", "ArrowUp ArrowDown");
@@ -134,17 +134,6 @@ function createTaskElement(todo, index) {
   deleteButton.setAttribute("aria-label", `Delete ${todo.task}`);
   deleteButton.title = "Delete task";
 
-  dragHandle.addEventListener("dragstart", (event) => {
-    draggedTaskIndex = index;
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", String(index));
-    item.classList.add("dragging");
-  });
-  dragHandle.addEventListener("dragend", () => {
-    draggedTaskIndex = null;
-    item.classList.remove("dragging");
-    clearDropIndicators();
-  });
   dragHandle.addEventListener("keydown", (event) => {
     if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
     event.preventDefault();
@@ -152,51 +141,9 @@ function createTaskElement(todo, index) {
     if (destination < 0 || destination >= state.tasks.length) return;
     moveTaskToIndex(index, destination);
   });
-  dragHandle.addEventListener("pointerdown", (event) => {
-    if (event.pointerType === "mouse") return;
-    event.preventDefault();
-    draggedTaskIndex = index;
-    touchDrag = { pointerId: event.pointerId, fromIndex: index, targetIndex: index, position: "before" };
-    dragHandle.setPointerCapture(event.pointerId);
-    item.classList.add("dragging");
-  });
-  dragHandle.addEventListener("pointermove", (event) => {
-    if (!touchDrag || touchDrag.pointerId !== event.pointerId) return;
-    event.preventDefault();
-    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest(".task-item");
-    if (!target || !taskList.contains(target)) return;
-    clearDropIndicators();
-    const position = event.clientY < target.getBoundingClientRect().top + target.offsetHeight / 2 ? "before" : "after";
-    target.classList.add(position === "before" ? "drop-before" : "drop-after");
-    touchDrag.targetIndex = Number(target.dataset.index);
-    touchDrag.position = position;
-  });
-  const finishTouchDrag = (event) => {
-    if (!touchDrag || touchDrag.pointerId !== event.pointerId) return;
-    const { fromIndex, targetIndex, position } = touchDrag;
-    touchDrag = null;
-    draggedTaskIndex = null;
-    item.classList.remove("dragging");
-    if (event.type === "pointerup") moveTaskRelative(fromIndex, targetIndex, position);
-    else clearDropIndicators();
-  };
-  dragHandle.addEventListener("pointerup", finishTouchDrag);
-  dragHandle.addEventListener("pointercancel", finishTouchDrag);
-
-  item.addEventListener("dragover", (event) => {
-    if (draggedTaskIndex === null) return;
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-    clearDropIndicators();
-    const position = event.clientY < item.getBoundingClientRect().top + item.offsetHeight / 2 ? "before" : "after";
-    item.classList.add(position === "before" ? "drop-before" : "drop-after");
-  });
-  item.addEventListener("drop", (event) => {
-    event.preventDefault();
-    const transferredIndex = event.dataTransfer.getData("text/plain");
-    const fromIndex = transferredIndex === "" ? draggedTaskIndex : Number(transferredIndex);
-    const position = item.classList.contains("drop-after") ? "after" : "before";
-    moveTaskRelative(fromIndex, index, position);
+  dragHandle.addEventListener("pointerdown", (event) => beginPointerDrag(event, item, index, dragHandle));
+  dragHandle.addEventListener("lostpointercapture", (event) => {
+    if (pointerDrag?.pointerId === event.pointerId && !pointerDrag.settling) cancelPointerDrag(event);
   });
 
   checkbox.addEventListener("change", () => {
@@ -213,12 +160,6 @@ function createTaskElement(todo, index) {
   content.append(date, text);
   item.append(dragHandle, checkbox, content, deleteButton);
   return item;
-}
-
-function clearDropIndicators() {
-  taskList.querySelectorAll(".task-item").forEach((item) => {
-    item.classList.remove("drop-before", "drop-after");
-  });
 }
 
 function saveManualOrder(focusIndex) {
@@ -238,18 +179,162 @@ function moveTaskToIndex(fromIndex, destination) {
   saveManualOrder(destination);
 }
 
-function moveTaskRelative(fromIndex, targetIndex, position) {
-  if (!Number.isInteger(fromIndex) || fromIndex < 0 || fromIndex >= state.tasks.length) return;
-  let destination = targetIndex + (position === "after" ? 1 : 0);
-  if (fromIndex < destination) destination -= 1;
-  if (destination === fromIndex) {
-    clearDropIndicators();
+function beginPointerDrag(event, source, fromIndex, handle) {
+  if (event.button !== 0 || pointerDrag) return;
+  event.preventDefault();
+  handle.focus({ preventScroll: true });
+  handle.setPointerCapture(event.pointerId);
+  pointerDrag = {
+    pointerId: event.pointerId,
+    source,
+    handle,
+    fromIndex,
+    startX: event.clientX,
+    startY: event.clientY,
+    clientX: event.clientX,
+    clientY: event.clientY,
+    active: false,
+    settling: false,
+  };
+}
+
+function activatePointerDrag(drag) {
+  const origin = drag.source.getBoundingClientRect();
+  const placeholder = document.createElement("li");
+  placeholder.className = "task-placeholder";
+  placeholder.style.height = `${origin.height}px`;
+  placeholder.setAttribute("aria-hidden", "true");
+
+  const ghost = drag.source.cloneNode(true);
+  ghost.classList.remove("completed");
+  if (drag.source.classList.contains("completed")) ghost.classList.add("completed");
+  ghost.classList.add("drag-ghost");
+  ghost.removeAttribute("data-index");
+  ghost.setAttribute("aria-hidden", "true");
+  ghost.inert = true;
+  Object.assign(ghost.style, {
+    left: `${origin.left}px`,
+    top: `${origin.top}px`,
+    width: `${origin.width}px`,
+    height: `${origin.height}px`,
+  });
+
+  drag.source.before(placeholder);
+  drag.source.classList.add("drag-source");
+  document.body.append(ghost);
+  document.body.classList.add("is-reordering");
+  Object.assign(drag, { active: true, origin, placeholder, ghost });
+}
+
+function updatePointerDrag(event) {
+  const drag = pointerDrag;
+  if (!drag || drag.pointerId !== event.pointerId || drag.settling) return;
+  event.preventDefault();
+  drag.clientX = event.clientX;
+  drag.clientY = event.clientY;
+
+  if (!drag.active) {
+    const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
+    if (distance < 4) return;
+    activatePointerDrag(drag);
+  }
+
+  const offsetX = event.clientX - drag.startX;
+  const offsetY = event.clientY - drag.startY;
+  drag.ghost.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0) rotate(0.7deg) scale(1.015)`;
+  movePlaceholderToPointer(event.clientY);
+
+  const scrollEdge = 72;
+  if (event.clientY < scrollEdge) window.scrollBy(0, -12);
+  else if (event.clientY > window.innerHeight - scrollEdge) window.scrollBy(0, 12);
+}
+
+function getPlaceholderIndex() {
+  if (!pointerDrag?.placeholder) return -1;
+  let index = 0;
+  for (const child of taskList.children) {
+    if (child === pointerDrag.placeholder) return index;
+    if (child.classList.contains("task-item") && !child.classList.contains("drag-source")) index += 1;
+  }
+  return index;
+}
+
+function captureTaskPositions() {
+  return new Map(
+    [...taskList.querySelectorAll(".task-item:not(.drag-source)")]
+      .map((item) => [item, item.getBoundingClientRect().top]),
+  );
+}
+
+function animateTaskPositions(previousPositions) {
+  if (prefersReducedMotion) return;
+  previousPositions.forEach((previousTop, item) => {
+    const distance = previousTop - item.getBoundingClientRect().top;
+    if (!distance) return;
+    taskLayoutAnimations.get(item)?.cancel();
+    const animation = item.animate(
+      [{ transform: `translateY(${distance}px)` }, { transform: "translateY(0)" }],
+      { duration: 190, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
+    );
+    taskLayoutAnimations.set(item, animation);
+  });
+}
+
+function movePlaceholderToPointer(clientY) {
+  const drag = pointerDrag;
+  if (!drag?.active) return;
+  const items = [...taskList.querySelectorAll(".task-item:not(.drag-source)")];
+  let destination = items.length;
+  for (let index = 0; index < items.length; index += 1) {
+    const rect = items[index].getBoundingClientRect();
+    if (clientY < rect.top + rect.height / 2) {
+      destination = index;
+      break;
+    }
+  }
+  if (destination === getPlaceholderIndex()) return;
+
+  const previousPositions = captureTaskPositions();
+  if (destination === items.length) taskList.append(drag.placeholder);
+  else taskList.insertBefore(drag.placeholder, items[destination]);
+  animateTaskPositions(previousPositions);
+}
+
+function cleanUpPointerDrag(drag) {
+  drag.ghost?.remove();
+  drag.placeholder?.remove();
+  drag.source.classList.remove("drag-source");
+  document.body.classList.remove("is-reordering");
+  pointerDrag = null;
+}
+
+function finishPointerDrag(event) {
+  const drag = pointerDrag;
+  if (!drag || drag.pointerId !== event.pointerId || drag.settling) return;
+  event.preventDefault();
+  if (!drag.active) {
+    pointerDrag = null;
     return;
   }
-  const [task] = state.tasks.splice(fromIndex, 1);
-  state.tasks.splice(destination, 0, task);
-  draggedTaskIndex = null;
-  saveManualOrder(destination);
+
+  drag.settling = true;
+  const destination = getPlaceholderIndex();
+  const target = drag.placeholder.getBoundingClientRect();
+  drag.ghost.classList.add("settling");
+  drag.ghost.getBoundingClientRect();
+  drag.ghost.style.transform = `translate3d(${target.left - drag.origin.left}px, ${target.top - drag.origin.top}px, 0) rotate(0deg) scale(1)`;
+
+  window.setTimeout(() => {
+    const fromIndex = drag.fromIndex;
+    cleanUpPointerDrag(drag);
+    if (destination !== fromIndex) moveTaskToIndex(fromIndex, destination);
+  }, prefersReducedMotion ? 0 : 190);
+}
+
+function cancelPointerDrag(event) {
+  const drag = pointerDrag;
+  if (!drag || (event?.pointerId !== undefined && drag.pointerId !== event.pointerId)) return;
+  cleanUpPointerDrag(drag);
 }
 
 function renderTasks() {
@@ -719,7 +804,15 @@ titleInput.addEventListener("blur", () => {
 window.addEventListener("resize", () => {
   if (recordingPhase === "recording") resizeWaveform();
 });
+window.addEventListener("pointermove", updatePointerDrag, { passive: false });
+window.addEventListener("pointerup", finishPointerDrag);
+window.addEventListener("pointercancel", cancelPointerDrag);
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && pointerDrag) cancelPointerDrag();
+});
+window.addEventListener("blur", () => cancelPointerDrag());
 window.addEventListener("pagehide", () => {
+  cancelPointerDrag();
   cancelRequested = true;
   try { recognition?.abort(); } catch { /* The page is closing. */ }
   releaseMedia();
