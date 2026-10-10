@@ -17,6 +17,7 @@ Release: **v2.1**. The desktop shortcut remains frozen on **v2.0**.
 - Task titles use consistent, concise noun phrases without leading action verbs for both single-task and multi-task input
 - Generated tasks are initially sorted by due date, earliest first
 - Lifted-card drag-and-drop, animated placement gaps, touch support, and keyboard reordering preserve a custom manual order
+- Task-first layout collapses the adaptive composer when saved tasks exist and restores it when the list is empty
 - Every task is stored as an object with `date`, `task`, and `completed`
 - Delete tasks
 - Mark tasks complete with a checkbox

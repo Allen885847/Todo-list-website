@@ -3,6 +3,9 @@ const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecogni
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const titleInput = document.querySelector("#list-title");
+const todoCard = document.querySelector(".todo-card");
+const composerRegion = document.querySelector("#composer-region");
+const toggleComposerButton = document.querySelector("#toggle-composer");
 const taskForm = document.querySelector("#task-form");
 const taskInput = document.querySelector("#task-input");
 const askButton = document.querySelector("#add-task-button");
@@ -39,6 +42,7 @@ let finalTranscript = "";
 let interimTranscript = "";
 let isProcessing = false;
 let pointerDrag = null;
+let composerOpen = state.tasks.length === 0;
 const taskLayoutAnimations = new WeakMap();
 
 function dueDateValue(item) {
@@ -344,6 +348,39 @@ function renderTasks() {
   const total = state.tasks.length;
   taskCount.textContent = total === 1 ? `${remaining} of 1 task left` : `${remaining} of ${total} tasks left`;
   emptyState.hidden = total > 0;
+  if (total === 0 && !composerOpen) setComposerOpen(true, { focus: true });
+  updateComposerToggle();
+}
+
+function resizeTaskInput() {
+  taskInput.style.height = "auto";
+  const maximumHeight = Number.parseFloat(getComputedStyle(taskInput).maxHeight);
+  const nextHeight = Math.min(taskInput.scrollHeight, maximumHeight);
+  taskInput.style.height = `${nextHeight}px`;
+  taskInput.style.overflowY = taskInput.scrollHeight > maximumHeight ? "auto" : "hidden";
+}
+
+function updateComposerToggle() {
+  const hasTasks = state.tasks.length > 0;
+  toggleComposerButton.hidden = !hasTasks;
+  toggleComposerButton.textContent = composerOpen ? "Close input" : "Add tasks";
+  toggleComposerButton.setAttribute("aria-expanded", String(composerOpen));
+  toggleComposerButton.disabled = isProcessing || recordingPhase !== "idle" || previewTasks.length > 0;
+}
+
+function setComposerOpen(open, { focus = false } = {}) {
+  composerOpen = state.tasks.length === 0 ? true : open;
+  composerRegion.classList.toggle("collapsed", !composerOpen);
+  todoCard.classList.toggle("composer-collapsed", !composerOpen);
+  composerRegion.setAttribute("aria-hidden", String(!composerOpen));
+  composerRegion.inert = !composerOpen;
+  updateComposerToggle();
+  if (composerOpen) {
+    requestAnimationFrame(() => {
+      resizeTaskInput();
+      if (focus) taskInput.focus({ preventScroll: true });
+    });
+  }
 }
 
 function setStatus(message, type = "idle") {
@@ -359,6 +396,7 @@ function setProcessing(active) {
   languageSelect.disabled = active || recordingPhase !== "idle";
   taskInput.disabled = active;
   askButton.textContent = active ? "Processing…" : "Ask AI";
+  updateComposerToggle();
 }
 
 function toIsoDate(date) {
@@ -453,6 +491,7 @@ function renderPreview() {
   savePreviewButton.textContent = unresolved
     ? `Confirm ${unresolved} ambiguous ${unresolved === 1 ? "date" : "dates"} to save`
     : `Save ${previewTasks.length} ${previewTasks.length === 1 ? "task" : "tasks"}`;
+  updateComposerToggle();
 }
 
 async function processInput(input, source) {
@@ -779,7 +818,8 @@ savePreviewButton.addEventListener("click", () => {
   interimTranscript = "";
   retryButton.hidden = true;
   setStatus(`${count} ${count === 1 ? "task" : "tasks"} saved.`, "success");
-  taskInput.focus();
+  setComposerOpen(false);
+  toggleComposerButton.focus({ preventScroll: true });
 });
 
 discardPreviewButton.addEventListener("click", () => {
@@ -800,6 +840,11 @@ titleInput.addEventListener("blur", () => {
     renderTasks();
   }
 });
+
+toggleComposerButton.addEventListener("click", () => {
+  setComposerOpen(!composerOpen, { focus: !composerOpen });
+});
+taskInput.addEventListener("input", resizeTaskInput);
 
 window.addEventListener("resize", () => {
   if (recordingPhase === "recording") resizeWaveform();
@@ -825,3 +870,5 @@ if (!SpeechRecognition) {
 renderTasks();
 renderPreview();
 updateRecordingControls();
+setComposerOpen(state.tasks.length === 0);
+resizeTaskInput();

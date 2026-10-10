@@ -27,61 +27,77 @@
             maxlength="60"
             aria-describedby="title-help"
           />
-          <p id="title-help" class="title-help">Click the title to rename your list.</p>
+          <div class="title-meta">
+            <p id="title-help" class="title-help">Click the title to rename your list.</p>
+            <button
+              id="toggle-composer"
+              class="toggle-composer"
+              type="button"
+              aria-controls="composer-region"
+              aria-expanded="true"
+              hidden
+            >
+              Add tasks
+            </button>
+          </div>
         </header>
 
-        <form id="task-form" class="task-form">
-          <div class="input-heading">
-            <label for="task-input">Describe everything you need to do</label>
-            <label class="language-picker" for="speech-language">
-              <span>Voice language</span>
-              <select id="speech-language">
-                <option value="zh-CN">Mandarin + English</option>
-                <option value="en-US">English</option>
-              </select>
-            </label>
-          </div>
-          <div class="task-composer">
-            <textarea
-              id="task-input"
-              placeholder="Type your plans, or use the microphone below…"
-              maxlength="4000"
-              autocomplete="off"
-              rows="4"
-            ></textarea>
-            <canvas id="voice-waveform" aria-label="Live microphone waveform" hidden></canvas>
-            <div class="composer-controls">
-              <button id="add-task-button" class="ask-button" type="submit">Ask AI</button>
-              <div class="recording-controls">
-                <button id="cancel-recording" class="cancel-recording" type="button" hidden>Cancel</button>
-                <time id="recording-timer" hidden>00:00</time>
-                <button
-                  id="record-button"
-                  class="record-button"
-                  type="button"
-                  aria-label="Start voice recording"
-                  aria-pressed="false"
-                >
-                  <svg class="microphone-icon" viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="9" y="3" width="6" height="11" rx="3"></rect>
-                    <path d="M6 11a6 6 0 0 0 12 0M12 17v4M9 21h6"></path>
-                  </svg>
-                  <svg class="stop-icon" viewBox="0 0 24 24" aria-hidden="true">
-                    <circle cx="12" cy="12" r="9"></circle>
-                    <rect x="9" y="9" width="6" height="6" rx="1"></rect>
-                  </svg>
-                </button>
+        <div id="composer-region" class="composer-region">
+          <div class="composer-region-inner">
+            <form id="task-form" class="task-form">
+              <div class="input-heading">
+                <label for="task-input">Describe everything you need to do</label>
+                <label class="language-picker" for="speech-language">
+                  <span>Voice language</span>
+                  <select id="speech-language">
+                    <option value="zh-CN">Mandarin + English</option>
+                    <option value="en-US">English</option>
+                  </select>
+                </label>
               </div>
-            </div>
+              <div class="task-composer">
+                <textarea
+                  id="task-input"
+                  placeholder="Type your plans, or use the microphone below…"
+                  maxlength="4000"
+                  autocomplete="off"
+                  rows="3"
+                ></textarea>
+                <canvas id="voice-waveform" aria-label="Live microphone waveform" hidden></canvas>
+                <div class="composer-controls">
+                  <button id="add-task-button" class="ask-button" type="submit">Ask AI</button>
+                  <div class="recording-controls">
+                    <button id="cancel-recording" class="cancel-recording" type="button" hidden>Cancel</button>
+                    <time id="recording-timer" hidden>00:00</time>
+                    <button
+                      id="record-button"
+                      class="record-button"
+                      type="button"
+                      aria-label="Start voice recording"
+                      aria-pressed="false"
+                    >
+                      <svg class="microphone-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="9" y="3" width="6" height="11" rx="3"></rect>
+                        <path d="M6 11a6 6 0 0 0 12 0M12 17v4M9 21h6"></path>
+                      </svg>
+                      <svg class="stop-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9"></circle>
+                        <rect x="9" y="9" width="6" height="6" rx="1"></rect>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="status-row">
+                <span id="status-indicator" class="status-indicator" aria-hidden="true"></span>
+                <p id="form-status" class="form-status" aria-live="polite">
+                  Ready for typing or voice input.
+                </p>
+                <button id="retry-processing" class="text-button" type="button" hidden>Retry processing</button>
+              </div>
+            </form>
           </div>
-          <div class="status-row">
-            <span id="status-indicator" class="status-indicator" aria-hidden="true"></span>
-            <p id="form-status" class="form-status" aria-live="polite">
-              Ready for typing or voice input.
-            </p>
-            <button id="retry-processing" class="text-button" type="button" hidden>Retry processing</button>
-          </div>
-        </form>
+        </div>
 
         <section id="preview-section" class="preview-section" aria-labelledby="preview-title" hidden>
           <div class="preview-heading">
