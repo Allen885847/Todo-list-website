@@ -41,6 +41,8 @@ let recognitionError = "";
 let finalTranscript = "";
 let interimTranscript = "";
 let isProcessing = false;
+let isTextComposing = false;
+let voiceSubmissionStarted = false;
 let pointerDrag = null;
 let composerOpen = state.tasks.length === 0;
 const taskLayoutAnimations = new WeakMap();
@@ -391,9 +393,10 @@ function setStatus(message, type = "idle") {
 
 function setProcessing(active) {
   isProcessing = active;
-  askButton.disabled = active || recordingPhase !== "idle";
-  recordButton.disabled = active || recordingPhase === "starting" || recordingPhase === "stopping" || !SpeechRecognition;
-  languageSelect.disabled = active || recordingPhase !== "idle";
+  const reviewingPreview = previewTasks.length > 0;
+  askButton.disabled = active || reviewingPreview || recordingPhase !== "idle";
+  recordButton.disabled = active || reviewingPreview || recordingPhase === "starting" || recordingPhase === "stopping" || !SpeechRecognition;
+  languageSelect.disabled = active || reviewingPreview || recordingPhase !== "idle";
   taskInput.disabled = active;
   askButton.textContent = active ? "Processing…" : "Ask AI";
   updateComposerToggle();
@@ -492,9 +495,15 @@ function renderPreview() {
     ? `Confirm ${unresolved} ambiguous ${unresolved === 1 ? "date" : "dates"} to save`
     : `Save ${previewTasks.length} ${previewTasks.length === 1 ? "task" : "tasks"}`;
   updateComposerToggle();
+  updateRecordingControls();
 }
 
 async function processInput(input, source) {
+  if (isProcessing) return;
+  if (previewTasks.length > 0) {
+    setStatus("Review or discard the current generated tasks before submitting another request.", "warning");
+    return;
+  }
   const cleanInput = input.trim();
   if (!cleanInput) {
     setStatus(source === "voice" ? "No speech was detected. Please try recording again." : "Enter at least one task.", "error");
@@ -609,13 +618,14 @@ function appendTranscript(words) {
 
 function updateRecordingControls() {
   const recording = recordingPhase === "recording";
+  const reviewingPreview = previewTasks.length > 0;
   document.body.classList.toggle("recording", recording);
   recordButton.setAttribute("aria-pressed", String(recording));
   recordButton.setAttribute("aria-label", recording ? "Stop voice recording" : "Start voice recording");
   cancelRecordingButton.hidden = !recording;
-  recordButton.disabled = isProcessing || recordingPhase === "starting" || recordingPhase === "stopping" || !SpeechRecognition;
-  askButton.disabled = isProcessing || recordingPhase !== "idle";
-  languageSelect.disabled = isProcessing || recordingPhase !== "idle";
+  recordButton.disabled = isProcessing || reviewingPreview || recordingPhase === "starting" || recordingPhase === "stopping" || !SpeechRecognition;
+  askButton.disabled = isProcessing || reviewingPreview || recordingPhase !== "idle";
+  languageSelect.disabled = isProcessing || reviewingPreview || recordingPhase !== "idle";
 }
 
 function finishCanceledRecording() {
@@ -629,6 +639,7 @@ function finishCanceledRecording() {
 }
 
 async function finishTranscription() {
+  if (voiceSubmissionStarted) return;
   releaseMedia();
   recordingPhase = "idle";
   updateRecordingControls();
@@ -652,6 +663,7 @@ async function finishTranscription() {
     setStatus("No speech was detected. Check your microphone and try again.", "error");
     return;
   }
+  voiceSubmissionStarted = true;
   await processInput(transcript, "voice");
 }
 
@@ -664,6 +676,7 @@ async function startRecording() {
 
   recordingPhase = "starting";
   cancelRequested = false;
+  voiceSubmissionStarted = false;
   recognitionError = "";
   finalTranscript = "";
   interimTranscript = "";
@@ -773,6 +786,19 @@ function cancelRecording() {
 taskForm.addEventListener("submit", (event) => {
   event.preventDefault();
   processInput(taskInput.value, "typed");
+});
+
+taskInput.addEventListener("compositionstart", () => {
+  isTextComposing = true;
+});
+taskInput.addEventListener("compositionend", () => {
+  isTextComposing = false;
+});
+taskInput.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || event.shiftKey) return;
+  if (event.isComposing || isTextComposing || event.keyCode === 229) return;
+  event.preventDefault();
+  if (!isProcessing && recordingPhase === "idle") taskForm.requestSubmit();
 });
 
 recordButton.addEventListener("click", () => {
