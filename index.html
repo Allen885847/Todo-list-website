@@ -124,7 +124,7 @@
             </div>
             <button id="discard-preview" class="text-button" type="button">Discard preview</button>
           </div>
-          <p class="preview-help">Edit titles and due dates, remove unwanted tasks, and confirm any ambiguous dates.</p>
+          <p class="preview-help">Edit titles, subjects, and due dates, remove unwanted tasks, and confirm any ambiguous dates.</p>
           <ul id="preview-list" class="preview-list"></ul>
           <button id="save-preview" class="save-preview" type="button">Save tasks</button>
         </section>
@@ -133,7 +133,7 @@
           <h1 id="page-title">Tasks</h1>
           <p id="task-count" aria-live="polite">0 tasks</p>
         </div>
-        <p class="reorder-help">Initially sorted by due date. Drag the handle to create and preserve your own order.</p>
+        <p class="reorder-help">Initially sorted by due date. Drag within a subject to create and preserve your own order.</p>
         <p id="page-notice" class="page-notice" role="status" aria-live="polite" hidden></p>
 
         <ul id="task-list" class="task-list" aria-label="Todo tasks"></ul>
@@ -145,21 +145,24 @@
         </div>
 
         <footer class="list-tools" aria-label="List tools">
-          <label class="appearance-picker" for="appearance-select">
-            <span>Appearance</span>
-            <select id="appearance-select">
-              <option value="system">System</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
-          </label>
-          <button id="share-list" class="share-list" type="button" aria-label="Save todo list as a PNG image">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 16V3M7.5 7.5 12 3l4.5 4.5"></path>
-              <path d="M6 10H4.8A1.8 1.8 0 0 0 3 11.8v7.4A1.8 1.8 0 0 0 4.8 21h14.4a1.8 1.8 0 0 0 1.8-1.8v-7.4a1.8 1.8 0 0 0-1.8-1.8H18"></path>
-            </svg>
-            <span>Share as PNG</span>
-          </button>
+          <button id="copy-list" class="copy-list" type="button" hidden>Copy</button>
+          <div class="list-tools-actions">
+            <label class="appearance-picker" for="appearance-select">
+              <span>Appearance</span>
+              <select id="appearance-select">
+                <option value="system">System</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </label>
+            <button id="share-list" class="share-list" type="button" aria-label="Save todo list as a PNG image">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 16V3M7.5 7.5 12 3l4.5 4.5"></path>
+                <path d="M6 10H4.8A1.8 1.8 0 0 0 3 11.8v7.4A1.8 1.8 0 0 0 4.8 21h14.4a1.8 1.8 0 0 0 1.8-1.8v-7.4a1.8 1.8 0 0 0-1.8-1.8H18"></path>
+              </svg>
+              <span>Share as PNG</span>
+            </button>
+          </div>
         </footer>
       </section>
     </main>

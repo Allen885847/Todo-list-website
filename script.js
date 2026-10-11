@@ -11,6 +11,7 @@ const toggleComposerButton = document.querySelector("#toggle-composer");
 const appearanceSelect = document.querySelector("#appearance-select");
 const shareButton = document.querySelector("#share-list");
 const shareButtonLabel = shareButton.querySelector("span");
+const copyButton = document.querySelector("#copy-list");
 const taskForm = document.querySelector("#task-form");
 const taskInput = document.querySelector("#task-input");
 const askButton = document.querySelector("#add-task-button");
@@ -52,6 +53,7 @@ let voiceSubmissionStarted = false;
 let isExporting = false;
 let noticeTimer;
 let noticeHideTimer;
+let copyResetTimer;
 let pointerDrag = null;
 let composerOpen = state.tasks.length === 0;
 let appearanceMode = loadAppearance();
@@ -63,6 +65,55 @@ function dueDateValue(item) {
 
 function sortByDueDate(items) {
   return [...items].sort((first, second) => dueDateValue(first) - dueDateValue(second));
+}
+
+function inferLegacySubject(taskText) {
+  const text = String(taskText).toLowerCase();
+  if (/english\s+(literature|lit)|novel|poem|poetry|shakespeare|literary/.test(text)) return "English Literature";
+  if (/english\s+(language|grammar|vocabulary)|grammar|vocabulary/.test(text)) return "English Language";
+  const subjects = [
+    ["Computer Science", /computer science|coding|programming|software/],
+    ["Mathematics", /mathematics|maths?|algebra|geometry|calculus/],
+    ["History", /history|historical/],
+    ["Physics", /physics/],
+    ["Chemistry", /chemistry/],
+    ["Biology", /biology/],
+    ["Chinese", /chinese|mandarin/],
+    ["Geography", /geography/],
+    ["Art", /\bart\b|drawing|painting/],
+    ["Music", /music/],
+  ];
+  return subjects.find(([, pattern]) => pattern.test(text))?.[0] || "General";
+}
+
+function normalizeSubject(value, taskText = "") {
+  const subject = String(value || "").trim().replace(/\s+/g, " ");
+  return subject || inferLegacySubject(taskText);
+}
+
+function taskGroupKey(task) {
+  return JSON.stringify([toIsoDate(task.date), task.subject]);
+}
+
+function groupTasks(items) {
+  const dates = new Map();
+  items.forEach((task, index) => {
+    const dateKey = toIsoDate(task.date);
+    if (!dates.has(dateKey)) dates.set(dateKey, { date: task.date, subjects: new Map() });
+    const dateGroup = dates.get(dateKey);
+    if (!dateGroup.subjects.has(task.subject)) dateGroup.subjects.set(task.subject, []);
+    dateGroup.subjects.get(task.subject).push({ task, index });
+  });
+  return [...dates.values()].map((dateGroup) => ({
+    date: dateGroup.date,
+    subjects: [...dateGroup.subjects].map(([subject, tasks]) => ({ subject, tasks })),
+  }));
+}
+
+function flattenGroups(items) {
+  return groupTasks(items).flatMap((dateGroup) =>
+    dateGroup.subjects.flatMap((subjectGroup) => subjectGroup.tasks.map(({ task }) => task)),
+  );
 }
 
 function normalizeTask(task) {
@@ -80,6 +131,7 @@ function normalizeTask(task) {
       year: Number(date.year),
     },
     task: String(task.task ?? task.text ?? "Untitled task"),
+    subject: normalizeSubject(task.subject, task.task ?? task.text),
     completed: Boolean(task.completed),
   };
 }
@@ -92,7 +144,7 @@ function loadState() {
       const tasks = savedState.tasks.map(normalizeTask);
       return {
         title: savedState.title || "Today’s focus",
-        tasks: orderMode === "date" ? sortByDueDate(tasks) : tasks,
+        tasks: flattenGroups(orderMode === "date" ? sortByDueDate(tasks) : tasks),
         orderMode,
       };
     }
@@ -133,10 +185,28 @@ function formatDate(date) {
   }).format(new Date(date.year, date.month - 1, date.day));
 }
 
+function createDateHeading(date) {
+  const item = document.createElement("li");
+  item.className = "task-date-heading";
+  const time = document.createElement("time");
+  time.dateTime = toIsoDate(date);
+  time.textContent = formatDate(date);
+  item.append(time);
+  return item;
+}
+
+function createSubjectHeading(subject) {
+  const item = document.createElement("li");
+  item.className = "task-subject-heading";
+  item.textContent = subject;
+  return item;
+}
+
 function createTaskElement(todo, index) {
   const item = document.createElement("li");
   item.className = `task-item${todo.completed ? " completed" : ""}`;
   item.dataset.index = String(index);
+  item.dataset.group = taskGroupKey(todo);
 
   const dragHandle = document.createElement("button");
   dragHandle.className = "drag-handle";
@@ -154,10 +224,6 @@ function createTaskElement(todo, index) {
 
   const content = document.createElement("div");
   content.className = "task-content";
-  const date = document.createElement("time");
-  date.className = "task-date";
-  date.dateTime = toIsoDate(todo.date);
-  date.textContent = formatDate(todo.date);
   const text = document.createElement("span");
   text.className = "task-text";
   text.textContent = todo.task;
@@ -172,8 +238,14 @@ function createTaskElement(todo, index) {
   dragHandle.addEventListener("keydown", (event) => {
     if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
     event.preventDefault();
-    const destination = index + (event.key === "ArrowUp" ? -1 : 1);
-    if (destination < 0 || destination >= state.tasks.length) return;
+    const groupIndices = state.tasks
+      .map((task, taskIndex) => ({ task, taskIndex }))
+      .filter(({ task }) => taskGroupKey(task) === taskGroupKey(todo))
+      .map(({ taskIndex }) => taskIndex);
+    const groupPosition = groupIndices.indexOf(index);
+    const destinationPosition = groupPosition + (event.key === "ArrowUp" ? -1 : 1);
+    if (destinationPosition < 0 || destinationPosition >= groupIndices.length) return;
+    const destination = groupIndices[destinationPosition];
     moveTaskToIndex(index, destination);
   });
   dragHandle.addEventListener("pointerdown", (event) => beginPointerDrag(event, item, index, dragHandle));
@@ -195,7 +267,7 @@ function createTaskElement(todo, index) {
     renderTasks();
   });
 
-  content.append(date, text);
+  content.append(text);
   item.append(dragHandle, checkbox, content, deleteButton);
   return item;
 }
@@ -227,6 +299,8 @@ function beginPointerDrag(event, source, fromIndex, handle) {
     source,
     handle,
     fromIndex,
+    groupKey: source.dataset.group,
+    destination: fromIndex,
     startX: event.clientX,
     startY: event.clientY,
     clientX: event.clientX,
@@ -287,16 +361,6 @@ function updatePointerDrag(event) {
   else if (event.clientY > window.innerHeight - scrollEdge) window.scrollBy(0, 12);
 }
 
-function getPlaceholderIndex() {
-  if (!pointerDrag?.placeholder) return -1;
-  let index = 0;
-  for (const child of taskList.children) {
-    if (child === pointerDrag.placeholder) return index;
-    if (child.classList.contains("task-item") && !child.classList.contains("drag-source")) index += 1;
-  }
-  return index;
-}
-
 function captureTaskPositions() {
   return new Map(
     [...taskList.querySelectorAll(".task-item:not(.drag-source)")]
@@ -321,7 +385,12 @@ function animateTaskPositions(previousPositions) {
 function movePlaceholderToPointer(clientY) {
   const drag = pointerDrag;
   if (!drag?.active) return;
-  const items = [...taskList.querySelectorAll(".task-item:not(.drag-source)")];
+  const items = [...taskList.querySelectorAll(".task-item:not(.drag-source)")]
+    .filter((item) => item.dataset.group === drag.groupKey);
+  if (items.length === 0) {
+    drag.destination = drag.fromIndex;
+    return;
+  }
   let destination = items.length;
   for (let index = 0; index < items.length; index += 1) {
     const rect = items[index].getBoundingClientRect();
@@ -330,11 +399,16 @@ function movePlaceholderToPointer(clientY) {
       break;
     }
   }
-  if (destination === getPlaceholderIndex()) return;
-
   const previousPositions = captureTaskPositions();
-  if (destination === items.length) taskList.append(drag.placeholder);
-  else taskList.insertBefore(drag.placeholder, items[destination]);
+  if (destination === items.length) {
+    items.at(-1)?.after(drag.placeholder);
+    const lastIndex = Number(items.at(-1)?.dataset.index ?? drag.fromIndex);
+    drag.destination = drag.fromIndex < lastIndex ? lastIndex : lastIndex + 1;
+  } else {
+    const targetIndex = Number(items[destination].dataset.index);
+    drag.destination = drag.fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+    taskList.insertBefore(drag.placeholder, items[destination]);
+  }
   animateTaskPositions(previousPositions);
 }
 
@@ -356,7 +430,7 @@ function finishPointerDrag(event) {
   }
 
   drag.settling = true;
-  const destination = getPlaceholderIndex();
+  const destination = drag.destination;
   const target = drag.placeholder.getBoundingClientRect();
   drag.ghost.classList.add("settling");
   drag.ghost.getBoundingClientRect();
@@ -376,12 +450,21 @@ function cancelPointerDrag(event) {
 }
 
 function renderTasks() {
-  taskList.replaceChildren(...state.tasks.map(createTaskElement));
+  const content = [];
+  groupTasks(state.tasks).forEach((dateGroup) => {
+    content.push(createDateHeading(dateGroup.date));
+    dateGroup.subjects.forEach((subjectGroup) => {
+      content.push(createSubjectHeading(subjectGroup.subject));
+      subjectGroup.tasks.forEach(({ task, index }) => content.push(createTaskElement(task, index)));
+    });
+  });
+  taskList.replaceChildren(...content);
   titleInput.value = state.title;
   const remaining = state.tasks.filter((todo) => !todo.completed).length;
   const total = state.tasks.length;
   taskCount.textContent = total === 1 ? `${remaining} of 1 task left` : `${remaining} of ${total} tasks left`;
   emptyState.hidden = total > 0;
+  copyButton.hidden = total === 0;
   shareButton.disabled = total === 0 || isExporting;
   if (total === 0 && !composerOpen) setComposerOpen(true, { focus: true });
   updateComposerToggle();
@@ -490,6 +573,48 @@ function celebrateCompletion() {
     }
   };
   requestAnimationFrame(animate);
+}
+
+function buildPlainTextList() {
+  const lines = [state.title.trim() || "Today’s focus", ""];
+  groupTasks(state.tasks).forEach((dateGroup) => {
+    dateGroup.subjects.forEach((subjectGroup) => {
+      subjectGroup.tasks.forEach(({ task }) => lines.push(task.task));
+    });
+  });
+  return lines.join("\n");
+}
+
+function fallbackCopyText(text) {
+  const field = document.createElement("textarea");
+  field.value = text;
+  field.readOnly = true;
+  field.style.position = "fixed";
+  field.style.opacity = "0";
+  document.body.append(field);
+  field.select();
+  const copied = document.execCommand("copy");
+  field.remove();
+  if (!copied) throw new Error("Clipboard copy was rejected.");
+}
+
+async function copyTodoList() {
+  if (state.tasks.length === 0) return;
+  try {
+    const text = buildPlainTextList();
+    if (navigator.clipboard?.writeText && window.isSecureContext) await navigator.clipboard.writeText(text);
+    else fallbackCopyText(text);
+    clearTimeout(copyResetTimer);
+    copyButton.textContent = "Copied!";
+    copyButton.classList.add("copied");
+    copyResetTimer = window.setTimeout(() => {
+      copyButton.textContent = "Copy";
+      copyButton.classList.remove("copied");
+    }, 1800);
+  } catch (error) {
+    console.error(error);
+    showPageNotice("The list could not be copied. Please try again.", "error", 3000);
+  }
 }
 
 function wrapCanvasText(context, text, maximumWidth) {
@@ -607,7 +732,7 @@ function createTodoImageBlob(snapshot) {
   context.stroke();
   context.fillStyle = "#6c777b";
   context.font = '500 20px Arial, "Helvetica Neue", sans-serif';
-  context.fillText("AI Todo List · Version 2.2", padding, y + 48);
+  context.fillText("AI Todo List · Version 2.3", padding, y + 48);
 
   const dataUrl = canvas.toDataURL("image/png");
   if (!dataUrl.startsWith("data:image/png;base64,")) {
@@ -780,6 +905,16 @@ function createPreviewElement(item, index) {
   title.addEventListener("input", () => { previewTasks[index].title = title.value; });
   titleLabel.append(title);
 
+  const subjectLabel = document.createElement("label");
+  subjectLabel.className = "preview-field subject-field";
+  subjectLabel.innerHTML = "<span>Subject</span>";
+  const subject = document.createElement("input");
+  subject.type = "text";
+  subject.maxLength = 80;
+  subject.value = item.subject;
+  subject.addEventListener("input", () => { previewTasks[index].subject = subject.value; });
+  subjectLabel.append(subject);
+
   const dateLabel = document.createElement("label");
   dateLabel.className = "preview-field date-field";
   dateLabel.innerHTML = "<span>Due date</span>";
@@ -800,7 +935,7 @@ function createPreviewElement(item, index) {
     previewTasks.splice(index, 1);
     renderPreview();
   });
-  fields.append(emoji, titleLabel, dateLabel, remove);
+  fields.append(emoji, titleLabel, subjectLabel, dateLabel, remove);
   row.append(fields);
 
   if (item.dateAmbiguous) {
@@ -879,6 +1014,7 @@ async function processInput(input, source) {
     }
     previewTasks = sortByDueDate(result.tasks.map((item) => ({
       title: item.title,
+      subject: normalizeSubject(item.subject, item.title),
       emoji: item.emoji,
       date: item.date,
       dateAmbiguous: Boolean(item.dateAmbiguous),
@@ -1162,6 +1298,12 @@ savePreviewButton.addEventListener("click", () => {
     previewList.querySelectorAll(".title-field input")[emptyTitleIndex]?.focus();
     return;
   }
+  const emptySubjectIndex = previewTasks.findIndex((item) => !item.subject.trim());
+  if (emptySubjectIndex !== -1) {
+    setStatus("Every task needs a subject before saving.", "error");
+    previewList.querySelectorAll(".subject-field input")[emptySubjectIndex]?.focus();
+    return;
+  }
   const ambiguousIndex = previewTasks.findIndex((item) => item.dateAmbiguous);
   if (ambiguousIndex !== -1) {
     setStatus("Confirm every ambiguous date before saving.", "warning");
@@ -1172,11 +1314,13 @@ savePreviewButton.addEventListener("click", () => {
   const savedTasks = sortByDueDate(previewTasks.map((item) => normalizeTask({
     date: item.date,
     task: `${item.emoji} ${item.title.trim()}`,
+    subject: item.subject,
     completed: false,
   })));
-  state.tasks = state.orderMode === "manual"
+  const combinedTasks = state.orderMode === "manual"
     ? [...state.tasks, ...savedTasks]
     : sortByDueDate([...state.tasks, ...savedTasks]);
+  state.tasks = flattenGroups(combinedTasks);
   saveState();
   renderTasks();
   const count = savedTasks.length;
@@ -1234,6 +1378,7 @@ appearanceSelect.addEventListener("change", () => {
   }
 });
 shareButton.addEventListener("click", exportTodoList);
+copyButton.addEventListener("click", copyTodoList);
 taskInput.addEventListener("input", resizeTaskInput);
 
 const handleSystemAppearanceChange = () => {

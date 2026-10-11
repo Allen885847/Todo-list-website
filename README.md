@@ -2,7 +2,7 @@
 
 A responsive, AI-powered to-do list built with HTML, CSS, JavaScript, and a small Node.js server.
 
-Release: **v2.2**. The desktop shortcut remains frozen on **v2.1**.
+Release: **v2.3**. This version is developed separately; the existing desktop shortcut remains on **v2.2**.
 
 ## Features
 
@@ -16,6 +16,8 @@ Release: **v2.2**. The desktop shortcut remains frozen on **v2.1**.
 - Ambiguous dates are flagged and must be confirmed in the preview
 - Task titles use consistent, concise noun phrases without leading action verbs for both single-task and multi-task input
 - Generated tasks are initially sorted by due date, earliest first
+- Within each date section, tasks are grouped under editable subject headings; English Language and English Literature remain separate subjects
+- Copy the current list as readable plain text containing only its title and one task per line
 - Lifted-card drag-and-drop, animated placement gaps, touch support, and keyboard reordering preserve a custom manual order
 - Task-first layout collapses the adaptive composer when saved tasks exist and restores it when the list is empty
 - Enter submits typed tasks directly, Shift+Enter adds a line break, and completed voice transcription submits automatically
