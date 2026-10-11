@@ -641,8 +641,8 @@ function downloadImageBlob(blob, filename) {
   window.setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-async function validatePngBlob(blob, { requireMimeType = true } = {}) {
-  if (!(blob instanceof Blob) || (requireMimeType && blob.type !== "image/png") || blob.size < 100) {
+async function validatePngBlob(blob) {
+  if (!(blob instanceof Blob) || blob.type !== "image/png" || blob.size < 100) {
     throw new Error("The generated file is not a valid PNG image.");
   }
 
@@ -684,41 +684,10 @@ async function exportTodoList() {
     renderTasks();
     return;
   }
-  let fileHandle;
-
   try {
-    if ("showSaveFilePicker" in window) {
-      try {
-        fileHandle = await window.showSaveFilePicker({
-          suggestedName: filename,
-          types: [{ description: "PNG image", accept: { "image/png": [".png"] } }],
-          excludeAcceptAllOption: true,
-        });
-      } catch (error) {
-        if (error.name === "AbortError") return;
-        console.warn("The save picker was unavailable; using a browser download instead.", error);
-      }
-    }
-
     await validatePngBlob(blob);
-    if (fileHandle) {
-      try {
-        const writable = await fileHandle.createWritable();
-        await writable.write(blob);
-        await writable.close();
-        const savedFile = await fileHandle.getFile();
-        await validatePngBlob(savedFile, { requireMimeType: false });
-        showPageNotice(`Saved ${fileHandle.name}`, "success");
-        return;
-      } catch (error) {
-        console.error("The selected PNG file could not be written or verified.", error);
-        showPageNotice("The PNG could not be saved to that location. Please try again.", "error", 3200);
-        return;
-      }
-    }
-
     downloadImageBlob(blob, filename);
-    showPageNotice(`Downloaded ${filename}`, "success");
+    showPageNotice(`PNG download started: ${filename}`, "success");
   } catch (error) {
     console.error(error);
     showPageNotice("The image could not be saved. Please try again.", "error", 3200);
