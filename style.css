@@ -187,6 +187,43 @@ textarea:disabled {
   font-size: 0.82rem;
 }
 
+.title-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.calendar-link {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  color: var(--accent-dark);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  transition: color 150ms, background 150ms, border-color 150ms, transform 150ms;
+}
+
+.calendar-link svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.calendar-link:hover,
+.calendar-link:focus-visible {
+  color: var(--on-strong);
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+  outline: none;
+  transform: translateY(-1px);
+}
+
 .toggle-composer {
   flex: 0 0 auto;
   padding: 8px 13px;
@@ -1057,6 +1094,11 @@ body.is-reordering * {
   .title-meta {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .title-actions {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .input-heading,

@@ -45,16 +45,25 @@
           />
           <div class="title-meta">
             <p id="title-help" class="title-help">Click the title to rename your list.</p>
-            <button
-              id="toggle-composer"
-              class="toggle-composer"
-              type="button"
-              aria-controls="composer-region"
-              aria-expanded="true"
-              hidden
-            >
-              Add tasks
-            </button>
+            <div class="title-actions">
+              <a class="calendar-link" href="calendar.html" aria-label="Open calendar" title="Open calendar">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="16" rx="3"></rect>
+                  <path d="M8 3v4M16 3v4M3 10h18"></path>
+                  <path d="M8 14h.01M12 14h.01M16 14h.01M8 17.5h.01M12 17.5h.01"></path>
+                </svg>
+              </a>
+              <button
+                id="toggle-composer"
+                class="toggle-composer"
+                type="button"
+                aria-controls="composer-region"
+                aria-expanded="true"
+                hidden
+              >
+                Add tasks
+              </button>
+            </div>
           </div>
         </header>
 

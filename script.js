@@ -60,6 +60,7 @@ let appearanceMode = loadAppearance();
 const taskLayoutAnimations = new WeakMap();
 
 function dueDateValue(item) {
+  if (!item.date) return Number.POSITIVE_INFINITY;
   return Date.UTC(item.date.year, item.date.month - 1, item.date.day);
 }
 
@@ -92,13 +93,13 @@ function normalizeSubject(value, taskText = "") {
 }
 
 function taskGroupKey(task) {
-  return JSON.stringify([toIsoDate(task.date), task.subject]);
+  return JSON.stringify([task.date ? toIsoDate(task.date) : "undated", task.subject]);
 }
 
 function groupTasks(items) {
   const dates = new Map();
   items.forEach((task, index) => {
-    const dateKey = toIsoDate(task.date);
+    const dateKey = task.date ? toIsoDate(task.date) : "undated";
     if (!dates.has(dateKey)) dates.set(dateKey, { date: task.date, subjects: new Map() });
     const dateGroup = dates.get(dateKey);
     if (!dateGroup.subjects.has(task.subject)) dateGroup.subjects.set(task.subject, []);
@@ -117,19 +118,14 @@ function flattenGroups(items) {
 }
 
 function normalizeTask(task) {
-  const now = new Date();
-  const date = task.date || {
-    day: now.getDate(),
-    month: now.getMonth() + 1,
-    year: now.getFullYear(),
-  };
+  const date = task.date || null;
 
   return {
-    date: {
+    date: date ? {
       day: Number(date.day),
       month: Number(date.month),
       year: Number(date.year),
-    },
+    } : null,
     task: String(task.task ?? task.text ?? "Untitled task"),
     subject: normalizeSubject(task.subject, task.task ?? task.text),
     completed: Boolean(task.completed),
@@ -178,6 +174,7 @@ function applyAppearance() {
 }
 
 function formatDate(date) {
+  if (!date) return "No due date";
   return new Intl.DateTimeFormat(undefined, {
     day: "numeric",
     month: "short",
@@ -188,10 +185,14 @@ function formatDate(date) {
 function createDateHeading(date) {
   const item = document.createElement("li");
   item.className = "task-date-heading";
-  const time = document.createElement("time");
-  time.dateTime = toIsoDate(date);
-  time.textContent = formatDate(date);
-  item.append(time);
+  if (date) {
+    const time = document.createElement("time");
+    time.dateTime = toIsoDate(date);
+    time.textContent = formatDate(date);
+    item.append(time);
+  } else {
+    item.textContent = "No due date";
+  }
   return item;
 }
 
@@ -732,7 +733,7 @@ function createTodoImageBlob(snapshot) {
   context.stroke();
   context.fillStyle = "#6c777b";
   context.font = '500 20px Arial, "Helvetica Neue", sans-serif';
-  context.fillText("AI Todo List · Version 2.3", padding, y + 48);
+  context.fillText("AI Todo List · Version 2.4", padding, y + 48);
 
   const dataUrl = canvas.toDataURL("image/png");
   if (!dataUrl.startsWith("data:image/png;base64,")) {
@@ -872,6 +873,7 @@ function setProcessing(active) {
 }
 
 function toIsoDate(date) {
+  if (!date) return "";
   return `${date.year}-${String(date.month).padStart(2, "0")}-${String(date.day).padStart(2, "0")}`;
 }
 

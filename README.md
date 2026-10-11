@@ -2,7 +2,9 @@
 
 A responsive, AI-powered to-do list built with HTML, CSS, JavaScript, and a small Node.js server.
 
-Release: **v2.3**. This version is developed separately; the existing desktop shortcut remains on **v2.2**.
+Release: **Version 2.4 Elite**.
+
+Version 2.4 Elite is a major update introducing an all-new Calendar system. View task due dates directly on the calendar, add personal plans and events, and highlight holiday periods with distinct colors. With Day, Week, Month, and Year views, the calendar makes it easier to organize upcoming tasks and see your schedule at a glance.
 
 ## Features
 
@@ -18,6 +20,11 @@ Release: **v2.3**. This version is developed separately; the existing desktop sh
 - Generated tasks are initially sorted by due date, earliest first
 - Within each date section, tasks are grouped under editable subject headings; English Language and English Literature remain separate subjects
 - Copy the current list as readable plain text containing only its title and one task per line
+- Open a dedicated calendar page from the To-Do List and switch between Day, Week, Month, and Year views while preserving the selected date
+- See tasks on their due dates, edit task details from the calendar, and keep undated tasks exclusively in the To-Do List
+- Add, edit, and delete distinct personal events with manual fields or an editable DeepSeek-powered natural-language preview
+- Display multi-day events across their full date range, keep tasks and events visually distinct, and persist calendar events across navigation and reloads
+- Recognize or manually mark holidays and highlight every inclusive date in the holiday range across all calendar views
 - Lifted-card drag-and-drop, animated placement gaps, touch support, and keyboard reordering preserve a custom manual order
 - Task-first layout collapses the adaptive composer when saved tasks exist and restores it when the list is empty
 - Enter submits typed tasks directly, Shift+Enter adds a line break, and completed voice transcription submits automatically

@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Calendar views for tasks and personal events." />
+    <title>Calendar · Todo List</title>
+    <script>
+      (() => {
+        let saved = "system";
+        try { saved = localStorage.getItem("todo-appearance") || "system"; } catch { /* Use system. */ }
+        const mode = ["light", "dark", "system"].includes(saved) ? saved : "system";
+        const resolved = mode === "system"
+          ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+          : mode;
+        document.documentElement.dataset.appearance = mode;
+        document.documentElement.dataset.theme = resolved;
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="calendar.css" />
+  </head>
+  <body class="calendar-page">
+    <main class="calendar-shell">
+      <header class="calendar-header">
+        <div class="calendar-brand">
+          <a class="back-link" href="index.html" aria-label="Return to Todo List">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
+            <span>Todo List</span>
+          </a>
+          <div>
+            <p class="eyebrow">Plan beyond the list</p>
+            <h1>Calendar</h1>
+          </div>
+        </div>
+        <button id="add-event" class="add-event-button" type="button">Add Event</button>
+      </header>
+
+      <section class="calendar-toolbar" aria-label="Calendar controls">
+        <div class="date-navigation">
+          <button id="previous-period" class="icon-button" type="button" aria-label="Previous period">‹</button>
+          <button id="today-button" class="today-button" type="button">Today</button>
+          <button id="next-period" class="icon-button" type="button" aria-label="Next period">›</button>
+          <div class="year-navigation" aria-label="Switch calendar year">
+            <button id="previous-year" class="icon-button year-button" type="button" aria-label="Previous year">‹</button>
+            <h2 id="period-label" aria-live="polite"></h2>
+            <button id="next-year" class="icon-button year-button" type="button" aria-label="Next year">›</button>
+          </div>
+        </div>
+        <div class="view-switcher" role="group" aria-label="Calendar view">
+          <button type="button" data-view="day">Day</button>
+          <button type="button" data-view="week">Week</button>
+          <button type="button" data-view="month" class="active">Month</button>
+          <button type="button" data-view="year">Year</button>
+        </div>
+      </section>
+
+      <p id="calendar-notice" class="calendar-notice" role="status" aria-live="polite" hidden></p>
+      <section id="calendar-stage" class="calendar-stage" aria-live="polite"></section>
+
+      <footer class="calendar-footer">
+        <div class="calendar-legend" aria-label="Calendar legend">
+          <span><i class="legend-dot task-dot"></i>Tasks</span>
+          <span><i class="legend-dot event-dot"></i>Personal events</span>
+          <span><i class="legend-holiday"></i>Holiday period</span>
+        </div>
+        <label class="appearance-picker" for="appearance-select">
+          <span>Appearance</span>
+          <select id="appearance-select">
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </label>
+      </footer>
+    </main>
+
+    <dialog id="event-dialog" class="editor-dialog">
+      <form method="dialog" class="dialog-card" id="event-editor">
+        <div class="dialog-heading">
+          <div>
+            <p class="section-label">PERSONAL EVENT</p>
+            <h2 id="event-dialog-title">Add an event</h2>
+          </div>
+          <button class="dialog-close" type="button" data-close-dialog aria-label="Close event editor">×</button>
+        </div>
+
+        <div id="event-entry-tabs" class="entry-tabs" role="tablist" aria-label="Event input method">
+          <button id="natural-tab" class="active" type="button" role="tab" aria-selected="true">Describe it</button>
+          <button id="manual-tab" type="button" role="tab" aria-selected="false">Enter manually</button>
+        </div>
+
+        <section id="natural-panel" class="natural-panel">
+          <label for="event-description">Describe one event</label>
+          <textarea id="event-description" rows="3" maxlength="4000" placeholder="My birthday is on October 20…"></textarea>
+          <button id="interpret-event" class="dialog-primary" type="button">Ask AI</button>
+          <p id="event-ai-status" class="dialog-status" aria-live="polite">Your text stays here if interpretation fails.</p>
+        </section>
+
+        <section id="event-preview" class="event-preview" hidden>
+          <p id="preview-label" class="preview-label">EDITABLE PREVIEW</p>
+          <div id="event-clarification" class="event-clarification" hidden>
+            <p id="event-question"></p>
+            <label><input id="date-confirmed" type="checkbox" /> I have checked and confirmed these dates.</label>
+          </div>
+          <div class="event-fields">
+            <label class="wide-field">Event title<input id="event-title" type="text" maxlength="200" required /></label>
+            <label>Start date<input id="event-start-date" type="date" required /></label>
+            <label>End date<input id="event-end-date" type="date" required /></label>
+            <label class="all-day-field"><input id="event-all-day" type="checkbox" checked /> All-day event</label>
+            <label class="all-day-field holiday-field"><input id="event-holiday" type="checkbox" /> Holiday <span>Highlights the full date range</span></label>
+            <label class="time-field">Start time<input id="event-start-time" type="time" /></label>
+            <label class="time-field">End time<input id="event-end-time" type="time" /></label>
+          </div>
+          <div class="dialog-actions">
+            <button id="delete-event" class="dialog-danger" type="button" hidden>Delete event</button>
+            <span class="dialog-spacer"></span>
+            <button class="dialog-secondary" type="button" data-close-dialog>Cancel</button>
+            <button id="save-event" class="dialog-primary" type="submit">Save event</button>
+          </div>
+        </section>
+      </form>
+    </dialog>
+
+    <dialog id="task-dialog" class="editor-dialog">
+      <form method="dialog" class="dialog-card" id="task-editor">
+        <div class="dialog-heading">
+          <div><p class="section-label">TO-DO TASK</p><h2>Edit task</h2></div>
+          <button class="dialog-close" type="button" data-close-dialog aria-label="Close task editor">×</button>
+        </div>
+        <div class="event-fields">
+          <label class="wide-field">Task title<input id="task-title" type="text" maxlength="220" required /></label>
+          <label>Subject<input id="task-subject" type="text" maxlength="80" required /></label>
+          <label>Due date <span class="optional-label">optional</span><input id="task-due-date" type="date" /></label>
+          <label class="all-day-field"><input id="task-completed" type="checkbox" /> Completed</label>
+        </div>
+        <p class="dialog-status">Tasks without a due date stay in the To-Do List and do not appear on the calendar.</p>
+        <div class="dialog-actions">
+          <span class="dialog-spacer"></span>
+          <button class="dialog-secondary" type="button" data-close-dialog>Cancel</button>
+          <button id="save-task" class="dialog-primary" type="submit">Save changes</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="calendar.js"></script>
+  </body>
+</html>

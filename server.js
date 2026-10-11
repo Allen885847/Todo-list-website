@@ -12,6 +12,9 @@ const STATIC_FILES = new Map([
   ["/index.html", ["index.html", "text/html; charset=utf-8"]],
   ["/style.css", ["style.css", "text/css; charset=utf-8"]],
   ["/script.js", ["script.js", "text/javascript; charset=utf-8"]],
+  ["/calendar.html", ["calendar.html", "text/html; charset=utf-8"]],
+  ["/calendar.css", ["calendar.css", "text/css; charset=utf-8"]],
+  ["/calendar.js", ["calendar.js", "text/javascript; charset=utf-8"]],
 ]);
 
 function sendJson(response, status, data) {
@@ -132,6 +135,53 @@ function normalizeGeneratedTasks(payload) {
   });
 }
 
+function isValidIsoDate(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
+function normalizeGeneratedEvent(payload) {
+  const item = payload?.event;
+  const title = typeof item?.title === "string" ? item.title.trim() : "";
+  const dateMissing = item?.dateMissing === true;
+  const dateAmbiguous = item?.dateAmbiguous === true;
+  const holiday = item?.holiday === true;
+  const clarificationQuestion = typeof item?.clarificationQuestion === "string"
+    ? item.clarificationQuestion.trim().slice(0, 240)
+    : "";
+  const allDay = holiday || item?.allDay !== false;
+  const startDate = typeof item?.startDate === "string" ? item.startDate : "";
+  const endDate = typeof item?.endDate === "string" ? item.endDate : startDate;
+  const startTime = typeof item?.startTime === "string" ? item.startTime : "";
+  const endTime = typeof item?.endTime === "string" ? item.endTime : "";
+  const validTime = (value) => value === "" || /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+
+  if (!title || title.length > 200 || !validTime(startTime) || !validTime(endTime)) {
+    throw new Error("DeepSeek returned invalid event details.");
+  }
+  if (!dateMissing && (!isValidIsoDate(startDate) || !isValidIsoDate(endDate) || endDate < startDate)) {
+    throw new Error("DeepSeek returned invalid event dates.");
+  }
+  if ((dateMissing || dateAmbiguous) && !clarificationQuestion) {
+    throw new Error("DeepSeek omitted the required date clarification.");
+  }
+
+  return {
+    title,
+    startDate: dateMissing ? "" : startDate,
+    endDate: dateMissing ? "" : endDate,
+    allDay,
+    holiday,
+    startTime: allDay ? "" : startTime,
+    endTime: allDay ? "" : endTime,
+    dateMissing,
+    dateAmbiguous,
+    clarificationQuestion,
+  };
+}
+
 async function parseTasks(input, timeZone) {
   const { today, localTime } = getLocalContext(timeZone);
   const apiResponse = await fetch("https://api.deepseek.com/chat/completions", {
@@ -191,6 +241,58 @@ Rules:
   return normalizeGeneratedTasks(JSON.parse(content));
 }
 
+async function parseEvent(input, timeZone) {
+  const { today, localTime } = getLocalContext(timeZone);
+  const apiResponse = await fetch("https://api.deepseek.com/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    signal: AbortSignal.timeout(60_000),
+    body: JSON.stringify({
+      model: "deepseek-flash",
+      thinking: { type: "disabled" },
+      max_tokens: 1_500,
+      temperature: 0,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: `Extract one personal calendar event from Mandarin Chinese, English, or mixed-language input.
+
+Current local context:
+- IANA time zone: ${timeZone}
+- Today: ${today}
+- Current local date and time: ${localTime}
+
+Return JSON only in exactly this shape:
+{"event":{"title":"Trip","startDate":"2026-10-20","endDate":"2026-10-23","allDay":true,"holiday":false,"startTime":"","endTime":"","dateMissing":false,"dateAmbiguous":false,"clarificationQuestion":""}}
+
+Rules:
+1. Preserve the user's meaning and names. Correct spelling and produce a concise, natural English title.
+2. Use inclusive ISO dates. For a single-day event, endDate equals startDate. Resolve relative dates using the local context.
+3. Never invent a date. If no date is supplied, set dateMissing true, use empty date strings, and ask a short English clarificationQuestion.
+4. If a date has multiple reasonable interpretations, set dateAmbiguous true, choose the most likely tentative dates, and ask a short English clarificationQuestion. Always treat an unqualified weekday such as "Friday" as ambiguous when it could reasonably mean this week's or next week's occurrence. Also flag numeric dates whose month/day order is unclear. Otherwise set dateAmbiguous false.
+5. Set holiday true when the user describes a holiday, vacation, school break, public holiday, or named holiday period. Preserve its inclusive start and end dates, including when the range crosses a month or year. Otherwise set holiday false.
+6. Holidays are all-day events: set allDay true and use empty time strings. For other events, do not invent times. When no specific time is given, set allDay true and use empty time strings.
+7. When a specific time or time range is supplied for a non-holiday event, set allDay false and use 24-hour HH:MM values. A single supplied time may use an empty endTime.
+8. This is a personal event, not a completable task. Return exactly one event.`,
+        },
+        { role: "user", content: input },
+      ],
+    }),
+  });
+
+  const payload = await apiResponse.json().catch(() => null);
+  if (!apiResponse.ok) {
+    throw new Error(payload?.error?.message || `DeepSeek request failed (${apiResponse.status}).`);
+  }
+  const content = payload?.choices?.[0]?.message?.content;
+  if (typeof content !== "string") throw new Error("DeepSeek returned no event data.");
+  return normalizeGeneratedEvent(JSON.parse(content));
+}
+
 const server = http.createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
 
@@ -218,6 +320,31 @@ const server = http.createServer(async (request, response) => {
         error: timedOut
           ? "DeepSeek took too long to respond. Your input is preserved; please retry."
           : "DeepSeek could not process your tasks. Your input is preserved; please retry.",
+      });
+    }
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/parse-event") {
+    if (!API_KEY) {
+      sendJson(response, 503, { error: "DeepSeek is not configured on this computer. Use manual event entry instead." });
+      return;
+    }
+
+    try {
+      const body = await readJson(request);
+      const input = typeof body.input === "string" ? body.input.trim() : "";
+      if (!input || input.length > MAX_INPUT_LENGTH) {
+        sendJson(response, 400, { error: "Describe one event in 1–4,000 characters." });
+        return;
+      }
+      const timeZone = resolveTimeZone(body.timeZone);
+      const event = await parseEvent(input, timeZone);
+      sendJson(response, 200, { event });
+    } catch (error) {
+      console.error("Event processing failed:", error.message);
+      sendJson(response, 502, {
+        error: "DeepSeek could not interpret this event. Your text is preserved; use manual entry or try again.",
       });
     }
     return;
