@@ -415,15 +415,21 @@ function celebrateCompletion() {
     const piece = document.createElement("i");
     piece.className = "confetti-piece";
     piece.style.setProperty("--x", `${Math.random() * 100}%`);
-    piece.style.setProperty("--delay", `${Math.random() * 0.28}s`);
-    piece.style.setProperty("--duration", `${1.05 + Math.random() * 0.65}s`);
-    piece.style.setProperty("--drift", `${-90 + Math.random() * 180}px`);
-    piece.style.setProperty("--spin", `${360 + Math.random() * 720}deg`);
+    piece.style.setProperty("--delay", `${Math.random() * 0.55}s`);
+    piece.style.setProperty("--duration", `${3.2 + Math.random() * 1.25}s`);
+    const drift = -105 + Math.random() * 210;
+    piece.style.setProperty("--drift-mid", `${drift * -0.35}px`);
+    piece.style.setProperty("--drift-late", `${drift * 0.72}px`);
+    piece.style.setProperty("--drift", `${drift}px`);
+    const spin = 540 + Math.random() * 720;
+    piece.style.setProperty("--spin-mid", `${-110 + Math.random() * 220}deg`);
+    piece.style.setProperty("--spin-late", `${spin * 0.7}deg`);
+    piece.style.setProperty("--spin", `${spin}deg`);
     piece.style.background = colors[index % colors.length];
     layer.append(piece);
   }
   document.body.append(layer);
-  window.setTimeout(() => layer.remove(), 2000);
+  window.setTimeout(() => layer.remove(), 5200);
 }
 
 function wrapCanvasText(context, text, maximumWidth) {
@@ -458,19 +464,19 @@ function roundedRectangle(context, x, y, width, height, radius) {
   context.closePath();
 }
 
-async function createTodoImageBlob() {
-  await document.fonts?.ready?.catch(() => {});
+function createTodoImageBlob(snapshot) {
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
+  if (!context) return Promise.reject(new Error("Canvas is not supported in this browser."));
   const width = 1200;
   const padding = 82;
   const contentWidth = width - padding * 2;
   const taskTextWidth = contentWidth - 112;
 
-  context.font = '700 64px "Fraunces", Georgia, serif';
-  const titleLines = wrapCanvasText(context, state.title.trim() || "Today’s focus", contentWidth);
-  context.font = '500 34px "DM Sans", Arial, sans-serif';
-  const preparedTasks = state.tasks.map((task) => {
+  context.font = '700 64px Georgia, "Times New Roman", serif';
+  const titleLines = wrapCanvasText(context, snapshot.title, contentWidth);
+  context.font = '500 34px Arial, "Helvetica Neue", sans-serif';
+  const preparedTasks = snapshot.tasks.map((task) => {
     const lines = wrapCanvasText(context, task.task, taskTextWidth);
     return { task, lines, height: Math.max(112, 58 + lines.length * 45) };
   });
@@ -487,22 +493,21 @@ async function createTodoImageBlob() {
   context.fillRect(0, 0, width, height);
 
   context.fillStyle = "#c7482b";
-  context.font = '700 22px "DM Sans", Arial, sans-serif';
-  context.letterSpacing = "3px";
+  context.font = '700 22px Arial, "Helvetica Neue", sans-serif';
   context.fillText("YOUR DAY, CLEARLY PLANNED", padding, padding);
 
   let y = padding + 76;
   context.fillStyle = "#172126";
-  context.font = '700 64px "Fraunces", Georgia, serif';
+  context.font = '700 64px Georgia, "Times New Roman", serif';
   titleLines.forEach((line) => {
     context.fillText(line, padding, y);
     y += 76;
   });
 
-  const completedCount = state.tasks.filter((task) => task.completed).length;
+  const completedCount = snapshot.tasks.filter((task) => task.completed).length;
   context.fillStyle = "#6c777b";
-  context.font = '600 24px "DM Sans", Arial, sans-serif';
-  context.fillText(`${completedCount} of ${state.tasks.length} completed`, padding, y + 8);
+  context.font = '600 24px Arial, "Helvetica Neue", sans-serif';
+  context.fillText(`${completedCount} of ${snapshot.tasks.length} completed`, padding, y + 8);
   y += 58;
 
   preparedTasks.forEach(({ task, lines, height: rowHeight }) => {
@@ -534,9 +539,9 @@ async function createTodoImageBlob() {
 
     const textX = padding + 70;
     context.fillStyle = "#c7482b";
-    context.font = '700 20px "DM Sans", Arial, sans-serif';
+    context.font = '700 20px Arial, "Helvetica Neue", sans-serif';
     context.fillText(formatDate(task.date).toUpperCase(), textX, y + 34);
-    context.font = '500 34px "DM Sans", Arial, sans-serif';
+    context.font = '500 34px Arial, "Helvetica Neue", sans-serif';
     context.fillStyle = task.completed ? "#919a97" : "#172126";
     let lineY = y + 80;
     lines.forEach((line) => {
@@ -561,16 +566,37 @@ async function createTodoImageBlob() {
   context.lineTo(width - padding, y);
   context.stroke();
   context.fillStyle = "#6c777b";
-  context.font = '500 20px "DM Sans", Arial, sans-serif';
+  context.font = '500 20px Arial, "Helvetica Neue", sans-serif';
   context.fillText("AI Todo List · Version 2.2", padding, y + 48);
 
   return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("The PNG image could not be created.")), "image/png");
+    try {
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(blob);
+          return;
+        }
+
+        try {
+          const dataUrl = canvas.toDataURL("image/png");
+          const [metadata, encoded] = dataUrl.split(",");
+          const mimeType = metadata.match(/^data:([^;]+)/)?.[1] || "image/png";
+          const binary = atob(encoded);
+          const bytes = new Uint8Array(binary.length);
+          for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+          resolve(new Blob([bytes], { type: mimeType }));
+        } catch (error) {
+          reject(error);
+        }
+      }, "image/png");
+    } catch (error) {
+      reject(error);
+    }
   });
 }
 
-function safeImageFilename() {
-  const cleanTitle = (state.title.trim() || "Todo List")
+function safeImageFilename(title = state.title) {
+  const cleanTitle = (title.trim() || "Todo List")
     .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "-")
     .replace(/\s+/g, " ")
     .slice(0, 80)
@@ -578,12 +604,53 @@ function safeImageFilename() {
   return `${cleanTitle || "Todo List"}.png`;
 }
 
+function downloadImageBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const download = document.createElement("a");
+  download.href = url;
+  download.download = filename;
+  download.style.display = "none";
+  document.body.append(download);
+  download.click();
+  download.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+async function validatePngBlob(blob) {
+  if (!(blob instanceof Blob) || blob.type !== "image/png" || blob.size < 100) {
+    throw new Error("The generated file is not a valid PNG image.");
+  }
+
+  const signature = new Uint8Array(await blob.slice(0, 8).arrayBuffer());
+  const expected = [137, 80, 78, 71, 13, 10, 26, 10];
+  if (!expected.every((byte, index) => signature[index] === byte)) {
+    throw new Error("The generated image has an invalid PNG signature.");
+  }
+
+  if ("createImageBitmap" in window) {
+    const bitmap = await createImageBitmap(blob);
+    const isUsable = bitmap.width > 0 && bitmap.height > 0;
+    bitmap.close();
+    if (!isUsable) throw new Error("The generated PNG image could not be decoded.");
+  }
+}
+
 async function exportTodoList() {
   if (state.tasks.length === 0 || isExporting) return;
   isExporting = true;
   renderTasks();
   shareButtonLabel.textContent = "Saving…";
-  const filename = safeImageFilename();
+  const snapshot = {
+    title: state.title.trim() || "Today’s focus",
+    tasks: state.tasks.map((task) => ({
+      task: task.task,
+      completed: task.completed,
+      date: { ...task.date },
+    })),
+  };
+  const filename = safeImageFilename(snapshot.title);
+  const blobPromise = createTodoImageBlob(snapshot);
+  blobPromise.catch(() => {});
   let fileHandle;
 
   try {
@@ -599,26 +666,30 @@ async function exportTodoList() {
       }
     }
 
-    const blob = await createTodoImageBlob();
+    const blob = await blobPromise;
+    await validatePngBlob(blob);
     if (fileHandle) {
-      const writable = await fileHandle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-    } else {
-      const url = URL.createObjectURL(blob);
-      const download = document.createElement("a");
-      download.href = url;
-      download.download = filename;
-      download.click();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      try {
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        const savedFile = await fileHandle.getFile();
+        await validatePngBlob(savedFile);
+        showPageNotice(`Saved ${filename}`, "success");
+        return;
+      } catch (error) {
+        console.warn("The selected location could not be written; using a browser download instead.", error);
+      }
     }
-    showPageNotice(`Saved ${filename}`, "success");
+
+    downloadImageBlob(blob, filename);
+    showPageNotice(`Downloaded ${filename}`, "success");
   } catch (error) {
     console.error(error);
     showPageNotice("The image could not be saved. Please try again.", "error", 3200);
   } finally {
     isExporting = false;
-    shareButtonLabel.textContent = "Share";
+    shareButtonLabel.textContent = "Share as PNG";
     renderTasks();
   }
 }

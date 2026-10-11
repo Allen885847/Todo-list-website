@@ -45,33 +45,16 @@
           />
           <div class="title-meta">
             <p id="title-help" class="title-help">Click the title to rename your list.</p>
-            <div class="header-actions">
-              <button
-                id="toggle-composer"
-                class="toggle-composer"
-                type="button"
-                aria-controls="composer-region"
-                aria-expanded="true"
-                hidden
-              >
-                Add tasks
-              </button>
-              <label class="appearance-picker" for="appearance-select">
-                <span>Appearance</span>
-                <select id="appearance-select">
-                  <option value="system">System</option>
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
-                </select>
-              </label>
-              <button id="share-list" class="share-list" type="button" aria-label="Save todo list as a PNG image">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 16V3M7.5 7.5 12 3l4.5 4.5"></path>
-                  <path d="M6 10H4.8A1.8 1.8 0 0 0 3 11.8v7.4A1.8 1.8 0 0 0 4.8 21h14.4a1.8 1.8 0 0 0 1.8-1.8v-7.4a1.8 1.8 0 0 0-1.8-1.8H18"></path>
-                </svg>
-                <span>Share</span>
-              </button>
-            </div>
+            <button
+              id="toggle-composer"
+              class="toggle-composer"
+              type="button"
+              aria-controls="composer-region"
+              aria-expanded="true"
+              hidden
+            >
+              Add tasks
+            </button>
           </div>
         </header>
 
@@ -160,6 +143,24 @@
           <p>Your list is clear.</p>
           <small>Add your first task above.</small>
         </div>
+
+        <footer class="list-tools" aria-label="List tools">
+          <label class="appearance-picker" for="appearance-select">
+            <span>Appearance</span>
+            <select id="appearance-select">
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
+          <button id="share-list" class="share-list" type="button" aria-label="Save todo list as a PNG image">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 16V3M7.5 7.5 12 3l4.5 4.5"></path>
+              <path d="M6 10H4.8A1.8 1.8 0 0 0 3 11.8v7.4A1.8 1.8 0 0 0 4.8 21h14.4a1.8 1.8 0 0 0 1.8-1.8v-7.4a1.8 1.8 0 0 0-1.8-1.8H18"></path>
+            </svg>
+            <span>Share as PNG</span>
+          </button>
+        </footer>
       </section>
     </main>
 

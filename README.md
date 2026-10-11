@@ -19,9 +19,9 @@ Release: **v2.2**. The desktop shortcut remains frozen on **v2.1**.
 - Lifted-card drag-and-drop, animated placement gaps, touch support, and keyboard reordering preserve a custom manual order
 - Task-first layout collapses the adaptive composer when saved tasks exist and restores it when the list is empty
 - Enter submits typed tasks directly, Shift+Enter adds a line break, and completed voice transcription submits automatically
-- Export the complete ordered task list as a clean PNG, including off-screen and completed tasks
-- Choose Light, Dark, or System appearance with a remembered preference
-- Celebrate the transition to a fully completed non-empty list with brief confetti or a reduced-motion message
+- Export the complete ordered task list as a validated PNG, including off-screen and completed tasks, with a normal-download fallback when direct file saving is unavailable
+- Choose Light, Dark, or System appearance from the bottom toolbar with a remembered preference and a neutral charcoal dark theme
+- Celebrate the transition to a fully completed non-empty list with gently floating confetti or a reduced-motion message
 - Every task is stored as an object with `date`, `task`, and `completed`
 - Delete tasks
 - Mark tasks complete with a checkbox
