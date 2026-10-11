@@ -415,21 +415,16 @@ function celebrateCompletion() {
     const piece = document.createElement("i");
     piece.className = "confetti-piece";
     piece.style.setProperty("--x", `${Math.random() * 100}%`);
-    piece.style.setProperty("--delay", `${Math.random() * 0.55}s`);
-    piece.style.setProperty("--duration", `${3.2 + Math.random() * 1.25}s`);
-    const drift = -105 + Math.random() * 210;
-    piece.style.setProperty("--drift-mid", `${drift * -0.35}px`);
-    piece.style.setProperty("--drift-late", `${drift * 0.72}px`);
-    piece.style.setProperty("--drift", `${drift}px`);
-    const spin = 540 + Math.random() * 720;
-    piece.style.setProperty("--spin-mid", `${-110 + Math.random() * 220}deg`);
-    piece.style.setProperty("--spin-late", `${spin * 0.7}deg`);
-    piece.style.setProperty("--spin", `${spin}deg`);
+    piece.style.setProperty("--delay", `${Math.random() * 0.7}s`);
+    piece.style.setProperty("--duration", `${5 + Math.random() * 2}s`);
+    piece.style.setProperty("--drift", `${-120 + Math.random() * 240}px`);
+    piece.style.setProperty("--spin-start", `${-35 + Math.random() * 70}deg`);
+    piece.style.setProperty("--spin", `${540 + Math.random() * 720}deg`);
     piece.style.background = colors[index % colors.length];
     layer.append(piece);
   }
   document.body.append(layer);
-  window.setTimeout(() => layer.remove(), 5200);
+  window.setTimeout(() => layer.remove(), 8000);
 }
 
 function wrapCanvasText(context, text, maximumWidth) {
@@ -1210,6 +1205,13 @@ titleInput.addEventListener("blur", () => {
 toggleComposerButton.addEventListener("click", () => {
   setComposerOpen(!composerOpen, { focus: !composerOpen });
 });
+let appearanceInputMethod = "keyboard";
+appearanceSelect.addEventListener("pointerdown", () => {
+  appearanceInputMethod = "pointer";
+});
+appearanceSelect.addEventListener("keydown", () => {
+  appearanceInputMethod = "keyboard";
+});
 appearanceSelect.addEventListener("change", () => {
   appearanceMode = appearanceSelect.value;
   try {
@@ -1218,6 +1220,9 @@ appearanceSelect.addEventListener("change", () => {
     console.warn("The appearance preference could not be saved.", error);
   }
   applyAppearance();
+  if (appearanceInputMethod === "pointer") {
+    requestAnimationFrame(() => appearanceSelect.blur());
+  }
 });
 shareButton.addEventListener("click", exportTodoList);
 taskInput.addEventListener("input", resizeTaskInput);

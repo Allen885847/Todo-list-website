@@ -223,6 +223,13 @@ textarea:disabled {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 999px;
+  outline: none;
+  box-shadow: none;
+}
+
+.appearance-picker select:focus-visible {
+  outline: 3px solid rgba(234, 104, 71, 0.38);
+  outline-offset: 2px;
 }
 
 .list-tools {
@@ -949,7 +956,8 @@ body.is-reordering * {
   height: 16px;
   border-radius: 2px;
   opacity: 0;
-  animation: confetti-fall var(--duration) cubic-bezier(0.12, 0.66, 0.35, 1) var(--delay) forwards;
+  will-change: transform, opacity;
+  animation: confetti-fall var(--duration) linear var(--delay) forwards;
 }
 
 .sr-only {
@@ -991,22 +999,21 @@ body.is-reordering * {
 }
 
 @keyframes confetti-fall {
-  8% {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -2vh, 0) rotate(var(--spin-start));
+  }
+
+  7% {
     opacity: 1;
   }
 
-  34% {
+  92% {
     opacity: 1;
-    transform: translate3d(var(--drift-mid), 34vh, 0) rotate(var(--spin-mid));
-  }
-
-  70% {
-    opacity: 1;
-    transform: translate3d(var(--drift-late), 72vh, 0) rotate(var(--spin-late));
   }
 
   to {
-    opacity: 0.78;
+    opacity: 0;
     transform: translate3d(var(--drift), 110vh, 0) rotate(var(--spin));
   }
 }
