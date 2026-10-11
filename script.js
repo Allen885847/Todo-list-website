@@ -1,11 +1,16 @@
 const STORAGE_KEY = "todo-list-mvp";
+const APPEARANCE_KEY = "todo-appearance";
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const systemDarkMode = window.matchMedia("(prefers-color-scheme: dark)");
 
 const titleInput = document.querySelector("#list-title");
 const todoCard = document.querySelector(".todo-card");
 const composerRegion = document.querySelector("#composer-region");
 const toggleComposerButton = document.querySelector("#toggle-composer");
+const appearanceSelect = document.querySelector("#appearance-select");
+const shareButton = document.querySelector("#share-list");
+const shareButtonLabel = shareButton.querySelector("span");
 const taskForm = document.querySelector("#task-form");
 const taskInput = document.querySelector("#task-input");
 const askButton = document.querySelector("#add-task-button");
@@ -24,6 +29,7 @@ const discardPreviewButton = document.querySelector("#discard-preview");
 const taskList = document.querySelector("#task-list");
 const taskCount = document.querySelector("#task-count");
 const emptyState = document.querySelector("#empty-state");
+const pageNotice = document.querySelector("#page-notice");
 
 let state = loadState();
 let previewTasks = [];
@@ -43,8 +49,12 @@ let interimTranscript = "";
 let isProcessing = false;
 let isTextComposing = false;
 let voiceSubmissionStarted = false;
+let isExporting = false;
+let noticeTimer;
+let noticeHideTimer;
 let pointerDrag = null;
 let composerOpen = state.tasks.length === 0;
+let appearanceMode = loadAppearance();
 const taskLayoutAnimations = new WeakMap();
 
 function dueDateValue(item) {
@@ -94,6 +104,25 @@ function loadState() {
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function loadAppearance() {
+  try {
+    const saved = localStorage.getItem(APPEARANCE_KEY);
+    if (["light", "dark", "system"].includes(saved)) return saved;
+  } catch (error) {
+    console.warn("The appearance preference could not be loaded.", error);
+  }
+  return "system";
+}
+
+function applyAppearance() {
+  const resolved = appearanceMode === "system"
+    ? (systemDarkMode.matches ? "dark" : "light")
+    : appearanceMode;
+  document.documentElement.dataset.appearance = appearanceMode;
+  document.documentElement.dataset.theme = resolved;
+  appearanceSelect.value = appearanceMode;
 }
 
 function formatDate(date) {
@@ -153,9 +182,12 @@ function createTaskElement(todo, index) {
   });
 
   checkbox.addEventListener("change", () => {
+    const wasFullyCompleted = state.tasks.length > 0 && state.tasks.every((task) => task.completed);
     state.tasks[index].completed = checkbox.checked;
+    const isFullyCompleted = state.tasks.length > 0 && state.tasks.every((task) => task.completed);
     saveState();
     renderTasks();
+    if (!wasFullyCompleted && isFullyCompleted) celebrateCompletion();
   });
   deleteButton.addEventListener("click", () => {
     state.tasks.splice(index, 1);
@@ -350,8 +382,245 @@ function renderTasks() {
   const total = state.tasks.length;
   taskCount.textContent = total === 1 ? `${remaining} of 1 task left` : `${remaining} of ${total} tasks left`;
   emptyState.hidden = total > 0;
+  shareButton.disabled = total === 0 || isExporting;
   if (total === 0 && !composerOpen) setComposerOpen(true, { focus: true });
   updateComposerToggle();
+}
+
+function showPageNotice(message, type = "success", duration = 2400) {
+  clearTimeout(noticeTimer);
+  clearTimeout(noticeHideTimer);
+  pageNotice.textContent = message;
+  pageNotice.className = `page-notice visible ${type}`;
+  pageNotice.hidden = false;
+  noticeTimer = window.setTimeout(() => {
+    pageNotice.classList.remove("visible");
+    noticeHideTimer = window.setTimeout(() => { pageNotice.hidden = true; }, prefersReducedMotion ? 0 : 180);
+  }, duration);
+}
+
+function celebrateCompletion() {
+  showPageNotice(
+    prefersReducedMotion ? "All tasks completed. Nice work!" : "All done — nice work! 🎉",
+    "completion",
+    2300,
+  );
+  if (prefersReducedMotion) return;
+
+  const layer = document.createElement("div");
+  layer.className = "confetti-layer";
+  layer.setAttribute("aria-hidden", "true");
+  const colors = ["#ea6847", "#23836c", "#f4ba55", "#75a7e8", "#c276d8"];
+  for (let index = 0; index < 54; index += 1) {
+    const piece = document.createElement("i");
+    piece.className = "confetti-piece";
+    piece.style.setProperty("--x", `${Math.random() * 100}%`);
+    piece.style.setProperty("--delay", `${Math.random() * 0.28}s`);
+    piece.style.setProperty("--duration", `${1.05 + Math.random() * 0.65}s`);
+    piece.style.setProperty("--drift", `${-90 + Math.random() * 180}px`);
+    piece.style.setProperty("--spin", `${360 + Math.random() * 720}deg`);
+    piece.style.background = colors[index % colors.length];
+    layer.append(piece);
+  }
+  document.body.append(layer);
+  window.setTimeout(() => layer.remove(), 2000);
+}
+
+function wrapCanvasText(context, text, maximumWidth) {
+  const lines = [];
+  let line = "";
+  for (const character of String(text)) {
+    if (character === "\n") {
+      lines.push(line.trimEnd());
+      line = "";
+      continue;
+    }
+    const candidate = line + character;
+    if (line && context.measureText(candidate).width > maximumWidth) {
+      lines.push(line.trimEnd());
+      line = character.trimStart();
+    } else {
+      line = candidate;
+    }
+  }
+  if (line || lines.length === 0) lines.push(line.trimEnd());
+  return lines;
+}
+
+function roundedRectangle(context, x, y, width, height, radius) {
+  const safeRadius = Math.min(radius, width / 2, height / 2);
+  context.beginPath();
+  context.moveTo(x + safeRadius, y);
+  context.arcTo(x + width, y, x + width, y + height, safeRadius);
+  context.arcTo(x + width, y + height, x, y + height, safeRadius);
+  context.arcTo(x, y + height, x, y, safeRadius);
+  context.arcTo(x, y, x + width, y, safeRadius);
+  context.closePath();
+}
+
+async function createTodoImageBlob() {
+  await document.fonts?.ready?.catch(() => {});
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  const width = 1200;
+  const padding = 82;
+  const contentWidth = width - padding * 2;
+  const taskTextWidth = contentWidth - 112;
+
+  context.font = '700 64px "Fraunces", Georgia, serif';
+  const titleLines = wrapCanvasText(context, state.title.trim() || "Today’s focus", contentWidth);
+  context.font = '500 34px "DM Sans", Arial, sans-serif';
+  const preparedTasks = state.tasks.map((task) => {
+    const lines = wrapCanvasText(context, task.task, taskTextWidth);
+    return { task, lines, height: Math.max(112, 58 + lines.length * 45) };
+  });
+  const titleHeight = titleLines.length * 76;
+  const tasksHeight = preparedTasks.reduce((sum, item) => sum + item.height, 0);
+  const height = Math.max(720, padding + 42 + titleHeight + 84 + tasksHeight + 90);
+  canvas.width = width;
+  canvas.height = height;
+
+  const background = context.createLinearGradient(0, 0, width, height);
+  background.addColorStop(0, "#fffdf7");
+  background.addColorStop(1, "#f4efe3");
+  context.fillStyle = background;
+  context.fillRect(0, 0, width, height);
+
+  context.fillStyle = "#c7482b";
+  context.font = '700 22px "DM Sans", Arial, sans-serif';
+  context.letterSpacing = "3px";
+  context.fillText("YOUR DAY, CLEARLY PLANNED", padding, padding);
+
+  let y = padding + 76;
+  context.fillStyle = "#172126";
+  context.font = '700 64px "Fraunces", Georgia, serif';
+  titleLines.forEach((line) => {
+    context.fillText(line, padding, y);
+    y += 76;
+  });
+
+  const completedCount = state.tasks.filter((task) => task.completed).length;
+  context.fillStyle = "#6c777b";
+  context.font = '600 24px "DM Sans", Arial, sans-serif';
+  context.fillText(`${completedCount} of ${state.tasks.length} completed`, padding, y + 8);
+  y += 58;
+
+  preparedTasks.forEach(({ task, lines, height: rowHeight }) => {
+    context.strokeStyle = "#dfe4df";
+    context.lineWidth = 2;
+    context.beginPath();
+    context.moveTo(padding, y);
+    context.lineTo(width - padding, y);
+    context.stroke();
+
+    const checkboxX = padding + 2;
+    const checkboxY = y + 40;
+    roundedRectangle(context, checkboxX, checkboxY, 34, 34, 8);
+    context.fillStyle = task.completed ? "#ea6847" : "#ffffff";
+    context.fill();
+    context.strokeStyle = task.completed ? "#ea6847" : "#aeb7b4";
+    context.lineWidth = 3;
+    context.stroke();
+    if (task.completed) {
+      context.strokeStyle = "#ffffff";
+      context.lineWidth = 4;
+      context.lineCap = "round";
+      context.beginPath();
+      context.moveTo(checkboxX + 8, checkboxY + 18);
+      context.lineTo(checkboxX + 14, checkboxY + 24);
+      context.lineTo(checkboxX + 27, checkboxY + 10);
+      context.stroke();
+    }
+
+    const textX = padding + 70;
+    context.fillStyle = "#c7482b";
+    context.font = '700 20px "DM Sans", Arial, sans-serif';
+    context.fillText(formatDate(task.date).toUpperCase(), textX, y + 34);
+    context.font = '500 34px "DM Sans", Arial, sans-serif';
+    context.fillStyle = task.completed ? "#919a97" : "#172126";
+    let lineY = y + 80;
+    lines.forEach((line) => {
+      context.fillText(line, textX, lineY);
+      if (task.completed) {
+        const lineWidth = context.measureText(line).width;
+        context.strokeStyle = "#ea6847";
+        context.lineWidth = 3;
+        context.beginPath();
+        context.moveTo(textX, lineY - 11);
+        context.lineTo(textX + lineWidth, lineY - 11);
+        context.stroke();
+      }
+      lineY += 45;
+    });
+    y += rowHeight;
+  });
+
+  context.strokeStyle = "#dfe4df";
+  context.beginPath();
+  context.moveTo(padding, y);
+  context.lineTo(width - padding, y);
+  context.stroke();
+  context.fillStyle = "#6c777b";
+  context.font = '500 20px "DM Sans", Arial, sans-serif';
+  context.fillText("AI Todo List · Version 2.2", padding, y + 48);
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("The PNG image could not be created.")), "image/png");
+  });
+}
+
+function safeImageFilename() {
+  const cleanTitle = (state.title.trim() || "Todo List")
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "-")
+    .replace(/\s+/g, " ")
+    .slice(0, 80)
+    .trim();
+  return `${cleanTitle || "Todo List"}.png`;
+}
+
+async function exportTodoList() {
+  if (state.tasks.length === 0 || isExporting) return;
+  isExporting = true;
+  renderTasks();
+  shareButtonLabel.textContent = "Saving…";
+  const filename = safeImageFilename();
+  let fileHandle;
+
+  try {
+    if ("showSaveFilePicker" in window) {
+      try {
+        fileHandle = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [{ description: "PNG image", accept: { "image/png": [".png"] } }],
+        });
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        console.warn("The save picker was unavailable; using a browser download instead.", error);
+      }
+    }
+
+    const blob = await createTodoImageBlob();
+    if (fileHandle) {
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+    } else {
+      const url = URL.createObjectURL(blob);
+      const download = document.createElement("a");
+      download.href = url;
+      download.download = filename;
+      download.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    showPageNotice(`Saved ${filename}`, "success");
+  } catch (error) {
+    console.error(error);
+    showPageNotice("The image could not be saved. Please try again.", "error", 3200);
+  } finally {
+    isExporting = false;
+    shareButtonLabel.textContent = "Share";
+    renderTasks();
+  }
 }
 
 function resizeTaskInput() {
@@ -870,7 +1139,23 @@ titleInput.addEventListener("blur", () => {
 toggleComposerButton.addEventListener("click", () => {
   setComposerOpen(!composerOpen, { focus: !composerOpen });
 });
+appearanceSelect.addEventListener("change", () => {
+  appearanceMode = appearanceSelect.value;
+  try {
+    localStorage.setItem(APPEARANCE_KEY, appearanceMode);
+  } catch (error) {
+    console.warn("The appearance preference could not be saved.", error);
+  }
+  applyAppearance();
+});
+shareButton.addEventListener("click", exportTodoList);
 taskInput.addEventListener("input", resizeTaskInput);
+
+const handleSystemAppearanceChange = () => {
+  if (appearanceMode === "system") applyAppearance();
+};
+if (systemDarkMode.addEventListener) systemDarkMode.addEventListener("change", handleSystemAppearanceChange);
+else systemDarkMode.addListener(handleSystemAppearanceChange);
 
 window.addEventListener("resize", () => {
   if (recordingPhase === "recording") resizeWaveform();
@@ -893,6 +1178,7 @@ if (!SpeechRecognition) {
   recordButton.disabled = true;
   setStatus("Voice input is not supported in this browser. Use the latest Google Chrome, or continue typing.", "warning");
 }
+applyAppearance();
 renderTasks();
 renderPreview();
 updateRecordingControls();
