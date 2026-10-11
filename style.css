@@ -716,6 +716,10 @@ body.recording .stop-icon {
   transition: background 140ms, box-shadow 140ms, opacity 140ms;
 }
 
+.task-item:last-child {
+  border-bottom: 0;
+}
+
 .task-item.drag-source {
   display: none;
 }
@@ -944,20 +948,8 @@ body.is-reordering * {
   position: fixed;
   z-index: 1100;
   inset: 0;
-  overflow: hidden;
+  display: block;
   pointer-events: none;
-}
-
-.confetti-piece {
-  position: absolute;
-  top: -24px;
-  left: var(--x);
-  width: 9px;
-  height: 16px;
-  border-radius: 2px;
-  opacity: 0;
-  will-change: transform, opacity;
-  animation: confetti-fall var(--duration) linear var(--delay) forwards;
 }
 
 .sr-only {
@@ -995,26 +987,6 @@ body.is-reordering * {
   to {
     background: var(--placeholder-background-strong);
     border-color: var(--accent);
-  }
-}
-
-@keyframes confetti-fall {
-  from {
-    opacity: 0;
-    transform: translate3d(0, -2vh, 0) rotate(var(--spin-start));
-  }
-
-  7% {
-    opacity: 1;
-  }
-
-  92% {
-    opacity: 1;
-  }
-
-  to {
-    opacity: 0;
-    transform: translate3d(var(--drift), 110vh, 0) rotate(var(--spin));
   }
 }
 

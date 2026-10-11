@@ -407,24 +407,89 @@ function celebrateCompletion() {
   );
   if (prefersReducedMotion) return;
 
-  const layer = document.createElement("div");
+  const layer = document.createElement("canvas");
   layer.className = "confetti-layer";
   layer.setAttribute("aria-hidden", "true");
+  const context = layer.getContext("2d");
+  if (!context) return;
+
   const colors = ["#ea6847", "#23836c", "#f4ba55", "#75a7e8", "#c276d8"];
-  for (let index = 0; index < 54; index += 1) {
-    const piece = document.createElement("i");
-    piece.className = "confetti-piece";
-    piece.style.setProperty("--x", `${Math.random() * 100}%`);
-    piece.style.setProperty("--delay", `${Math.random() * 0.7}s`);
-    piece.style.setProperty("--duration", `${5 + Math.random() * 2}s`);
-    piece.style.setProperty("--drift", `${-120 + Math.random() * 240}px`);
-    piece.style.setProperty("--spin-start", `${-35 + Math.random() * 70}deg`);
-    piece.style.setProperty("--spin", `${540 + Math.random() * 720}deg`);
-    piece.style.background = colors[index % colors.length];
-    layer.append(piece);
-  }
   document.body.append(layer);
-  window.setTimeout(() => layer.remove(), 8000);
+
+  let viewportWidth = window.innerWidth;
+  let viewportHeight = window.innerHeight;
+  let scale = Math.min(window.devicePixelRatio || 1, 2);
+  const resizeLayer = () => {
+    viewportWidth = window.innerWidth;
+    viewportHeight = window.innerHeight;
+    scale = Math.min(window.devicePixelRatio || 1, 2);
+    layer.width = Math.round(viewportWidth * scale);
+    layer.height = Math.round(viewportHeight * scale);
+    layer.style.width = `${viewportWidth}px`;
+    layer.style.height = `${viewportHeight}px`;
+  };
+  resizeLayer();
+  window.addEventListener("resize", resizeLayer);
+
+  const originY = Math.min(viewportHeight * 0.34, 290);
+  const particles = Array.from({ length: 82 }, (_, index) => {
+    const direction = index % 2 === 0 ? -1 : 1;
+    return {
+      x: viewportWidth / 2 + direction * (18 + Math.random() * 58),
+      y: originY + Math.random() * 22,
+      velocityX: direction * (1.4 + Math.random() * 4.8) + (Math.random() - 0.5) * 1.4,
+      velocityY: -(7.4 + Math.random() * 5.2),
+      gravity: 0.105 + Math.random() * 0.055,
+      drag: 0.986 + Math.random() * 0.008,
+      width: 6 + Math.random() * 7,
+      height: 10 + Math.random() * 10,
+      rotation: Math.random() * Math.PI * 2,
+      rotationSpeed: (Math.random() - 0.5) * 0.34,
+      flutterOffset: Math.random() * Math.PI * 2,
+      color: colors[index % colors.length],
+      opacity: 1,
+    };
+  });
+
+  let previousTime = performance.now();
+  const startTime = previousTime;
+  const animate = (time) => {
+    const step = Math.min((time - previousTime) / 16.67, 2.2);
+    previousTime = time;
+    context.setTransform(scale, 0, 0, scale, 0, 0);
+    context.clearRect(0, 0, viewportWidth, viewportHeight);
+
+    let visibleParticles = 0;
+    particles.forEach((particle) => {
+      particle.velocityX *= particle.drag ** step;
+      particle.velocityY += particle.gravity * step;
+      particle.x += particle.velocityX * step;
+      particle.x += Math.sin(time * 0.006 + particle.flutterOffset) * 0.18 * step;
+      particle.y += particle.velocityY * step;
+      particle.rotation += particle.rotationSpeed * step;
+      particle.opacity = particle.y > viewportHeight * 0.82
+        ? Math.max(0, (viewportHeight + 40 - particle.y) / (viewportHeight * 0.18 + 40))
+        : 1;
+
+      if (particle.y < viewportHeight + 50 && particle.opacity > 0) visibleParticles += 1;
+      context.save();
+      context.globalAlpha = particle.opacity;
+      context.translate(particle.x, particle.y);
+      context.rotate(particle.rotation);
+      context.scale(1, Math.cos(particle.rotation * 1.7));
+      context.fillStyle = particle.color;
+      context.fillRect(-particle.width / 2, -particle.height / 2, particle.width, particle.height);
+      context.restore();
+    });
+
+    if (visibleParticles > 0 && time - startTime < 6000) {
+      requestAnimationFrame(animate);
+    } else {
+      window.removeEventListener("resize", resizeLayer);
+      layer.remove();
+    }
+  };
+  requestAnimationFrame(animate);
 }
 
 function wrapCanvasText(context, text, maximumWidth) {
@@ -462,7 +527,7 @@ function roundedRectangle(context, x, y, width, height, radius) {
 function createTodoImageBlob(snapshot) {
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
-  if (!context) return Promise.reject(new Error("Canvas is not supported in this browser."));
+  if (!context) throw new Error("Canvas is not supported in this browser.");
   const width = 1200;
   const padding = 82;
   const contentWidth = width - padding * 2;
@@ -499,10 +564,9 @@ function createTodoImageBlob(snapshot) {
     y += 76;
   });
 
-  const completedCount = snapshot.tasks.filter((task) => task.completed).length;
   context.fillStyle = "#6c777b";
   context.font = '600 24px Arial, "Helvetica Neue", sans-serif';
-  context.fillText(`${completedCount} of ${snapshot.tasks.length} completed`, padding, y + 8);
+  context.fillText(`${snapshot.tasks.length} ${snapshot.tasks.length === 1 ? "task" : "tasks"} to do`, padding, y + 8);
   y += 58;
 
   preparedTasks.forEach(({ task, lines, height: rowHeight }) => {
@@ -516,40 +580,21 @@ function createTodoImageBlob(snapshot) {
     const checkboxX = padding + 2;
     const checkboxY = y + 40;
     roundedRectangle(context, checkboxX, checkboxY, 34, 34, 8);
-    context.fillStyle = task.completed ? "#ea6847" : "#ffffff";
+    context.fillStyle = "#ffffff";
     context.fill();
-    context.strokeStyle = task.completed ? "#ea6847" : "#aeb7b4";
+    context.strokeStyle = "#aeb7b4";
     context.lineWidth = 3;
     context.stroke();
-    if (task.completed) {
-      context.strokeStyle = "#ffffff";
-      context.lineWidth = 4;
-      context.lineCap = "round";
-      context.beginPath();
-      context.moveTo(checkboxX + 8, checkboxY + 18);
-      context.lineTo(checkboxX + 14, checkboxY + 24);
-      context.lineTo(checkboxX + 27, checkboxY + 10);
-      context.stroke();
-    }
 
     const textX = padding + 70;
     context.fillStyle = "#c7482b";
     context.font = '700 20px Arial, "Helvetica Neue", sans-serif';
     context.fillText(formatDate(task.date).toUpperCase(), textX, y + 34);
     context.font = '500 34px Arial, "Helvetica Neue", sans-serif';
-    context.fillStyle = task.completed ? "#919a97" : "#172126";
+    context.fillStyle = "#172126";
     let lineY = y + 80;
     lines.forEach((line) => {
       context.fillText(line, textX, lineY);
-      if (task.completed) {
-        const lineWidth = context.measureText(line).width;
-        context.strokeStyle = "#ea6847";
-        context.lineWidth = 3;
-        context.beginPath();
-        context.moveTo(textX, lineY - 11);
-        context.lineTo(textX + lineWidth, lineY - 11);
-        context.stroke();
-      }
       lineY += 45;
     });
     y += rowHeight;
@@ -564,30 +609,15 @@ function createTodoImageBlob(snapshot) {
   context.font = '500 20px Arial, "Helvetica Neue", sans-serif';
   context.fillText("AI Todo List · Version 2.2", padding, y + 48);
 
-  return new Promise((resolve, reject) => {
-    try {
-      canvas.toBlob((blob) => {
-        if (blob) {
-          resolve(blob);
-          return;
-        }
-
-        try {
-          const dataUrl = canvas.toDataURL("image/png");
-          const [metadata, encoded] = dataUrl.split(",");
-          const mimeType = metadata.match(/^data:([^;]+)/)?.[1] || "image/png";
-          const binary = atob(encoded);
-          const bytes = new Uint8Array(binary.length);
-          for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-          resolve(new Blob([bytes], { type: mimeType }));
-        } catch (error) {
-          reject(error);
-        }
-      }, "image/png");
-    } catch (error) {
-      reject(error);
-    }
-  });
+  const dataUrl = canvas.toDataURL("image/png");
+  if (!dataUrl.startsWith("data:image/png;base64,")) {
+    throw new Error("The browser did not generate a PNG image.");
+  }
+  const encoded = dataUrl.slice(dataUrl.indexOf(",") + 1);
+  const binary = atob(encoded);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return new Blob([bytes], { type: "image/png" });
 }
 
 function safeImageFilename(title = state.title) {
@@ -611,8 +641,8 @@ function downloadImageBlob(blob, filename) {
   window.setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-async function validatePngBlob(blob) {
-  if (!(blob instanceof Blob) || blob.type !== "image/png" || blob.size < 100) {
+async function validatePngBlob(blob, { requireMimeType = true } = {}) {
+  if (!(blob instanceof Blob) || (requireMimeType && blob.type !== "image/png") || blob.size < 100) {
     throw new Error("The generated file is not a valid PNG image.");
   }
 
@@ -639,13 +669,21 @@ async function exportTodoList() {
     title: state.title.trim() || "Today’s focus",
     tasks: state.tasks.map((task) => ({
       task: task.task,
-      completed: task.completed,
       date: { ...task.date },
     })),
   };
   const filename = safeImageFilename(snapshot.title);
-  const blobPromise = createTodoImageBlob(snapshot);
-  blobPromise.catch(() => {});
+  let blob;
+  try {
+    blob = createTodoImageBlob(snapshot);
+  } catch (error) {
+    console.error(error);
+    showPageNotice("The PNG image could not be created. Please try again.", "error", 3200);
+    isExporting = false;
+    shareButtonLabel.textContent = "Share as PNG";
+    renderTasks();
+    return;
+  }
   let fileHandle;
 
   try {
@@ -654,6 +692,7 @@ async function exportTodoList() {
         fileHandle = await window.showSaveFilePicker({
           suggestedName: filename,
           types: [{ description: "PNG image", accept: { "image/png": [".png"] } }],
+          excludeAcceptAllOption: true,
         });
       } catch (error) {
         if (error.name === "AbortError") return;
@@ -661,7 +700,6 @@ async function exportTodoList() {
       }
     }
 
-    const blob = await blobPromise;
     await validatePngBlob(blob);
     if (fileHandle) {
       try {
@@ -669,11 +707,13 @@ async function exportTodoList() {
         await writable.write(blob);
         await writable.close();
         const savedFile = await fileHandle.getFile();
-        await validatePngBlob(savedFile);
-        showPageNotice(`Saved ${filename}`, "success");
+        await validatePngBlob(savedFile, { requireMimeType: false });
+        showPageNotice(`Saved ${fileHandle.name}`, "success");
         return;
       } catch (error) {
-        console.warn("The selected location could not be written; using a browser download instead.", error);
+        console.error("The selected PNG file could not be written or verified.", error);
+        showPageNotice("The PNG could not be saved to that location. Please try again.", "error", 3200);
+        return;
       }
     }
 
