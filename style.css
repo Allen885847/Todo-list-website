@@ -1174,8 +1174,10 @@ html[data-theme="dark"] .overdue-badge {
     align-items: stretch;
     flex-direction: column;
     gap: 14px;
+    margin-left: 0;
   }
 
+  .data-link,
   .copy-list {
     align-self: flex-start;
   }

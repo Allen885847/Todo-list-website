@@ -2,9 +2,9 @@
 
 A responsive, AI-powered to-do list built with HTML, CSS, JavaScript, and a small Node.js server.
 
-Development release: **Version 2.5**. This version runs separately from the Version 2.4 Elite desktop shortcut.
+Release: **V3.0**.
 
-Version 2.5 adds optional calendar event times, chronological timed-event schedules, persistent completed calendar records, and clear overdue-task handling.
+V3.0 brings a major voice input upgrade, accurately recognizing English, Chinese, and mixed-language speech to create separate tasks. It also makes calendar holidays clearer and improves exports.
 
 ## Features
 
