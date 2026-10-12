@@ -2,9 +2,9 @@
 
 A responsive, AI-powered to-do list built with HTML, CSS, JavaScript, and a small Node.js server.
 
-Release: **V3.0**.
+Release: **V5.0**.
 
-V3.0 brings a major voice input upgrade, accurately recognizing English, Chinese, and mixed-language speech to create separate tasks. It also makes calendar holidays clearer and improves exports.
+V5.0 brings a major voice input upgrade, accurately recognizing English, Chinese, and mixed-language speech to create separate tasks. It also makes calendar holidays clearer and improves exports.
 
 ## Features
 

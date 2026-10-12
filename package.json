@@ -1,6 +1,6 @@
 {
   "name": "ai-todo-list",
-  "version": "3.0.0",
+  "version": "5.0.0",
   "private": true,
   "description": "Voice-enabled AI todo list and calendar using DeepSeek",
   "scripts": {
