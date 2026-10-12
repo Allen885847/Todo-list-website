@@ -55,7 +55,7 @@ let noticeHideTimer;
 let copyResetTimer;
 let dateRefreshTimer;
 let pointerDrag = null;
-let composerOpen = !state.tasks.some((task) => !task.completed);
+let composerOpen = activeTasks().length === 0;
 let appearanceMode = loadAppearance();
 const taskLayoutAnimations = new WeakMap();
 
@@ -129,6 +129,7 @@ function normalizeTask(task) {
     task: String(task.task ?? task.text ?? "Untitled task"),
     subject: normalizeSubject(task.subject, task.task ?? task.text),
     completed: Boolean(task.completed),
+    completedOn: TodoTaskRules.normalizeCompletedOn(task.completedOn),
   };
 }
 
@@ -193,6 +194,11 @@ function isTaskOverdue(task) {
 
 function incompleteTasks() {
   return state.tasks.filter((task) => !task.completed);
+}
+
+function activeTasks() {
+  const today = TodoTaskRules.localDateIso();
+  return state.tasks.filter((task) => TodoTaskRules.isVisibleInActiveList(task, today));
 }
 
 function createDateHeading(date) {
@@ -275,7 +281,7 @@ function createTaskElement(todo, index) {
 
   checkbox.addEventListener("change", () => {
     const wasFullyCompleted = state.tasks.length > 0 && state.tasks.every((task) => task.completed);
-    state.tasks[index].completed = checkbox.checked;
+    state.tasks[index] = TodoTaskRules.withCompletion(state.tasks[index], checkbox.checked);
     const isFullyCompleted = state.tasks.length > 0 && state.tasks.every((task) => task.completed);
     saveState();
     renderTasks();
@@ -476,7 +482,7 @@ function renderTasks() {
     const visibleSubjects = dateGroup.subjects
       .map((subjectGroup) => ({
         ...subjectGroup,
-        tasks: subjectGroup.tasks.filter(({ task }) => !task.completed),
+        tasks: subjectGroup.tasks.filter(({ task }) => TodoTaskRules.isVisibleInActiveList(task)),
       }))
       .filter((subjectGroup) => subjectGroup.tasks.length > 0);
     if (visibleSubjects.length === 0) return;
@@ -489,11 +495,12 @@ function renderTasks() {
   taskList.replaceChildren(...content);
   titleInput.value = state.title;
   const remaining = incompleteTasks().length;
+  const activeCount = activeTasks().length;
   taskCount.textContent = remaining === 1 ? "1 task left" : `${remaining} tasks left`;
-  emptyState.hidden = remaining > 0;
-  copyButton.hidden = remaining === 0;
-  shareButton.disabled = remaining === 0 || isExporting;
-  if (remaining === 0 && !composerOpen) setComposerOpen(true, { focus: true });
+  emptyState.hidden = activeCount > 0;
+  copyButton.hidden = activeCount === 0;
+  shareButton.disabled = activeCount === 0 || isExporting;
+  if (activeCount === 0 && !composerOpen) setComposerOpen(true, { focus: true });
   updateComposerToggle();
   scheduleDateRefresh();
 }
@@ -615,7 +622,7 @@ function celebrateCompletion() {
 
 function buildPlainTextList() {
   const tasks = [];
-  groupTasks(incompleteTasks()).forEach((dateGroup) => {
+  groupTasks(activeTasks()).forEach((dateGroup) => {
     dateGroup.subjects.forEach((subjectGroup) => {
       subjectGroup.tasks.forEach(({ task }) => tasks.push(stripCopiedTaskIcons(task.task)));
     });
@@ -659,7 +666,7 @@ function fallbackCopyText(text) {
 }
 
 async function copyTodoList() {
-  if (incompleteTasks().length === 0) return;
+  if (activeTasks().length === 0) return;
   try {
     const text = buildPlainTextList();
     if (navigator.clipboard?.writeText && window.isSecureContext) await navigator.clipboard.writeText(text);
@@ -860,7 +867,7 @@ async function savePngBlob(blob, requestedFilename) {
 }
 
 async function exportTodoList() {
-  const visibleTasks = incompleteTasks();
+  const visibleTasks = activeTasks();
   if (visibleTasks.length === 0 || isExporting) return;
   isExporting = true;
   renderTasks();
@@ -906,7 +913,7 @@ function resizeTaskInput() {
 }
 
 function updateComposerToggle() {
-  const hasTasks = incompleteTasks().length > 0;
+  const hasTasks = activeTasks().length > 0;
   toggleComposerButton.hidden = !hasTasks;
   toggleComposerButton.textContent = composerOpen ? "Close input" : "Add tasks";
   toggleComposerButton.setAttribute("aria-expanded", String(composerOpen));
@@ -914,7 +921,7 @@ function updateComposerToggle() {
 }
 
 function setComposerOpen(open, { focus = false } = {}) {
-  composerOpen = incompleteTasks().length === 0 ? true : open;
+  composerOpen = activeTasks().length === 0 ? true : open;
   composerRegion.classList.toggle("collapsed", !composerOpen);
   todoCard.classList.toggle("composer-collapsed", !composerOpen);
   composerRegion.setAttribute("aria-hidden", String(!composerOpen));
@@ -1511,5 +1518,5 @@ applyAppearance();
 renderTasks();
 renderPreview();
 updateRecordingControls();
-setComposerOpen(incompleteTasks().length === 0);
+setComposerOpen(activeTasks().length === 0);
 resizeTaskInput();

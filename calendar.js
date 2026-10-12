@@ -135,6 +135,7 @@ function normalizeTask(task) {
     subject: String(task?.subject || "General").trim() || "General",
     date,
     completed: Boolean(task?.completed),
+    completedOn: TodoTaskRules.normalizeCompletedOn(task?.completedOn),
   };
 }
 
@@ -823,7 +824,9 @@ function saveTaskFromEditor() {
   task.task = taskTitle.value.trim();
   task.subject = taskSubject.value.trim();
   task.date = taskDueDate.value ? dateObjectFromIso(taskDueDate.value) : null;
-  task.completed = taskCompleted.checked;
+  if (task.completed !== taskCompleted.checked) {
+    Object.assign(task, TodoTaskRules.withCompletion(task, taskCompleted.checked));
+  }
   saveTaskState();
   taskDialog.close();
   renderCalendar();

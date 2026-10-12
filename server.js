@@ -41,6 +41,7 @@ const STATIC_FILES = new Map([
   ["/data.js", ["data.js", "text/javascript; charset=utf-8"]],
   ["/data-migration.js", ["data-migration.js", "text/javascript; charset=utf-8"]],
   ["/persistent-storage.js", ["persistent-storage.js", "text/javascript; charset=utf-8"]],
+  ["/task-rules.js", ["task-rules.js", "text/javascript; charset=utf-8"]],
 ]);
 
 function sendJson(response, status, data) {
