@@ -264,6 +264,15 @@ textarea:disabled {
   box-shadow: none;
 }
 
+.data-link {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.data-link:hover { color: var(--accent); }
+
 .appearance-picker select:focus-visible {
   outline: 3px solid rgba(234, 104, 71, 0.38);
   outline-offset: 2px;
@@ -932,6 +941,26 @@ body.is-reordering * {
   flex: 1;
   gap: 3px;
   min-width: 0;
+}
+
+.overdue-badge {
+  justify-self: start;
+  padding: 3px 7px;
+  color: #a63125;
+  background: #fff0ec;
+  border: 1px solid #efb2a7;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+html[data-theme="dark"] .overdue-badge {
+  color: #ffb7aa;
+  background: #492923;
+  border-color: #78473e;
 }
 
 .task-date {

@@ -1,11 +1,14 @@
 {
   "name": "ai-todo-list",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "private": true,
   "description": "Voice-enabled AI todo list and calendar using DeepSeek",
   "scripts": {
     "start": "node --env-file=.env server.js",
-    "check": "node --check server.js && node --check script.js && node --check calendar.js"
+    "check": "node --check server.js && node --check persistent-storage.js && node --check data-migration.js && node --check data.js && node --check script.js && node --check calendar.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
   },
   "engines": {
     "node": ">=20"

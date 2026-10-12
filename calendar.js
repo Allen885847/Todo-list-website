@@ -1,7 +1,7 @@
 const TASK_STORAGE_KEY = "todo-list-mvp";
-const EVENT_STORAGE_KEY = "todo-calendar-events-v2.4";
+const EVENT_STORAGE_KEY = "todo-calendar-events";
 const APPEARANCE_KEY = "todo-appearance";
-const CALENDAR_VIEW_KEY = "todo-calendar-view-v2.4";
+const CALENDAR_VIEW_KEY = "todo-calendar-view-v2.5";
 const systemDarkMode = window.matchMedia("(prefers-color-scheme: dark)");
 
 const stage = document.querySelector("#calendar-stage");
@@ -34,7 +34,6 @@ const dateConfirmed = document.querySelector("#date-confirmed");
 const eventTitle = document.querySelector("#event-title");
 const eventStartDate = document.querySelector("#event-start-date");
 const eventEndDate = document.querySelector("#event-end-date");
-const eventAllDay = document.querySelector("#event-all-day");
 const eventHoliday = document.querySelector("#event-holiday");
 const eventStartTime = document.querySelector("#event-start-time");
 const eventEndTime = document.querySelector("#event-end-time");
@@ -47,6 +46,7 @@ const taskTitle = document.querySelector("#task-title");
 const taskSubject = document.querySelector("#task-subject");
 const taskDueDate = document.querySelector("#task-due-date");
 const taskCompleted = document.querySelector("#task-completed");
+const deleteTaskButton = document.querySelector("#delete-task");
 
 const monthNames = [
   "January", "February", "March", "April", "May", "June",
@@ -65,6 +65,9 @@ let editingEventId = null;
 let editingTaskIndex = null;
 let needsDateConfirmation = false;
 let noticeTimer;
+let dateRefreshTimer;
+let isEventDescriptionComposing = false;
+let isInterpretingEvent = false;
 
 function startOfDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -116,6 +119,10 @@ function sameDate(first, second) {
   return toIsoDate(first) === toIsoDate(second);
 }
 
+function isWeekend(date) {
+  return date.getDay() === 0 || date.getDay() === 6;
+}
+
 function normalizeTask(task) {
   const date = task?.date && Number.isFinite(Number(task.date.year)) ? {
     day: Number(task.date.day),
@@ -156,7 +163,10 @@ function normalizeEvent(event) {
   const endDate = parseIsoDate(event?.endDate) ? event.endDate : startDate;
   if (!startDate || !endDate || endDate < startDate) return null;
   const holiday = Boolean(event.holiday);
-  const allDay = holiday || event.allDay !== false;
+  const validTime = (value) => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value || ""));
+  const startTime = holiday || !validTime(event.startTime) ? "" : String(event.startTime);
+  const endTime = startTime && validTime(event.endTime) ? String(event.endTime) : "";
+  const allDay = holiday || !startTime;
   return {
     id: String(event.id || crypto.randomUUID()),
     title: String(event.title || "Untitled event").trim() || "Untitled event",
@@ -164,8 +174,8 @@ function normalizeEvent(event) {
     endDate,
     allDay,
     holiday,
-    startTime: allDay ? "" : String(event.startTime || ""),
-    endTime: allDay ? "" : String(event.endTime || ""),
+    startTime,
+    endTime,
   };
 }
 
@@ -231,6 +241,30 @@ function formatLongDate(date) {
   return new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(date);
 }
 
+function localTodayIso() {
+  return toIsoDate(new Date());
+}
+
+function isTaskOverdue(task) {
+  return Boolean(task.date && !task.completed && toIsoDate(task.date) < localTodayIso());
+}
+
+function formatClockTime(value) {
+  const [hour, minute] = String(value).split(":").map(Number);
+  return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" })
+    .format(new Date(2000, 0, 1, hour, minute));
+}
+
+function formatEventTiming(event) {
+  if (event.allDay || !event.startTime) return "All Day";
+  const start = formatClockTime(event.startTime);
+  return event.endTime ? `${start}–${formatClockTime(event.endTime)}` : start;
+}
+
+function sortTimedEvents(items) {
+  return [...items].sort((first, second) => first.startTime.localeCompare(second.startTime));
+}
+
 function createDots(date) {
   const counts = countsForDate(date);
   const dots = document.createElement("span");
@@ -267,12 +301,11 @@ function createCalendarItem(type, data, index) {
   const meta = document.createElement("span");
   meta.className = "item-meta";
   if (type === "event") {
-    const timing = data.allDay
-      ? (data.startDate === data.endDate ? "All day" : `${data.startDate} – ${data.endDate}`)
-      : `${data.startTime || "Time not set"}${data.endTime ? `–${data.endTime}` : ""}`;
+    const timing = formatEventTiming(data);
     meta.textContent = data.holiday ? `Holiday · ${timing}` : timing;
   } else {
-    meta.textContent = `${data.subject} · All day`;
+    const status = data.completed ? "Completed" : (isTaskOverdue(data) ? "Overdue" : "All Day");
+    meta.textContent = `${data.subject} · ${status}`;
   }
   content.append(title, meta);
   button.append(symbol, content);
@@ -306,6 +339,7 @@ function renderMonth() {
     if (sameDate(date, new Date())) button.classList.add("is-today");
     if (sameDate(date, selectedDate)) button.classList.add("is-selected");
     if (holidaysOnDate(toIsoDate(date)).length) button.classList.add("holiday-day");
+    else if (isWeekend(date)) button.classList.add("weekend-day");
     button.setAttribute("aria-label", `Open ${formatLongDate(date)} in Day view`);
     const number = document.createElement("span");
     number.className = "day-number";
@@ -361,6 +395,7 @@ function renderYear() {
       if (sameDate(date, new Date())) button.classList.add("is-today");
       if (sameDate(date, selectedDate)) button.classList.add("is-selected");
       if (holidaysOnDate(toIsoDate(date)).length) button.classList.add("holiday-day");
+      else if (isWeekend(date)) button.classList.add("weekend-day");
       button.setAttribute("aria-label", `Open ${formatLongDate(date)} in Day view`);
       const number = document.createElement("span");
       number.textContent = String(day);
@@ -419,10 +454,11 @@ function renderDay() {
   const dayEvents = eventsOnDate(isoDate);
   const holidayEvents = dayEvents.filter((event) => event.holiday);
   const allDayEvents = dayEvents.filter((event) => event.allDay);
-  const timedEvents = dayEvents.filter((event) => !event.allDay);
+  const timedEvents = sortTimedEvents(dayEvents.filter((event) => !event.allDay));
   const wrapper = document.createElement("div");
   wrapper.className = "day-view";
   if (holidayEvents.length) wrapper.classList.add("holiday-period");
+  else if (isWeekend(selectedDate)) wrapper.classList.add("weekend-day");
   const heading = document.createElement("div");
   heading.className = "day-heading";
   const dateNumber = document.createElement("strong");
@@ -481,6 +517,7 @@ function renderWeek() {
     column.className = "week-day";
     if (sameDate(date, selectedDate)) column.classList.add("selected-day");
     if (holidayEvents.length) column.classList.add("holiday-day");
+    else if (isWeekend(date)) column.classList.add("weekend-day");
     const header = document.createElement("button");
     header.type = "button";
     header.className = "week-day-header";
@@ -503,7 +540,7 @@ function renderWeek() {
       groupEvents.forEach((event) => column.append(createCalendarItem("event", event)));
     };
     appendGroup("All day", tasks, dayEvents.filter((event) => event.allDay));
-    appendGroup("Schedule", [], dayEvents.filter((event) => !event.allDay));
+    appendGroup("Schedule", [], sortTimedEvents(dayEvents.filter((event) => !event.allDay)));
     if (!tasks.length && !dayEvents.length) {
       const empty = document.createElement("p");
       empty.className = "empty-agenda";
@@ -526,6 +563,17 @@ function renderCalendar() {
   else if (calendarView === "year") renderYear();
   else renderMonth();
   updateNavigationButtons();
+  scheduleDateRefresh();
+}
+
+function scheduleDateRefresh() {
+  clearTimeout(dateRefreshTimer);
+  const now = new Date();
+  const nextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+  dateRefreshTimer = window.setTimeout(() => {
+    taskState = loadTaskState();
+    renderCalendar();
+  }, nextDay.getTime() - now.getTime());
 }
 
 function openDate(date) {
@@ -596,14 +644,10 @@ function setEventTab(mode) {
 }
 
 function updateTimeFields() {
-  if (eventHoliday.checked) eventAllDay.checked = true;
-  eventAllDay.disabled = eventHoliday.checked;
-  const allDay = eventAllDay.checked || eventHoliday.checked;
-  eventStartTime.closest("label").hidden = allDay;
-  eventEndTime.closest("label").hidden = allDay;
-  eventStartTime.disabled = allDay;
-  eventEndTime.disabled = allDay;
-  if (allDay) {
+  const holiday = eventHoliday.checked;
+  eventStartTime.disabled = holiday;
+  eventEndTime.disabled = holiday;
+  if (holiday) {
     eventStartTime.value = "";
     eventEndTime.value = "";
   }
@@ -613,7 +657,6 @@ function fillEventFields(event) {
   eventTitle.value = event.title || "";
   eventStartDate.value = event.startDate || "";
   eventEndDate.value = event.endDate || event.startDate || "";
-  eventAllDay.checked = event.allDay !== false;
   eventHoliday.checked = Boolean(event.holiday);
   eventStartTime.value = event.startTime || "";
   eventEndTime.value = event.endTime || "";
@@ -667,12 +710,14 @@ function showEventClarification(message, required = true) {
 }
 
 async function interpretEvent() {
+  if (isInterpretingEvent) return;
   const input = eventDescription.value.trim();
   if (!input) {
     eventAiStatus.textContent = "Describe an event before asking AI to interpret it.";
     eventAiStatus.className = "dialog-status error";
     return;
   }
+  isInterpretingEvent = true;
   interpretEventButton.disabled = true;
   interpretEventButton.textContent = "Asking AI…";
   eventAiStatus.textContent = "DeepSeek is interpreting the event details…";
@@ -701,6 +746,7 @@ async function interpretEvent() {
     eventAiStatus.textContent = error.message || "Interpretation failed. Your text is preserved; use manual entry or retry.";
     eventAiStatus.className = "dialog-status error";
   } finally {
+    isInterpretingEvent = false;
     interpretEventButton.disabled = false;
     interpretEventButton.textContent = "Ask AI";
   }
@@ -711,7 +757,8 @@ function validateEventFields() {
   if (!parseIsoDate(eventStartDate.value) || !parseIsoDate(eventEndDate.value)) return "Enter a valid start and end date.";
   if (eventEndDate.value < eventStartDate.value) return "The end date cannot be before the start date.";
   if (needsDateConfirmation && !dateConfirmed.checked) return "Confirm the clarified dates before saving.";
-  if (!eventAllDay.checked && eventStartDate.value === eventEndDate.value
+  if (eventEndTime.value && !eventStartTime.value) return "Enter a start time or clear the end time.";
+  if (eventStartDate.value === eventEndDate.value
     && eventStartTime.value && eventEndTime.value && eventEndTime.value <= eventStartTime.value) {
     return "The end time must be later than the start time.";
   }
@@ -729,10 +776,10 @@ function saveEventFromEditor() {
     title: eventTitle.value.trim(),
     startDate: eventStartDate.value,
     endDate: eventEndDate.value,
-    allDay: eventAllDay.checked || eventHoliday.checked,
+    allDay: eventHoliday.checked || !eventStartTime.value,
     holiday: eventHoliday.checked,
-    startTime: eventAllDay.checked || eventHoliday.checked ? "" : eventStartTime.value,
-    endTime: eventAllDay.checked || eventHoliday.checked ? "" : eventEndTime.value,
+    startTime: eventHoliday.checked ? "" : eventStartTime.value,
+    endTime: eventHoliday.checked || !eventStartTime.value ? "" : eventEndTime.value,
   };
   if (editingEventId) {
     const index = events.findIndex((item) => item.id === editingEventId);
@@ -783,6 +830,18 @@ function saveTaskFromEditor() {
   showNotice("Task updated in the calendar and To-Do List.");
 }
 
+function deleteCurrentTask() {
+  if (editingTaskIndex === null || !taskState.tasks[editingTaskIndex]) return;
+  const task = taskState.tasks[editingTaskIndex];
+  if (!window.confirm(`Delete “${task.task}” from the To-Do List and calendar?`)) return;
+  taskState.tasks.splice(editingTaskIndex, 1);
+  editingTaskIndex = null;
+  saveTaskState();
+  taskDialog.close();
+  renderCalendar();
+  showNotice("Task deleted from the To-Do List and calendar.");
+}
+
 previousButton.addEventListener("click", () => movePeriod(-1));
 nextButton.addEventListener("click", () => movePeriod(1));
 previousYearButton.addEventListener("click", () => switchYear(-1));
@@ -801,7 +860,14 @@ addEventButton.addEventListener("click", () => openEventDialog());
 naturalTab.addEventListener("click", () => setEventTab("natural"));
 manualTab.addEventListener("click", () => setEventTab("manual"));
 interpretEventButton.addEventListener("click", interpretEvent);
-eventAllDay.addEventListener("change", updateTimeFields);
+eventDescription.addEventListener("compositionstart", () => { isEventDescriptionComposing = true; });
+eventDescription.addEventListener("compositionend", () => { isEventDescriptionComposing = false; });
+eventDescription.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || event.shiftKey) return;
+  if (event.isComposing || isEventDescriptionComposing || event.keyCode === 229) return;
+  event.preventDefault();
+  interpretEvent();
+});
 eventHoliday.addEventListener("change", updateTimeFields);
 eventStartDate.addEventListener("change", () => {
   if (!eventEndDate.value || eventEndDate.value < eventStartDate.value) eventEndDate.value = eventStartDate.value;
@@ -811,6 +877,7 @@ eventEditor.addEventListener("submit", (event) => {
   saveEventFromEditor();
 });
 deleteEventButton.addEventListener("click", deleteCurrentEvent);
+deleteTaskButton.addEventListener("click", deleteCurrentTask);
 document.querySelectorAll("[data-close-dialog]").forEach((button) => {
   button.addEventListener("click", () => button.closest("dialog")?.close());
 });
@@ -836,6 +903,11 @@ window.addEventListener("storage", (event) => {
   if (event.key === TASK_STORAGE_KEY || event.key === EVENT_STORAGE_KEY) renderCalendar();
 });
 window.addEventListener("pageshow", () => {
+  taskState = loadTaskState();
+  events = loadEvents();
+  renderCalendar();
+});
+window.addEventListener("focus", () => {
   taskState = loadTaskState();
   events = loadEvents();
   renderCalendar();

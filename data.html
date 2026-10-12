@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Back up or restore Todo List data." />
+    <title>Data · Todo List</title>
+    <script>
+      (() => {
+        const saved = localStorage.getItem("todo-appearance") || "system";
+        const mode = ["light", "dark", "system"].includes(saved) ? saved : "system";
+        document.documentElement.dataset.appearance = mode;
+        document.documentElement.dataset.theme = mode === "system"
+          ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+          : mode;
+      })();
+    </script>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="data.css" />
+  </head>
+  <body>
+    <main class="data-shell">
+      <section class="data-card" aria-labelledby="data-title">
+        <a class="data-back" href="index.html">← Todo List</a>
+        <p class="eyebrow">Safe upgrades</p>
+        <h1 id="data-title">Data backup &amp; recovery</h1>
+        <p class="data-intro">Your tasks, events, holidays, completion states, and settings are saved in both browser storage and an independent local recovery file, separately from replaceable application files.</p>
+
+        <div class="data-action">
+          <div><h2>Download a backup</h2><p>Save a portable JSON copy before an update or whenever you want an extra recovery point.</p></div>
+          <button id="export-data" type="button">Download backup</button>
+        </div>
+
+        <div class="data-action">
+          <div><h2>Restore or merge</h2><p>Select a Todo List backup. Existing records stay in place and matching records are not duplicated.</p></div>
+          <label class="import-button" for="import-data">Choose backup</label>
+          <input id="import-data" type="file" accept="application/json,.json" />
+        </div>
+        <p id="data-status" class="data-status" role="status" aria-live="polite">Ready.</p>
+      </section>
+    </main>
+    <script src="persistent-storage.js"></script>
+    <script src="data-migration.js"></script>
+    <script src="data.js"></script>
+  </body>
+</html>

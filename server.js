@@ -1,12 +1,33 @@
 const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
+const crypto = require("node:crypto");
+const zlib = require("node:zlib");
+const WebSocket = require("ws");
 
 const PORT = Number(process.env.PORT) || 4173;
 const API_KEY = process.env.DEEPSEEK_API_KEY;
+const DOUBAO_SPEECH_API_KEY = process.env.DOUBAO_SPEECH_API_KEY;
+const DOUBAO_SPEECH_RESOURCE_ID = process.env.DOUBAO_SPEECH_RESOURCE_ID || "volc.seedasr.sauc.duration";
 const ROOT = __dirname;
 const MAX_BODY_SIZE = 30_000;
+const MAX_LOCAL_DATA_SIZE = 2 * 1024 * 1024;
+const MAX_AUDIO_SIZE = 15 * 1024 * 1024;
 const MAX_INPUT_LENGTH = 4_000;
+const LOCAL_DATA_DIR = path.resolve(ROOT, "..", "todo-user-data");
+const LOCAL_DATA_FILE = path.join(LOCAL_DATA_DIR, "state.json");
+const LOCAL_DATA_BACKUP = path.join(LOCAL_DATA_DIR, "state.previous.json");
+const LOCAL_DATA_KEYS = new Set([
+  "todo-list-mvp",
+  "todo-calendar-events",
+  "todo-calendar-events-v2.5",
+  "todo-calendar-events-v2.4",
+  "todo-appearance",
+  "todo-calendar-view",
+  "todo-calendar-view-v2.5",
+  "todo-data-schema",
+  "todo-data-backup-before-v2.5",
+]);
 const STATIC_FILES = new Map([
   ["/", ["index.html", "text/html; charset=utf-8"]],
   ["/index.html", ["index.html", "text/html; charset=utf-8"]],
@@ -15,6 +36,11 @@ const STATIC_FILES = new Map([
   ["/calendar.html", ["calendar.html", "text/html; charset=utf-8"]],
   ["/calendar.css", ["calendar.css", "text/css; charset=utf-8"]],
   ["/calendar.js", ["calendar.js", "text/javascript; charset=utf-8"]],
+  ["/data.html", ["data.html", "text/html; charset=utf-8"]],
+  ["/data.css", ["data.css", "text/css; charset=utf-8"]],
+  ["/data.js", ["data.js", "text/javascript; charset=utf-8"]],
+  ["/data-migration.js", ["data-migration.js", "text/javascript; charset=utf-8"]],
+  ["/persistent-storage.js", ["persistent-storage.js", "text/javascript; charset=utf-8"]],
 ]);
 
 function sendJson(response, status, data) {
@@ -25,7 +51,7 @@ function sendJson(response, status, data) {
   response.end(JSON.stringify(data));
 }
 
-function readJson(request) {
+function readJson(request, limit = MAX_BODY_SIZE) {
   return new Promise((resolve, reject) => {
     let body = "";
     let settled = false;
@@ -33,7 +59,7 @@ function readJson(request) {
     request.on("data", (chunk) => {
       if (settled) return;
       body += chunk;
-      if (Buffer.byteLength(body) > MAX_BODY_SIZE) {
+      if (Buffer.byteLength(body) > limit) {
         settled = true;
         reject(new Error("Request is too large."));
         request.destroy();
@@ -49,6 +75,199 @@ function readJson(request) {
     });
     request.on("error", (error) => {
       if (!settled) reject(error);
+    });
+  });
+}
+
+function readLocalData() {
+  try {
+    const payload = JSON.parse(fs.readFileSync(LOCAL_DATA_FILE, "utf8"));
+    return payload && typeof payload.data === "object" ? payload : { schemaVersion: 1, data: {} };
+  } catch (error) {
+    if (error.code !== "ENOENT") console.error("Local data could not be read:", error.message);
+    return { schemaVersion: 1, data: {} };
+  }
+}
+
+function writeLocalData(input) {
+  const data = {};
+  Object.entries(input || {}).forEach(([key, value]) => {
+    if (!LOCAL_DATA_KEYS.has(key)) return;
+    if (value === null || (typeof value === "string" && value.length <= MAX_LOCAL_DATA_SIZE)) data[key] = value;
+  });
+  fs.mkdirSync(LOCAL_DATA_DIR, { recursive: true });
+  if (fs.existsSync(LOCAL_DATA_FILE)) fs.copyFileSync(LOCAL_DATA_FILE, LOCAL_DATA_BACKUP);
+  const tempFile = path.join(LOCAL_DATA_DIR, `state-${process.pid}.tmp`);
+  const payload = { schemaVersion: 1, updatedAt: new Date().toISOString(), data };
+  fs.writeFileSync(tempFile, `${JSON.stringify(payload, null, 2)}\n`, { mode: 0o600 });
+  fs.renameSync(tempFile, LOCAL_DATA_FILE);
+  return payload;
+}
+
+function readBinary(request, limit = MAX_AUDIO_SIZE) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    let settled = false;
+
+    request.on("data", (chunk) => {
+      if (settled) return;
+      size += chunk.length;
+      if (size > limit) {
+        settled = true;
+        reject(new Error("Recording is too large."));
+        request.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    request.on("end", () => {
+      if (!settled) resolve(Buffer.concat(chunks));
+    });
+    request.on("error", (error) => {
+      if (!settled) reject(error);
+    });
+  });
+}
+
+function buildDoubaoHeader(messageType, flags, serialization, compression) {
+  return Buffer.from([
+    0x11,
+    (messageType << 4) | flags,
+    (serialization << 4) | compression,
+    0x00,
+  ]);
+}
+
+function buildDoubaoPacket(messageType, flags, payload, { json = false, compress = true } = {}) {
+  const source = json ? Buffer.from(JSON.stringify(payload), "utf8") : Buffer.from(payload);
+  const body = compress ? zlib.gzipSync(source) : source;
+  const size = Buffer.alloc(4);
+  size.writeUInt32BE(body.length);
+  return Buffer.concat([
+    buildDoubaoHeader(messageType, flags, json ? 1 : 0, compress ? 1 : 0),
+    size,
+    body,
+  ]);
+}
+
+function parseDoubaoMessage(data) {
+  const packet = Buffer.from(data);
+  if (packet.length < 4) throw new Error("Doubao returned an incomplete response.");
+  const headerSize = (packet[0] & 0x0f) * 4;
+  const messageType = packet[1] >> 4;
+  const flags = packet[1] & 0x0f;
+  const serialization = packet[2] >> 4;
+  const compression = packet[2] & 0x0f;
+  let offset = headerSize;
+
+  if (messageType === 0x0f) {
+    if (packet.length < offset + 8) throw new Error("Doubao returned an incomplete error response.");
+    const code = packet.readUInt32BE(offset);
+    const size = packet.readUInt32BE(offset + 4);
+    offset += 8;
+    let payload = packet.subarray(offset, offset + size);
+    if (compression === 1) payload = zlib.gunzipSync(payload);
+    throw new Error(`Doubao transcription failed (${code}): ${payload.toString("utf8")}`);
+  }
+
+  if (flags === 1 || flags === 3 || messageType === 0x09 || messageType === 0x0b) {
+    if (packet.length < offset + 4) return null;
+    offset += 4;
+  }
+  if (packet.length < offset + 4) return null;
+  const size = packet.readUInt32BE(offset);
+  offset += 4;
+  let payload = packet.subarray(offset, offset + size);
+  if (compression === 1 && payload.length) payload = zlib.gunzipSync(payload);
+  if (!payload.length) return null;
+  return serialization === 1 ? JSON.parse(payload.toString("utf8")) : null;
+}
+
+function extractDoubaoTranscript(payload) {
+  const result = payload?.result;
+  if (typeof result?.text === "string") return result.text.trim();
+  if (Array.isArray(result)) {
+    return result.map((item) => item?.text || item?.result?.text || "").join("").trim();
+  }
+  if (typeof payload?.text === "string") return payload.text.trim();
+  return "";
+}
+
+function transcribeWithDoubao(audio, language) {
+  return new Promise((resolve, reject) => {
+    const requestId = crypto.randomUUID();
+    const socket = new WebSocket("wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_nostream", {
+      headers: {
+        "X-Api-Key": DOUBAO_SPEECH_API_KEY,
+        "X-Api-Resource-Id": DOUBAO_SPEECH_RESOURCE_ID,
+        "X-Api-Request-Id": requestId,
+        "X-Api-Connect-Id": requestId,
+      },
+      handshakeTimeout: 15_000,
+    });
+    let settled = false;
+    let latestTranscript = "";
+    const timeout = setTimeout(() => finish(new Error("Doubao took too long to transcribe the recording.")), 90_000);
+
+    function finish(error, transcript = "") {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      try { socket.close(); } catch { /* The connection may already be closed. */ }
+      if (error) reject(error);
+      else resolve(transcript);
+    }
+
+    socket.on("open", () => {
+      const request = {
+        user: { uid: "todo-list-website" },
+        audio: {
+          format: "wav",
+          codec: "raw",
+          rate: 16000,
+          bits: 16,
+          channel: 1,
+          ...(language === "en-US" ? { language: "en-US" } : {}),
+        },
+        request: {
+          model_name: "bigmodel",
+          enable_itn: true,
+          enable_punc: true,
+          enable_ddc: true,
+          show_utterances: false,
+          result_type: "full",
+        },
+      };
+      socket.send(buildDoubaoPacket(0x01, 0x00, request, { json: true, compress: true }));
+      socket.send(buildDoubaoPacket(0x02, 0x02, audio, { compress: true }));
+    });
+
+    socket.on("message", (data) => {
+      try {
+        const payload = parseDoubaoMessage(data);
+        const transcript = extractDoubaoTranscript(payload);
+        if (transcript) latestTranscript = transcript;
+        if (payload?.result && latestTranscript) finish(null, latestTranscript);
+      } catch (error) {
+        finish(error);
+      }
+    });
+    socket.on("unexpected-response", (_request, response) => {
+      const chunks = [];
+      response.on("data", (chunk) => {
+        if (chunks.reduce((size, item) => size + item.length, 0) < 4096) chunks.push(chunk);
+      });
+      response.on("end", () => {
+        const detail = Buffer.concat(chunks).toString("utf8").trim();
+        finish(new Error(`Doubao rejected the connection (${response.statusCode})${detail ? `: ${detail}` : ". Check that this API key and Speech Recognition 2.0 are enabled in the same project."}`));
+      });
+    });
+    socket.on("error", (error) => finish(error));
+    socket.on("close", () => {
+      if (!settled) {
+        finish(latestTranscript ? null : new Error("Doubao closed the transcription connection without returning text."), latestTranscript);
+      }
     });
   });
 }
@@ -151,15 +370,18 @@ function normalizeGeneratedEvent(payload) {
   const clarificationQuestion = typeof item?.clarificationQuestion === "string"
     ? item.clarificationQuestion.trim().slice(0, 240)
     : "";
-  const allDay = holiday || item?.allDay !== false;
   const startDate = typeof item?.startDate === "string" ? item.startDate : "";
   const endDate = typeof item?.endDate === "string" ? item.endDate : startDate;
   const startTime = typeof item?.startTime === "string" ? item.startTime : "";
   const endTime = typeof item?.endTime === "string" ? item.endTime : "";
   const validTime = (value) => value === "" || /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+  const allDay = holiday || startTime === "";
 
   if (!title || title.length > 200 || !validTime(startTime) || !validTime(endTime)) {
     throw new Error("DeepSeek returned invalid event details.");
+  }
+  if (endTime && !startTime) {
+    throw new Error("DeepSeek returned an end time without a start time.");
   }
   if (!dateMissing && (!isValidIsoDate(startDate) || !isValidIsoDate(endDate) || endDate < startDate)) {
     throw new Error("DeepSeek returned invalid event dates.");
@@ -275,9 +497,10 @@ Rules:
 3. Never invent a date. If no date is supplied, set dateMissing true, use empty date strings, and ask a short English clarificationQuestion.
 4. If a date has multiple reasonable interpretations, set dateAmbiguous true, choose the most likely tentative dates, and ask a short English clarificationQuestion. Always treat an unqualified weekday such as "Friday" as ambiguous when it could reasonably mean this week's or next week's occurrence. Also flag numeric dates whose month/day order is unclear. Otherwise set dateAmbiguous false.
 5. Set holiday true when the user describes a holiday, vacation, school break, public holiday, or named holiday period. Preserve its inclusive start and end dates, including when the range crosses a month or year. Otherwise set holiday false.
-6. Holidays are all-day events: set allDay true and use empty time strings. For other events, do not invent times. When no specific time is given, set allDay true and use empty time strings.
-7. When a specific time or time range is supplied for a non-holiday event, set allDay false and use 24-hour HH:MM values. A single supplied time may use an empty endTime.
-8. This is a personal event, not a completable task. Return exactly one event.`,
+6. Holidays are all-day events: set allDay true and use empty time strings. For other events, never invent or require a time. When no specific time is given, set allDay true and use empty time strings.
+7. When a specific time or time range is supplied for a non-holiday event, preserve it, set allDay false, and use 24-hour HH:MM values. A single supplied time must go in startTime and may use an empty endTime. Never return endTime without startTime.
+8. Do not ask the user to clarify or supply a time when the time is omitted. Missing time always means an all-day event; clarificationQuestion is only for missing or ambiguous dates.
+9. This is a personal event, not a completable task. Return exactly one event.`,
         },
         { role: "user", content: input },
       ],
@@ -295,6 +518,54 @@ Rules:
 
 const server = http.createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
+
+  if (request.method === "GET" && url.pathname === "/api/local-data") {
+    sendJson(response, 200, readLocalData());
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/local-data") {
+    try {
+      const body = await readJson(request, MAX_LOCAL_DATA_SIZE);
+      const saved = writeLocalData(body?.data);
+      sendJson(response, 200, { saved: true, updatedAt: saved.updatedAt });
+    } catch (error) {
+      console.error("Local data could not be saved:", error.message);
+      sendJson(response, 400, { error: "Local data could not be saved." });
+    }
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/transcribe") {
+    if (!DOUBAO_SPEECH_API_KEY) {
+      sendJson(response, 503, { error: "Doubao speech recognition is not configured on this computer." });
+      return;
+    }
+
+    try {
+      const audio = await readBinary(request);
+      if (audio.length < 44 || audio.toString("ascii", 0, 4) !== "RIFF" || audio.toString("ascii", 8, 12) !== "WAVE") {
+        sendJson(response, 400, { error: "The recording was not a valid WAV audio file." });
+        return;
+      }
+      const language = url.searchParams.get("language") === "en-US" ? "en-US" : "auto";
+      const transcript = await transcribeWithDoubao(audio, language);
+      if (!transcript) {
+        sendJson(response, 422, { error: "No speech was detected. Check your microphone and try again." });
+        return;
+      }
+      sendJson(response, 200, { transcript });
+    } catch (error) {
+      console.error("Doubao transcription failed:", error.message);
+      const permissionMissing = error.message.includes("requested resource not granted");
+      sendJson(response, 502, {
+        error: permissionMissing
+          ? "Doubao Speech Recognition 2.0 is not enabled for this API key's project. Enable the service in Volcengine, then retry."
+          : "Doubao could not transcribe this recording. Please retry or continue typing.",
+      });
+    }
+    return;
+  }
 
   if (request.method === "POST" && url.pathname === "/api/parse-tasks") {
     if (!API_KEY) {

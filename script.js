@@ -1,6 +1,5 @@
 const STORAGE_KEY = "todo-list-mvp";
 const APPEARANCE_KEY = "todo-appearance";
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const systemDarkMode = window.matchMedia("(prefers-color-scheme: dark)");
 
@@ -35,27 +34,28 @@ const pageNotice = document.querySelector("#page-notice");
 let state = loadState();
 let previewTasks = [];
 let pendingProcessing = null;
-let recognition;
+let pendingRecording = null;
 let mediaStream;
 let audioContext;
 let analyser;
+let audioProcessor;
+let audioSink;
+let recordedAudioChunks = [];
+let recordedSampleRate = 16000;
 let animationFrame;
 let timerInterval;
 let recordingStartedAt = 0;
 let recordingPhase = "idle";
 let cancelRequested = false;
-let recognitionError = "";
-let finalTranscript = "";
-let interimTranscript = "";
 let isProcessing = false;
 let isTextComposing = false;
-let voiceSubmissionStarted = false;
 let isExporting = false;
 let noticeTimer;
 let noticeHideTimer;
 let copyResetTimer;
+let dateRefreshTimer;
 let pointerDrag = null;
-let composerOpen = state.tasks.length === 0;
+let composerOpen = !state.tasks.some((task) => !task.completed);
 let appearanceMode = loadAppearance();
 const taskLayoutAnimations = new WeakMap();
 
@@ -182,6 +182,19 @@ function formatDate(date) {
   }).format(new Date(date.year, date.month - 1, date.day));
 }
 
+function localTodayIso() {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+}
+
+function isTaskOverdue(task) {
+  return Boolean(task.date && !task.completed && toIsoDate(task.date) < localTodayIso());
+}
+
+function incompleteTasks() {
+  return state.tasks.filter((task) => !task.completed);
+}
+
 function createDateHeading(date) {
   const item = document.createElement("li");
   item.className = "task-date-heading";
@@ -228,6 +241,12 @@ function createTaskElement(todo, index) {
   const text = document.createElement("span");
   text.className = "task-text";
   text.textContent = todo.task;
+  if (isTaskOverdue(todo)) {
+    const overdue = document.createElement("span");
+    overdue.className = "overdue-badge";
+    overdue.textContent = "Overdue";
+    content.append(overdue);
+  }
 
   const deleteButton = document.createElement("button");
   deleteButton.className = "delete-task";
@@ -261,6 +280,7 @@ function createTaskElement(todo, index) {
     saveState();
     renderTasks();
     if (!wasFullyCompleted && isFullyCompleted) celebrateCompletion();
+    else showPageNotice("Task completed. It remains in Calendar.", "success");
   });
   deleteButton.addEventListener("click", () => {
     state.tasks.splice(index, 1);
@@ -453,22 +473,39 @@ function cancelPointerDrag(event) {
 function renderTasks() {
   const content = [];
   groupTasks(state.tasks).forEach((dateGroup) => {
+    const visibleSubjects = dateGroup.subjects
+      .map((subjectGroup) => ({
+        ...subjectGroup,
+        tasks: subjectGroup.tasks.filter(({ task }) => !task.completed),
+      }))
+      .filter((subjectGroup) => subjectGroup.tasks.length > 0);
+    if (visibleSubjects.length === 0) return;
     content.push(createDateHeading(dateGroup.date));
-    dateGroup.subjects.forEach((subjectGroup) => {
+    visibleSubjects.forEach((subjectGroup) => {
       content.push(createSubjectHeading(subjectGroup.subject));
       subjectGroup.tasks.forEach(({ task, index }) => content.push(createTaskElement(task, index)));
     });
   });
   taskList.replaceChildren(...content);
   titleInput.value = state.title;
-  const remaining = state.tasks.filter((todo) => !todo.completed).length;
-  const total = state.tasks.length;
-  taskCount.textContent = total === 1 ? `${remaining} of 1 task left` : `${remaining} of ${total} tasks left`;
-  emptyState.hidden = total > 0;
-  copyButton.hidden = total === 0;
-  shareButton.disabled = total === 0 || isExporting;
-  if (total === 0 && !composerOpen) setComposerOpen(true, { focus: true });
+  const remaining = incompleteTasks().length;
+  taskCount.textContent = remaining === 1 ? "1 task left" : `${remaining} tasks left`;
+  emptyState.hidden = remaining > 0;
+  copyButton.hidden = remaining === 0;
+  shareButton.disabled = remaining === 0 || isExporting;
+  if (remaining === 0 && !composerOpen) setComposerOpen(true, { focus: true });
   updateComposerToggle();
+  scheduleDateRefresh();
+}
+
+function scheduleDateRefresh() {
+  clearTimeout(dateRefreshTimer);
+  const now = new Date();
+  const nextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+  dateRefreshTimer = window.setTimeout(() => {
+    state = loadState();
+    renderTasks();
+  }, nextDay.getTime() - now.getTime());
 }
 
 function showPageNotice(message, type = "success", duration = 2400) {
@@ -577,13 +614,35 @@ function celebrateCompletion() {
 }
 
 function buildPlainTextList() {
-  const lines = [state.title.trim() || "Today’s focus", ""];
-  groupTasks(state.tasks).forEach((dateGroup) => {
+  const tasks = [];
+  groupTasks(incompleteTasks()).forEach((dateGroup) => {
     dateGroup.subjects.forEach((subjectGroup) => {
-      subjectGroup.tasks.forEach(({ task }) => lines.push(task.task));
+      subjectGroup.tasks.forEach(({ task }) => tasks.push(stripCopiedTaskIcons(task.task)));
     });
   });
-  return lines.join("\n");
+  return [state.title.trim() || "Today’s focus", ...tasks.filter(Boolean)].join("\n\n");
+}
+
+function stripCopiedTaskIcons(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+
+  if (typeof Intl.Segmenter === "function") {
+    const segments = new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text);
+    return [...segments]
+      .map(({ segment }) => segment)
+      .filter((segment) => !/[\p{Extended_Pictographic}\p{Emoji_Presentation}]/u.test(segment))
+      .join("")
+      .replace(/^[\s•●○◆◇✓✔☑☐★☆:–—-]+/u, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  }
+
+  return text
+    .replace(/[\u{1F1E6}-\u{1F1FF}\u{1F300}-\u{1FAFF}\u2600-\u27BF\uFE0F\u200D]/gu, "")
+    .replace(/^[\s•●○◆◇✓✔☑☐★☆:–—-]+/u, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 function fallbackCopyText(text) {
@@ -600,7 +659,7 @@ function fallbackCopyText(text) {
 }
 
 async function copyTodoList() {
-  if (state.tasks.length === 0) return;
+  if (incompleteTasks().length === 0) return;
   try {
     const text = buildPlainTextList();
     if (navigator.clipboard?.writeText && window.isSecureContext) await navigator.clipboard.writeText(text);
@@ -733,7 +792,7 @@ function createTodoImageBlob(snapshot) {
   context.stroke();
   context.fillStyle = "#6c777b";
   context.font = '500 20px Arial, "Helvetica Neue", sans-serif';
-  context.fillText("AI Todo List · Version 2.4", padding, y + 48);
+  context.fillText("AI Todo List · Version 2.5", padding, y + 48);
 
   const dataUrl = canvas.toDataURL("image/png");
   if (!dataUrl.startsWith("data:image/png;base64,")) {
@@ -746,20 +805,27 @@ function createTodoImageBlob(snapshot) {
   return new Blob([bytes], { type: "image/png" });
 }
 
-function safeImageFilename(title = state.title) {
-  const cleanTitle = (title.trim() || "Todo List")
+function normalizePngFilename(value = state.title) {
+  let cleanName = (String(value || "").trim() || "Todo List")
     .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "-")
     .replace(/\s+/g, " ")
     .slice(0, 80)
-    .trim();
-  return `${cleanTitle || "Todo List"}.png`;
+    .trim()
+    .replace(/[. ]+$/g, "");
+
+  if (!cleanName) cleanName = "Todo List";
+  cleanName = cleanName.replace(/(?:\.png)+$/i, "");
+  // Replace a conventional filename extension, but keep numeric title endings
+  // such as "Version 2.5" intact.
+  cleanName = cleanName.replace(/\.[a-z][a-z0-9]{0,9}$/i, "");
+  return `${cleanName || "Todo List"}.png`;
 }
 
 function downloadImageBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const download = document.createElement("a");
   download.href = url;
-  download.download = filename;
+  download.download = normalizePngFilename(filename);
   download.style.display = "none";
   document.body.append(download);
   download.click();
@@ -786,19 +852,27 @@ async function validatePngBlob(blob) {
   }
 }
 
+async function savePngBlob(blob, requestedFilename) {
+  const filename = normalizePngFilename(requestedFilename);
+  await validatePngBlob(blob);
+  downloadImageBlob(blob, filename);
+  return { status: "downloaded", filename };
+}
+
 async function exportTodoList() {
-  if (state.tasks.length === 0 || isExporting) return;
+  const visibleTasks = incompleteTasks();
+  if (visibleTasks.length === 0 || isExporting) return;
   isExporting = true;
   renderTasks();
   shareButtonLabel.textContent = "Saving…";
   const snapshot = {
     title: state.title.trim() || "Today’s focus",
-    tasks: state.tasks.map((task) => ({
+    tasks: visibleTasks.map((task) => ({
       task: task.task,
       date: { ...task.date },
     })),
   };
-  const filename = safeImageFilename(snapshot.title);
+  const filename = normalizePngFilename(snapshot.title);
   let blob;
   try {
     blob = createTodoImageBlob(snapshot);
@@ -811,9 +885,8 @@ async function exportTodoList() {
     return;
   }
   try {
-    await validatePngBlob(blob);
-    downloadImageBlob(blob, filename);
-    showPageNotice(`PNG download started: ${filename}`, "success");
+    const result = await savePngBlob(blob, filename);
+    showPageNotice(`PNG download started: ${result.filename}`, "success");
   } catch (error) {
     console.error(error);
     showPageNotice("The image could not be saved. Please try again.", "error", 3200);
@@ -833,7 +906,7 @@ function resizeTaskInput() {
 }
 
 function updateComposerToggle() {
-  const hasTasks = state.tasks.length > 0;
+  const hasTasks = incompleteTasks().length > 0;
   toggleComposerButton.hidden = !hasTasks;
   toggleComposerButton.textContent = composerOpen ? "Close input" : "Add tasks";
   toggleComposerButton.setAttribute("aria-expanded", String(composerOpen));
@@ -841,7 +914,7 @@ function updateComposerToggle() {
 }
 
 function setComposerOpen(open, { focus = false } = {}) {
-  composerOpen = state.tasks.length === 0 ? true : open;
+  composerOpen = incompleteTasks().length === 0 ? true : open;
   composerRegion.classList.toggle("collapsed", !composerOpen);
   todoCard.classList.toggle("composer-collapsed", !composerOpen);
   composerRegion.setAttribute("aria-hidden", String(!composerOpen));
@@ -865,7 +938,7 @@ function setProcessing(active) {
   isProcessing = active;
   const reviewingPreview = previewTasks.length > 0;
   askButton.disabled = active || reviewingPreview || recordingPhase !== "idle";
-  recordButton.disabled = active || reviewingPreview || recordingPhase === "starting" || recordingPhase === "stopping" || !SpeechRecognition;
+  recordButton.disabled = active || reviewingPreview || recordingPhase === "starting" || recordingPhase === "stopping" || !navigator.mediaDevices?.getUserMedia;
   languageSelect.disabled = active || reviewingPreview || recordingPhase !== "idle";
   taskInput.disabled = active;
   askButton.textContent = active ? "Processing…" : "Ask AI";
@@ -1079,23 +1152,74 @@ function startTimer() {
 function releaseMedia() {
   cancelAnimationFrame(animationFrame);
   clearInterval(timerInterval);
+  if (audioProcessor) {
+    audioProcessor.onaudioprocess = null;
+    try { audioProcessor.disconnect(); } catch { /* Already disconnected. */ }
+  }
+  if (audioSink) {
+    try { audioSink.disconnect(); } catch { /* Already disconnected. */ }
+  }
   mediaStream?.getTracks().forEach((track) => track.stop());
   mediaStream = undefined;
   analyser = undefined;
+  audioProcessor = undefined;
+  audioSink = undefined;
   if (audioContext) audioContext.close().catch(() => {});
   audioContext = undefined;
   waveform.hidden = true;
   recordingTimer.hidden = true;
 }
 
-function appendTranscript(words) {
-  const cleanWords = words.trim();
-  if (!cleanWords) return;
-  const lastCharacter = finalTranscript.trimEnd().slice(-1);
-  const firstCharacter = cleanWords.charAt(0);
-  const isCjk = (character) => /[\u3400-\u9fff\uf900-\ufaff]/.test(character);
-  const separator = finalTranscript && !isCjk(lastCharacter) && !isCjk(firstCharacter) ? " " : "";
-  finalTranscript = `${finalTranscript.trimEnd()}${separator}${cleanWords}`;
+function combineAudioChunks(chunks) {
+  const length = chunks.reduce((total, chunk) => total + chunk.length, 0);
+  const combined = new Float32Array(length);
+  let offset = 0;
+  chunks.forEach((chunk) => {
+    combined.set(chunk, offset);
+    offset += chunk.length;
+  });
+  return combined;
+}
+
+function resampleAudio(samples, inputRate, outputRate = 16000) {
+  if (inputRate === outputRate) return samples;
+  const ratio = inputRate / outputRate;
+  const outputLength = Math.max(1, Math.round(samples.length / ratio));
+  const output = new Float32Array(outputLength);
+  for (let index = 0; index < outputLength; index += 1) {
+    const position = index * ratio;
+    const lower = Math.floor(position);
+    const upper = Math.min(lower + 1, samples.length - 1);
+    const mix = position - lower;
+    output[index] = samples[lower] * (1 - mix) + samples[upper] * mix;
+  }
+  return output;
+}
+
+function createWavBlob(samples, sampleRate = 16000) {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  const writeText = (offset, text) => {
+    for (let index = 0; index < text.length; index += 1) view.setUint8(offset + index, text.charCodeAt(index));
+  };
+  writeText(0, "RIFF");
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeText(8, "WAVE");
+  writeText(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeText(36, "data");
+  view.setUint32(40, samples.length * 2, true);
+  samples.forEach((sample, index) => {
+    const clipped = Math.max(-1, Math.min(1, sample));
+    view.setInt16(44 + index * 2, clipped < 0 ? clipped * 0x8000 : clipped * 0x7fff, true);
+  });
+  return new Blob([buffer], { type: "audio/wav" });
 }
 
 function updateRecordingControls() {
@@ -1105,63 +1229,57 @@ function updateRecordingControls() {
   recordButton.setAttribute("aria-pressed", String(recording));
   recordButton.setAttribute("aria-label", recording ? "Stop voice recording" : "Start voice recording");
   cancelRecordingButton.hidden = !recording;
-  recordButton.disabled = isProcessing || reviewingPreview || recordingPhase === "starting" || recordingPhase === "stopping" || !SpeechRecognition;
+  recordButton.disabled = isProcessing || reviewingPreview || recordingPhase === "starting" || recordingPhase === "stopping" || !navigator.mediaDevices?.getUserMedia;
   askButton.disabled = isProcessing || reviewingPreview || recordingPhase !== "idle";
   languageSelect.disabled = isProcessing || reviewingPreview || recordingPhase !== "idle";
 }
 
 function finishCanceledRecording() {
   recordingPhase = "idle";
-  recognitionError = "";
-  finalTranscript = "";
-  interimTranscript = "";
+  recordedAudioChunks = [];
+  pendingRecording = null;
   releaseMedia();
   updateRecordingControls();
   setStatus("Recording canceled. Nothing was submitted.", "idle");
 }
 
-async function finishTranscription() {
-  if (voiceSubmissionStarted) return;
-  releaseMedia();
-  recordingPhase = "idle";
-  updateRecordingControls();
-
-  if (cancelRequested) {
-    finishCanceledRecording();
-    return;
+async function transcribeRecording(recording) {
+  if (isProcessing) return;
+  pendingRecording = recording;
+  retryButton.hidden = true;
+  setProcessing(true);
+  setStatus("Transcribing your recording with Doubao Speech 2.0…", "processing");
+  try {
+    const response = await fetch(`/api/transcribe?language=${encodeURIComponent(recording.language)}`, {
+      method: "POST",
+      headers: { "Content-Type": "audio/wav" },
+      body: recording.blob,
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Doubao could not transcribe this recording.");
+    const transcript = typeof result.transcript === "string" ? result.transcript.trim() : "";
+    if (!transcript) throw new Error("No speech was detected. Check your microphone and try again.");
+    pendingRecording = null;
+    setProcessing(false);
+    await processInput(transcript, "voice");
+  } catch (error) {
+    setProcessing(false);
+    retryButton.hidden = false;
+    setStatus(error.message || "Transcription failed. Please retry or continue typing.", "error");
   }
-  if (recognitionError) {
-    const availableTranscript = finalTranscript.trim() || interimTranscript.trim();
-    pendingProcessing = availableTranscript ? { input: availableTranscript, source: "voice" } : null;
-    retryButton.hidden = !pendingProcessing;
-    setStatus(recognitionError, "error");
-    return;
-  }
-
-  const transcript = finalTranscript.trim() || interimTranscript.trim();
-  if (!transcript) {
-    pendingProcessing = null;
-    retryButton.hidden = true;
-    setStatus("No speech was detected. Check your microphone and try again.", "error");
-    return;
-  }
-  voiceSubmissionStarted = true;
-  await processInput(transcript, "voice");
 }
 
 async function startRecording() {
-  if (!SpeechRecognition) {
-    setStatus("Voice input is not supported in this browser. Use the latest Google Chrome, or continue typing.", "error");
+  if (!navigator.mediaDevices?.getUserMedia) {
+    setStatus("Voice recording is not supported in this browser. Use the latest Google Chrome, or continue typing.", "error");
     return;
   }
   if (recordingPhase !== "idle" || isProcessing) return;
 
   recordingPhase = "starting";
   cancelRequested = false;
-  voiceSubmissionStarted = false;
-  recognitionError = "";
-  finalTranscript = "";
-  interimTranscript = "";
+  recordedAudioChunks = [];
+  pendingRecording = null;
   retryButton.hidden = true;
   updateRecordingControls();
   setStatus("Requesting microphone access…", "processing");
@@ -1174,55 +1292,17 @@ async function startRecording() {
     analyser = audioContext.createAnalyser();
     analyser.fftSize = 2048;
     source.connect(analyser);
-
-    recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = languageSelect.value;
-    recognition.maxAlternatives = 1;
-
-    recognition.onresult = (event) => {
-      interimTranscript = "";
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
-        const words = event.results[index][0].transcript;
-        if (event.results[index].isFinal) appendTranscript(words);
-        else interimTranscript += words;
-      }
+    recordedSampleRate = audioContext.sampleRate;
+    audioProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+    audioSink = audioContext.createGain();
+    audioSink.gain.value = 0;
+    audioProcessor.onaudioprocess = (event) => {
+      if (recordingPhase !== "recording") return;
+      recordedAudioChunks.push(new Float32Array(event.inputBuffer.getChannelData(0)));
     };
-
-    recognition.onerror = (event) => {
-      if (cancelRequested || event.error === "aborted") return;
-      if (event.error === "no-speech") {
-        recognitionError = "No speech was detected. Check your microphone and try again.";
-      } else if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-        recognitionError = "Microphone or speech-recognition access was denied. Allow access in Chrome settings, then try again.";
-      } else if (event.error === "network") {
-        recognitionError = "Transcription failed because the speech service could not connect. Check your network and try again.";
-      } else {
-        recognitionError = `Transcription failed (${event.error.replaceAll("-", " ")}). You can retry without retyping any captured text.`;
-      }
-      recordingPhase = "stopping";
-      updateRecordingControls();
-    };
-
-    recognition.onend = () => {
-      if (cancelRequested) {
-        cancelRequested = false;
-        return;
-      }
-      if (recordingPhase === "recording" && !cancelRequested && !recognitionError) {
-        interimTranscript = "";
-        try {
-          recognition.start();
-          return;
-        } catch {
-          recognitionError = "Transcription stopped unexpectedly. You can retry without retyping any captured text.";
-        }
-      }
-      finishTranscription();
-    };
-
-    recognition.start();
+    source.connect(audioProcessor);
+    audioProcessor.connect(audioSink);
+    audioSink.connect(audioContext.destination);
     recordingPhase = "recording";
     waveform.hidden = false;
     recordingTimer.hidden = false;
@@ -1244,24 +1324,29 @@ async function startRecording() {
   }
 }
 
-function stopRecording() {
+async function stopRecording() {
   if (recordingPhase !== "recording") return;
   recordingPhase = "stopping";
   updateRecordingControls();
   setStatus("Transcribing your recording…", "processing");
-  try {
-    recognition.stop();
-  } catch {
-    recognitionError = "Transcription could not finish. Please try recording again.";
-    finishTranscription();
+  const samples = combineAudioChunks(recordedAudioChunks);
+  const wav = createWavBlob(resampleAudio(samples, recordedSampleRate));
+  recordedAudioChunks = [];
+  releaseMedia();
+  recordingPhase = "idle";
+  updateRecordingControls();
+  if (cancelRequested) return finishCanceledRecording();
+  if (samples.length === 0) {
+    setStatus("No speech was detected. Check your microphone and try again.", "error");
+    return;
   }
+  await transcribeRecording({ blob: wav, language: languageSelect.value });
 }
 
 function cancelRecording() {
   if (recordingPhase !== "recording") return;
   cancelRequested = true;
   recordingPhase = "idle";
-  try { recognition.abort(); } catch { /* The recognizer may already be closing. */ }
   finishCanceledRecording();
 }
 
@@ -1290,7 +1375,8 @@ recordButton.addEventListener("click", () => {
 cancelRecordingButton.addEventListener("click", cancelRecording);
 
 retryButton.addEventListener("click", () => {
-  if (pendingProcessing) processInput(pendingProcessing.input, pendingProcessing.source);
+  if (pendingRecording) transcribeRecording(pendingRecording);
+  else if (pendingProcessing) processInput(pendingProcessing.input, pendingProcessing.source);
 });
 
 savePreviewButton.addEventListener("click", () => {
@@ -1330,8 +1416,7 @@ savePreviewButton.addEventListener("click", () => {
   renderPreview();
   taskInput.value = "";
   pendingProcessing = null;
-  finalTranscript = "";
-  interimTranscript = "";
+  pendingRecording = null;
   retryButton.hidden = true;
   setStatus(`${count} ${count === 1 ? "task" : "tasks"} saved.`, "success");
   setComposerOpen(false);
@@ -1402,17 +1487,29 @@ window.addEventListener("blur", () => cancelPointerDrag());
 window.addEventListener("pagehide", () => {
   cancelPointerDrag();
   cancelRequested = true;
-  try { recognition?.abort(); } catch { /* The page is closing. */ }
   releaseMedia();
 });
+window.addEventListener("pageshow", () => {
+  state = loadState();
+  renderTasks();
+});
+window.addEventListener("focus", () => {
+  state = loadState();
+  renderTasks();
+});
+window.addEventListener("storage", (event) => {
+  if (event.key !== STORAGE_KEY) return;
+  state = loadState();
+  renderTasks();
+});
 
-if (!SpeechRecognition) {
+if (!navigator.mediaDevices?.getUserMedia) {
   recordButton.disabled = true;
-  setStatus("Voice input is not supported in this browser. Use the latest Google Chrome, or continue typing.", "warning");
+  setStatus("Voice recording is not supported in this browser. Use the latest Google Chrome, or continue typing.", "warning");
 }
 applyAppearance();
 renderTasks();
 renderPreview();
 updateRecordingControls();
-setComposerOpen(state.tasks.length === 0);
+setComposerOpen(incompleteTasks().length === 0);
 resizeTaskInput();
