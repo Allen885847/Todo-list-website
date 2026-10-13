@@ -487,6 +487,105 @@ html[data-theme="dark"] .calendar-page {
   list-style: none;
 }
 
+.task-card-stack {
+  position: relative;
+  isolation: isolate;
+}
+
+.task-card-stack:not(.expanded) {
+  margin-bottom: 12px;
+}
+
+.task-card-stack:not(.expanded)::before,
+.task-card-stack:not(.expanded)::after {
+  position: absolute;
+  z-index: -1;
+  right: 9px;
+  left: 9px;
+  height: 100%;
+  content: "";
+  background: color-mix(in srgb, var(--paper) 86%, var(--soft-accent));
+  border: 1px solid color-mix(in srgb, var(--line) 82%, var(--accent));
+  border-radius: 11px;
+}
+
+.task-card-stack:not(.expanded)::before {
+  top: 6px;
+}
+
+.task-card-stack:not(.expanded)::after {
+  top: 11px;
+  right: 17px;
+  left: 17px;
+  opacity: 0.72;
+}
+
+.task-stack-toggle {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 13px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: 11px;
+  box-shadow: 0 6px 14px rgba(23, 33, 38, 0.07);
+  text-align: left;
+}
+
+.task-stack-toggle:hover,
+.task-stack-toggle:focus-visible {
+  background: var(--soft-accent);
+  border-color: var(--soft-accent-border);
+  border-left-color: var(--accent);
+  outline: none;
+}
+
+.task-stack-icon,
+.task-stack-chevron {
+  color: var(--accent-dark);
+  font-weight: 800;
+}
+
+.task-stack-icon {
+  font-size: 1rem;
+}
+
+.task-stack-label {
+  overflow: hidden;
+  font-size: 0.84rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-stack-hint {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.task-stack-chevron {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  background: var(--soft-accent);
+  border-radius: 50%;
+  font-size: 0.9rem;
+}
+
+.task-stack-items {
+  display: grid;
+  gap: 8px;
+  margin-top: 9px;
+}
+
 .calendar-item {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -657,6 +756,39 @@ html[data-theme="dark"] .calendar-page {
 .week-day .calendar-item {
   margin-bottom: 7px;
   padding: 8px;
+}
+
+.week-task-stack:not(.expanded) {
+  margin-bottom: 10px;
+}
+
+.week-task-stack .task-stack-toggle {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 7px;
+  padding: 8px;
+}
+
+.week-task-stack .task-stack-hint {
+  display: none;
+}
+
+.week-task-stack .task-stack-label {
+  font-size: 0.74rem;
+}
+
+.week-task-stack .task-stack-chevron {
+  width: 19px;
+  height: 19px;
+  font-size: 0.76rem;
+}
+
+.week-task-stack .task-stack-items {
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.week-task-stack .task-stack-items .calendar-item {
+  margin-bottom: 0;
 }
 
 .calendar-footer {

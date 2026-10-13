@@ -74,6 +74,7 @@ let dateRefreshTimer;
 let isEventDescriptionComposing = false;
 let isInterpretingEvent = false;
 let eventVoiceInput;
+const expandedTaskDates = new Set();
 
 function startOfDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -448,6 +449,49 @@ function appendAgendaItems(list, tasks, dayEvents) {
   });
 }
 
+function createTaskStack(tasks, isoDate, context = "day") {
+  const stack = document.createElement("div");
+  stack.className = `task-card-stack ${context}-task-stack`;
+  const expanded = expandedTaskDates.has(isoDate);
+  stack.classList.toggle("expanded", expanded);
+
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "task-stack-toggle";
+  toggle.setAttribute("aria-expanded", String(expanded));
+  toggle.setAttribute("aria-label", `${expanded ? "Collapse" : "Expand"} ${tasks.length} ${tasks.length === 1 ? "task" : "tasks"} for ${isoDate}`);
+
+  const icon = document.createElement("span");
+  icon.className = "task-stack-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = "▤";
+  const label = document.createElement("span");
+  label.className = "task-stack-label";
+  label.textContent = `${tasks.length} ${tasks.length === 1 ? "Task" : "Tasks"}`;
+  const hint = document.createElement("span");
+  hint.className = "task-stack-hint";
+  hint.textContent = expanded ? "Collapse" : "Show all";
+  const chevron = document.createElement("span");
+  chevron.className = "task-stack-chevron";
+  chevron.setAttribute("aria-hidden", "true");
+  chevron.textContent = expanded ? "−" : "+";
+  toggle.append(icon, label, hint, chevron);
+  toggle.addEventListener("click", () => {
+    if (expanded) expandedTaskDates.delete(isoDate);
+    else expandedTaskDates.add(isoDate);
+    renderCalendar();
+  });
+  stack.append(toggle);
+
+  if (expanded) {
+    const items = document.createElement("div");
+    items.className = "task-stack-items";
+    tasks.forEach(({ task, index }) => items.append(createCalendarItem("task", task, index)));
+    stack.append(items);
+  }
+  return stack;
+}
+
 function createHolidayBanner(holidayEvents) {
   const banner = document.createElement("div");
   banner.className = "holiday-banner";
@@ -488,7 +532,9 @@ function renderDay() {
     const title = document.createElement("h3");
     title.textContent = titleText;
     section.append(title);
-    if (sectionTasks.length || sectionEvents.length) {
+    if (sectionTasks.length) {
+      section.append(createTaskStack(sectionTasks, isoDate, "day"));
+    } else if (sectionEvents.length) {
       const list = document.createElement("ul");
       list.className = "agenda-list";
       appendAgendaItems(list, sectionTasks, sectionEvents);
@@ -549,7 +595,7 @@ function renderWeek() {
       label.className = "week-group-label";
       label.textContent = labelText;
       column.append(label);
-      groupTasks.forEach(({ task, index }) => column.append(createCalendarItem("task", task, index)));
+      if (groupTasks.length) column.append(createTaskStack(groupTasks, isoDate, "week"));
       groupEvents.forEach((event) => column.append(createCalendarItem("event", event)));
     };
     appendGroup("Tasks", tasks, []);
