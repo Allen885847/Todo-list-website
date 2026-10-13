@@ -12,5 +12,8 @@ assert.match(calendarScript, /createSection\("Events", \[\], \[\.\.\.allDayEvent
 assert.match(calendarScript, /appendGroup\("Tasks", tasks, \[\]\)/);
 assert.match(calendarScript, /appendGroup\("Events", \[\], \[/);
 assert.match(calendarScript, /return event\.endTime \? `\$\{start\}–\$\{formatClockTime\(event\.endTime\)\}` : start;/);
+assert.match(calendarScript, /function startOfMondayWeek\(date\)/);
+assert.match(calendarScript, /function renderWeek\(\) \{\s*const weekStart = startOfMondayWeek\(selectedDate\);/);
+assert.match(calendarScript, /function renderMonth\(\)[\s\S]*?const gridStart = startOfWeek\(first\);/);
 
 console.log("Calendar labels and controls passed.");

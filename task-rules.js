@@ -34,7 +34,14 @@
     return normalizeCompletedOn(task.completedOn) === today;
   }
 
+  function areTodaysTasksComplete(tasks, today = localDateIso()) {
+    const todaysTasks = (Array.isArray(tasks) ? tasks : [])
+      .filter((task) => dueDateIso(task) === today);
+    return todaysTasks.length > 0 && todaysTasks.every((task) => task.completed);
+  }
+
   const rules = {
+    areTodaysTasksComplete,
     compareByDueDate,
     dueDateIso,
     isVisibleInActiveList,

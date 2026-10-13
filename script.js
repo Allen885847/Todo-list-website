@@ -290,13 +290,17 @@ function createTaskElement(todo, index) {
   });
 
   checkbox.addEventListener("change", () => {
-    const wasFullyCompleted = state.tasks.length > 0 && state.tasks.every((task) => task.completed);
+    const today = TodoTaskRules.localDateIso();
+    const hadIncompleteTaskToday = state.tasks.some((task) => (
+      TodoTaskRules.dueDateIso(task) === today && !task.completed
+    ));
     state.tasks[index] = TodoTaskRules.withCompletion(state.tasks[index], checkbox.checked);
-    const isFullyCompleted = state.tasks.length > 0 && state.tasks.every((task) => task.completed);
+    const completedTodaysTasks = TodoTaskRules.areTodaysTasksComplete(state.tasks, today);
     saveState();
     renderTasks();
-    if (!wasFullyCompleted && isFullyCompleted) celebrateCompletion();
-    else showPageNotice("Task completed. It remains in Calendar.", "success");
+    if (checkbox.checked && hadIncompleteTaskToday && completedTodaysTasks) celebrateCompletion();
+    else if (checkbox.checked) showPageNotice("Task completed. It remains in Calendar.", "success");
+    else showPageNotice("Task marked incomplete.", "success");
   });
   deleteButton.addEventListener("click", () => {
     state.tasks.splice(index, 1);
@@ -539,7 +543,7 @@ function showPageNotice(message, type = "success", duration = 2400) {
 
 function celebrateCompletion() {
   showPageNotice(
-    prefersReducedMotion ? "All tasks completed. Nice work!" : "All done — nice work! 🎉",
+    prefersReducedMotion ? "Today's tasks completed. Nice work!" : "Today's tasks are done — nice work! 🎉",
     "completion",
     2300,
   );

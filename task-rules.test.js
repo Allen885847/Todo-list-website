@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const {
+  areTodaysTasksComplete,
   compareByDueDate,
   isVisibleInActiveList,
   withCompletion,
@@ -19,6 +20,18 @@ const completed = withCompletion({ task: "History worksheet", date: date(2026, 1
 assert.equal(completed.completed, true);
 assert.equal(completed.completedOn, "2026-10-13");
 assert.equal(withCompletion(completed, false, "2026-10-13").completedOn, null);
+
+assert.equal(areTodaysTasksComplete([
+  { date: date(2026, 10, 13), completed: true },
+  { date: date(2026, 10, 14), completed: false },
+], "2026-10-13"), true);
+assert.equal(areTodaysTasksComplete([
+  { date: date(2026, 10, 13), completed: true },
+  { date: date(2026, 10, 13), completed: false },
+], "2026-10-13"), false);
+assert.equal(areTodaysTasksComplete([
+  { date: date(2026, 10, 14), completed: true },
+], "2026-10-13"), false);
 
 const orderedDates = [
   { date: date(2026, 10, 30) },

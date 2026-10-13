@@ -101,6 +101,11 @@ function startOfWeek(date) {
   return addDays(date, -date.getDay());
 }
 
+function startOfMondayWeek(date) {
+  const day = date.getDay();
+  return addDays(date, day === 0 ? -6 : 1 - day);
+}
+
 function toIsoDate(date) {
   if (!date) return "";
   if (!(date instanceof Date)) {
@@ -504,7 +509,7 @@ function renderDay() {
 }
 
 function renderWeek() {
-  const weekStart = startOfWeek(selectedDate);
+  const weekStart = startOfMondayWeek(selectedDate);
   const weekEnd = addDays(weekStart, 6);
   const startLabel = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(weekStart);
   const endLabel = new Intl.DateTimeFormat(undefined, {
