@@ -517,22 +517,7 @@ html[data-theme="dark"] .calendar-page {
   border-radius: 11px;
   box-shadow: 0 5px 13px rgba(23, 33, 38, 0.08);
   transform-origin: 14% 92%;
-}
-
-.task-fan-card-1 {
-  transform: translate(-6px, 5px) rotate(-5.5deg);
-}
-
-.task-fan-card-2 {
-  transform: translate(-2px, 7px) rotate(-2.5deg);
-}
-
-.task-fan-card-3 {
-  transform: translate(3px, 7px) rotate(2.8deg);
-}
-
-.task-fan-card-4 {
-  transform: translate(7px, 4px) rotate(5.8deg);
+  transform: translateY(4px) rotate(var(--fan-angle));
 }
 
 .task-stack-toggle {
@@ -554,7 +539,7 @@ html[data-theme="dark"] .calendar-page {
 }
 
 .task-card-stack:not(.expanded) .task-stack-toggle {
-  transform: translateY(-1px) rotate(0.8deg);
+  transform: translateY(-1px) rotate(var(--fan-top-angle));
   transform-origin: 14% 92%;
 }
 
@@ -809,26 +794,6 @@ html[data-theme="dark"] .calendar-page {
 
 .week-task-stack .task-stack-items .calendar-item {
   margin-bottom: 0;
-}
-
-.week-task-stack .task-fan-card-1 {
-  transform: translate(-3px, 4px) rotate(-3.6deg);
-}
-
-.week-task-stack .task-fan-card-2 {
-  transform: translate(-1px, 5px) rotate(-1.6deg);
-}
-
-.week-task-stack .task-fan-card-3 {
-  transform: translate(2px, 5px) rotate(1.8deg);
-}
-
-.week-task-stack .task-fan-card-4 {
-  transform: translate(4px, 3px) rotate(3.8deg);
-}
-
-.week-task-stack:not(.expanded) .task-stack-toggle {
-  transform: translateY(-1px) rotate(0.5deg);
 }
 
 .calendar-footer {

@@ -17,7 +17,8 @@ assert.match(calendarScript, /function renderWeek\(\) \{\s*const weekStart = sta
 assert.match(calendarScript, /function renderMonth\(\)[\s\S]*?const gridStart = startOfWeek\(first\);/);
 assert.match(calendarScript, /function createTaskStack\(tasks, isoDate, context = "day"\)/);
 assert.match(calendarScript, /const visibleCards = Math\.min\(tasks\.length, 5\)/);
-assert.match(calendarScript, /card\.className = `task-fan-card task-fan-card-\$\{cardIndex\}`/);
+assert.match(calendarScript, /const angleStep = visibleCards > 1 \? \(halfFanAngle \* 2\) \/ \(visibleCards - 1\) : 0/);
+assert.match(calendarScript, /card\.style\.setProperty\("--fan-angle", `\$\{-halfFanAngle \+ angleStep \* cardIndex\}deg`\)/);
 assert.match(calendarScript, /chevron\.textContent = expanded \? "▴" : "▾"/);
 assert.doesNotMatch(calendarScript, /chevron\.textContent = expanded \? "−" : "\+"/);
 assert.match(calendarScript, /label\.textContent = `\$\{tasks\.length\} \$\{tasks\.length === 1 \? "Task" : "Tasks"\}`/);
