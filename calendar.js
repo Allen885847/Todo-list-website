@@ -484,7 +484,7 @@ function createTaskStack(tasks, isoDate, context = "day") {
   const chevron = document.createElement("span");
   chevron.className = "task-stack-chevron";
   chevron.setAttribute("aria-hidden", "true");
-  chevron.textContent = expanded ? "−" : "+";
+  chevron.textContent = expanded ? "▴" : "▾";
   toggle.append(icon, label, hint, chevron);
   toggle.addEventListener("click", () => {
     if (expanded) expandedTaskDates.delete(isoDate);
