@@ -257,7 +257,7 @@ function formatClockTime(value) {
 }
 
 function formatEventTiming(event) {
-  if (event.allDay || !event.startTime) return "All Day";
+  if (event.allDay || !event.startTime) return "";
   const start = formatClockTime(event.startTime);
   return event.endTime ? `${start}–${formatClockTime(event.endTime)}` : start;
 }
@@ -303,12 +303,13 @@ function createCalendarItem(type, data, index) {
   meta.className = "item-meta";
   if (type === "event") {
     const timing = formatEventTiming(data);
-    meta.textContent = data.holiday ? `Holiday · ${timing}` : timing;
+    meta.textContent = [data.holiday ? "Holiday" : "", timing].filter(Boolean).join(" · ");
   } else {
-    const status = data.completed ? "Completed" : (isTaskOverdue(data) ? "Overdue" : "All Day");
-    meta.textContent = `${data.subject} · ${status}`;
+    const status = data.completed ? "Completed" : (isTaskOverdue(data) ? "Overdue" : "");
+    meta.textContent = [data.subject, status].filter(Boolean).join(" · ");
   }
-  content.append(title, meta);
+  content.append(title);
+  if (meta.textContent) content.append(meta);
   button.append(symbol, content);
   button.addEventListener("click", () => {
     if (type === "event") openEventDialog(data.id);
@@ -490,7 +491,7 @@ function renderDay() {
     return section;
   };
   wrapper.append(
-    createSection("All day", tasks, allDayEvents, "No all-day tasks or events."),
+    createSection("Tasks & events", tasks, allDayEvents, "No tasks or untimed events."),
     createSection("Schedule", [], timedEvents, "No timed events."),
   );
   stage.replaceChildren(wrapper);
@@ -540,7 +541,7 @@ function renderWeek() {
       groupTasks.forEach(({ task, index }) => column.append(createCalendarItem("task", task, index)));
       groupEvents.forEach((event) => column.append(createCalendarItem("event", event)));
     };
-    appendGroup("All day", tasks, dayEvents.filter((event) => event.allDay));
+    appendGroup("Tasks & events", tasks, dayEvents.filter((event) => event.allDay));
     appendGroup("Schedule", [], sortTimedEvents(dayEvents.filter((event) => !event.allDay)));
     if (!tasks.length && !dayEvents.length) {
       const empty = document.createElement("p");

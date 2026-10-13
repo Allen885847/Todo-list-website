@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node --env-file=.env server.js",
     "check": "node --check server.js && node --check persistent-storage.js && node --check data-migration.js && node --check data.js && node --check task-rules.js && node --check script.js && node --check calendar.js",
-    "test": "node task-rules.test.js"
+    "test": "node task-rules.test.js && node calendar-display.test.js"
   },
   "dependencies": {
     "ws": "^8.18.3"
