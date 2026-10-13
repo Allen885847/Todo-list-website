@@ -105,10 +105,12 @@ function groupTasks(items) {
     if (!dateGroup.subjects.has(task.subject)) dateGroup.subjects.set(task.subject, []);
     dateGroup.subjects.get(task.subject).push({ task, index });
   });
-  return [...dates.values()].map((dateGroup) => ({
-    date: dateGroup.date,
-    subjects: [...dateGroup.subjects].map(([subject, tasks]) => ({ subject, tasks })),
-  }));
+  return [...dates.values()]
+    .sort(TodoTaskRules.compareByDueDate)
+    .map((dateGroup) => ({
+      date: dateGroup.date,
+      subjects: [...dateGroup.subjects].map(([subject, tasks]) => ({ subject, tasks })),
+    }));
 }
 
 function flattenGroups(items) {

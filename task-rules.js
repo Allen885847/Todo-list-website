@@ -12,6 +12,15 @@
     return /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) ? String(value) : null;
   }
 
+  function compareByDueDate(first, second) {
+    const firstDate = dueDateIso(first);
+    const secondDate = dueDateIso(second);
+    if (!firstDate && !secondDate) return 0;
+    if (!firstDate) return 1;
+    if (!secondDate) return -1;
+    return firstDate.localeCompare(secondDate);
+  }
+
   function withCompletion(task, completed, today = localDateIso()) {
     return {
       ...task,
@@ -26,6 +35,7 @@
   }
 
   const rules = {
+    compareByDueDate,
     dueDateIso,
     isVisibleInActiveList,
     localDateIso,

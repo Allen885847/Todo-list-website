@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const {
+  compareByDueDate,
   isVisibleInActiveList,
   withCompletion,
 } = require("./task-rules.js");
@@ -18,5 +19,23 @@ const completed = withCompletion({ task: "History worksheet", date: date(2026, 1
 assert.equal(completed.completed, true);
 assert.equal(completed.completedOn, "2026-10-13");
 assert.equal(withCompletion(completed, false, "2026-10-13").completedOn, null);
+
+const orderedDates = [
+  { date: date(2026, 10, 30) },
+  { date: null },
+  { date: date(2027, 1, 2) },
+  { date: date(2026, 10, 19) },
+  { date: date(2025, 12, 31) },
+].sort(compareByDueDate).map((task) => task.date
+  ? `${task.date.year}-${task.date.month}-${task.date.day}`
+  : "undated");
+
+assert.deepEqual(orderedDates, [
+  "2025-12-31",
+  "2026-10-19",
+  "2026-10-30",
+  "2027-1-2",
+  "undated",
+]);
 
 console.log("Task completion visibility rules passed.");
