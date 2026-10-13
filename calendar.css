@@ -803,7 +803,7 @@ html[data-theme="dark"] .calendar-page {
 .natural-panel textarea:focus,
 .event-fields input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  box-shadow: 0 0 0 3px rgba(234, 104, 71, 0.12);
 }
 
 .event-fields input:disabled {

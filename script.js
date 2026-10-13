@@ -648,7 +648,7 @@ function celebrateCompletion() {
   const context = layer.getContext("2d");
   if (!context) return;
 
-  const colors = ["#3b82f6", "#22c55e", "#f4ba55", "#75a7e8", "#c276d8"];
+  const colors = ["#ea6847", "#23836c", "#f4ba55", "#75a7e8", "#c276d8"];
   document.body.append(layer);
 
   let viewportWidth = window.innerWidth;
@@ -851,7 +851,7 @@ function createTodoImageBlob(snapshot) {
   context.fillStyle = background;
   context.fillRect(0, 0, width, height);
 
-  context.fillStyle = "#1d4ed8";
+  context.fillStyle = "#c7482b";
   context.font = '700 22px Arial, "Helvetica Neue", sans-serif';
   context.fillText("YOUR DAY, CLEARLY PLANNED", padding, padding);
 
@@ -886,7 +886,7 @@ function createTodoImageBlob(snapshot) {
     context.stroke();
 
     const textX = padding + 70;
-    context.fillStyle = "#1d4ed8";
+    context.fillStyle = "#c7482b";
     context.font = '700 20px Arial, "Helvetica Neue", sans-serif';
     context.fillText(formatDate(task.date).toUpperCase(), textX, y + 34);
     context.font = '500 34px Arial, "Helvetica Neue", sans-serif';
@@ -1297,9 +1297,9 @@ function drawWaveform() {
   analyser.getByteTimeDomainData(values);
   context.clearRect(0, 0, waveform.width, waveform.height);
   const gradient = context.createLinearGradient(0, 0, waveform.width, 0);
-  gradient.addColorStop(0, "#93c5fd");
-  gradient.addColorStop(0.5, "#3b82f6");
-  gradient.addColorStop(1, "#1d4ed8");
+  gradient.addColorStop(0, "#229b81");
+  gradient.addColorStop(0.5, "#ea6847");
+  gradient.addColorStop(1, "#229b81");
   context.strokeStyle = gradient;
   context.lineWidth = Math.max(2, (window.devicePixelRatio || 1) * 1.2);
   context.beginPath();

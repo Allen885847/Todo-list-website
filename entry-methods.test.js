@@ -20,9 +20,9 @@ assert.match(taskScript, /function openTaskEditor\(index\)/);
 assert.match(taskScript, /async function rewriteEditedTask\(\)/);
 assert.match(taskScript, /fetch\("\/api\/parse-tasks"/);
 assert.match(taskScript, /editButton\.addEventListener\("click", \(\) => openTaskEditor\(index\)\)/);
-assert.match(styles, /--accent: #3b82f6;/);
-assert.match(styles, /--accent: #60a5fa;/);
-assert.doesNotMatch(styles, /--page-background:\s*radial-gradient/);
+assert.match(styles, /--accent: #ea6847;/);
+assert.match(styles, /--accent: #ff8060;/);
+assert.match(styles, /--page-background:\s*radial-gradient/);
 
 assert.match(calendarHtml, /id="event-record-button"/);
 assert.match(calendarHtml, /id="event-voice-waveform"/);
