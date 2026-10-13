@@ -7,12 +7,22 @@ const calendarHtml = fs.readFileSync("calendar.html", "utf8");
 const calendarScript = fs.readFileSync("calendar.js", "utf8");
 const voiceScript = fs.readFileSync("voice-input.js", "utf8");
 const serverScript = fs.readFileSync("server.js", "utf8");
+const styles = fs.readFileSync("style.css", "utf8");
 
 assert.match(indexHtml, /id="task-ai-tab"/);
 assert.match(indexHtml, /id="task-manual-tab"/);
 assert.match(indexHtml, /id="manual-task-form"/);
 assert.match(taskScript, /function saveManualTask\(\)/);
 assert.match(taskScript, /completed: false, completedOn: null/);
+assert.match(indexHtml, /id="task-edit-dialog"/);
+assert.match(indexHtml, /id="rewrite-task-ai"/);
+assert.match(taskScript, /function openTaskEditor\(index\)/);
+assert.match(taskScript, /async function rewriteEditedTask\(\)/);
+assert.match(taskScript, /fetch\("\/api\/parse-tasks"/);
+assert.match(taskScript, /editButton\.addEventListener\("click", \(\) => openTaskEditor\(index\)\)/);
+assert.match(styles, /--accent: #3b82f6;/);
+assert.match(styles, /--accent: #60a5fa;/);
+assert.doesNotMatch(styles, /--page-background:\s*radial-gradient/);
 
 assert.match(calendarHtml, /id="event-record-button"/);
 assert.match(calendarHtml, /id="event-voice-waveform"/);

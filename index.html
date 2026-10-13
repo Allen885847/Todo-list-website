@@ -192,6 +192,37 @@
       </section>
     </main>
 
+    <dialog id="task-edit-dialog" class="task-edit-dialog" aria-labelledby="task-edit-title">
+      <form id="task-edit-form" class="task-edit-card">
+        <div class="task-edit-heading">
+          <div>
+            <p class="section-label">EDIT SAVED TASK</p>
+            <h2 id="task-edit-title">Update task</h2>
+          </div>
+          <button id="close-task-editor" class="task-edit-close" type="button" aria-label="Close task editor">&times;</button>
+        </div>
+
+        <div class="task-edit-fields">
+          <label>Task title<input id="edit-task-title" type="text" maxlength="220" required autocomplete="off" /></label>
+          <label>Subject<input id="edit-task-subject" type="text" maxlength="80" required autocomplete="off" /></label>
+          <label>Due date <span class="optional-label">optional</span><input id="edit-task-date" type="date" /></label>
+        </div>
+
+        <section class="task-ai-rewrite" aria-labelledby="task-ai-rewrite-title">
+          <h3 id="task-ai-rewrite-title">Rewrite with AI</h3>
+          <p>Describe how this saved task should change. You can revise its wording, subject, or due date.</p>
+          <textarea id="edit-task-instruction" rows="3" maxlength="3000" placeholder="For example: Change this to physics practice due next Friday."></textarea>
+          <button id="rewrite-task-ai" class="secondary-action" type="button">Rewrite with AI</button>
+        </section>
+
+        <p id="task-edit-status" class="form-status" aria-live="polite">Make changes, then save the updated task.</p>
+        <div class="task-edit-actions">
+          <button id="cancel-task-edit" class="text-button" type="button">Cancel</button>
+          <button id="save-task-edit" class="ask-button" type="submit">Save changes</button>
+        </div>
+      </form>
+    </dialog>
+
     <script src="persistent-storage.js"></script>
     <script src="data-migration.js"></script>
     <script src="task-rules.js"></script>

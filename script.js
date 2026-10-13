@@ -37,6 +37,16 @@ const taskList = document.querySelector("#task-list");
 const taskCount = document.querySelector("#task-count");
 const emptyState = document.querySelector("#empty-state");
 const pageNotice = document.querySelector("#page-notice");
+const taskEditDialog = document.querySelector("#task-edit-dialog");
+const taskEditForm = document.querySelector("#task-edit-form");
+const editTaskTitle = document.querySelector("#edit-task-title");
+const editTaskSubject = document.querySelector("#edit-task-subject");
+const editTaskDate = document.querySelector("#edit-task-date");
+const editTaskInstruction = document.querySelector("#edit-task-instruction");
+const rewriteTaskAiButton = document.querySelector("#rewrite-task-ai");
+const taskEditStatus = document.querySelector("#task-edit-status");
+const closeTaskEditorButton = document.querySelector("#close-task-editor");
+const cancelTaskEditButton = document.querySelector("#cancel-task-edit");
 
 let state = loadState();
 let previewTasks = [];
@@ -63,6 +73,8 @@ let copyResetTimer;
 let dateRefreshTimer;
 let pointerDrag = null;
 let taskEntryMode = "ai";
+let editingTaskIndex = null;
+let isRewritingTask = false;
 let composerOpen = activeTasks().length === 0;
 let appearanceMode = loadAppearance();
 const taskLayoutAnimations = new WeakMap();
@@ -232,6 +244,80 @@ function createSubjectHeading(subject) {
   return item;
 }
 
+function setTaskEditStatus(message, type = "idle") {
+  taskEditStatus.textContent = message;
+  taskEditStatus.className = `form-status ${type}`;
+}
+
+function setTaskRewriteProcessing(active) {
+  isRewritingTask = active;
+  rewriteTaskAiButton.disabled = active;
+  rewriteTaskAiButton.textContent = active ? "Rewriting…" : "Rewrite with AI";
+  taskEditForm.querySelector("#save-task-edit").disabled = active;
+}
+
+function closeTaskEditor() {
+  if (isRewritingTask) return;
+  taskEditDialog.close();
+}
+
+function openTaskEditor(index) {
+  const task = state.tasks[index];
+  if (!task) return;
+  editingTaskIndex = index;
+  editTaskTitle.value = task.task;
+  editTaskSubject.value = task.subject;
+  editTaskDate.value = toIsoDate(task.date);
+  editTaskInstruction.value = "";
+  setTaskEditStatus("Make changes, then save the updated task.");
+  taskEditDialog.showModal();
+  requestAnimationFrame(() => editTaskTitle.focus());
+}
+
+async function rewriteEditedTask() {
+  if (isRewritingTask || editingTaskIndex === null) return;
+  const instruction = editTaskInstruction.value.trim();
+  if (!instruction) {
+    setTaskEditStatus("Describe how you want AI to change this task.", "error");
+    editTaskInstruction.focus();
+    return;
+  }
+
+  const currentDate = editTaskDate.value || "no due date";
+  const input = `Update this one saved task only. Current task: ${editTaskTitle.value.trim()}. Subject: ${editTaskSubject.value.trim()}. Due date: ${currentDate}. Requested change: ${instruction}`;
+  setTaskRewriteProcessing(true);
+  setTaskEditStatus("DeepSeek is rewriting this task…", "processing");
+  try {
+    const response = await fetch("/api/parse-tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        input,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "DeepSeek could not rewrite this task.");
+    if (!Array.isArray(result.tasks) || result.tasks.length !== 1) {
+      throw new Error("Describe one task change at a time.");
+    }
+    const rewritten = result.tasks[0];
+    editTaskTitle.value = [rewritten.emoji, rewritten.title].filter(Boolean).join(" ").trim();
+    editTaskSubject.value = normalizeSubject(rewritten.subject, rewritten.title);
+    editTaskDate.value = toIsoDate(rewritten.date);
+    setTaskEditStatus(
+      rewritten.dateAmbiguous
+        ? (rewritten.dateQuestion || "Check the due date before saving.")
+        : "AI rewrite ready. Review it, then save changes.",
+      rewritten.dateAmbiguous ? "warning" : "success",
+    );
+  } catch (error) {
+    setTaskEditStatus(error.message || "DeepSeek could not rewrite this task. Your edits are preserved.", "error");
+  } finally {
+    setTaskRewriteProcessing(false);
+  }
+}
+
 function createTaskElement(todo, index) {
   const item = document.createElement("li");
   item.className = `task-item${todo.completed ? " completed" : ""}`;
@@ -271,6 +357,12 @@ function createTaskElement(todo, index) {
   deleteButton.setAttribute("aria-label", `Delete ${todo.task}`);
   deleteButton.title = "Delete task";
 
+  const editButton = document.createElement("button");
+  editButton.className = "edit-task";
+  editButton.type = "button";
+  editButton.textContent = "Edit";
+  editButton.setAttribute("aria-label", `Edit ${todo.task}`);
+
   dragHandle.addEventListener("keydown", (event) => {
     if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
     event.preventDefault();
@@ -302,6 +394,7 @@ function createTaskElement(todo, index) {
     else if (checkbox.checked) showPageNotice("Task completed. It remains in Calendar.", "success");
     else showPageNotice("Task marked incomplete.", "success");
   });
+  editButton.addEventListener("click", () => openTaskEditor(index));
   deleteButton.addEventListener("click", () => {
     state.tasks.splice(index, 1);
     saveState();
@@ -309,7 +402,7 @@ function createTaskElement(todo, index) {
   });
 
   content.append(text);
-  item.append(dragHandle, checkbox, content, deleteButton);
+  item.append(dragHandle, checkbox, content, editButton, deleteButton);
   return item;
 }
 
@@ -555,7 +648,7 @@ function celebrateCompletion() {
   const context = layer.getContext("2d");
   if (!context) return;
 
-  const colors = ["#ea6847", "#23836c", "#f4ba55", "#75a7e8", "#c276d8"];
+  const colors = ["#3b82f6", "#22c55e", "#f4ba55", "#75a7e8", "#c276d8"];
   document.body.append(layer);
 
   let viewportWidth = window.innerWidth;
@@ -758,7 +851,7 @@ function createTodoImageBlob(snapshot) {
   context.fillStyle = background;
   context.fillRect(0, 0, width, height);
 
-  context.fillStyle = "#c7482b";
+  context.fillStyle = "#1d4ed8";
   context.font = '700 22px Arial, "Helvetica Neue", sans-serif';
   context.fillText("YOUR DAY, CLEARLY PLANNED", padding, padding);
 
@@ -793,7 +886,7 @@ function createTodoImageBlob(snapshot) {
     context.stroke();
 
     const textX = padding + 70;
-    context.fillStyle = "#c7482b";
+    context.fillStyle = "#1d4ed8";
     context.font = '700 20px Arial, "Helvetica Neue", sans-serif';
     context.fillText(formatDate(task.date).toUpperCase(), textX, y + 34);
     context.font = '500 34px Arial, "Helvetica Neue", sans-serif';
@@ -1204,9 +1297,9 @@ function drawWaveform() {
   analyser.getByteTimeDomainData(values);
   context.clearRect(0, 0, waveform.width, waveform.height);
   const gradient = context.createLinearGradient(0, 0, waveform.width, 0);
-  gradient.addColorStop(0, "#229b81");
-  gradient.addColorStop(0.5, "#ea6847");
-  gradient.addColorStop(1, "#229b81");
+  gradient.addColorStop(0, "#93c5fd");
+  gradient.addColorStop(0.5, "#3b82f6");
+  gradient.addColorStop(1, "#1d4ed8");
   context.strokeStyle = gradient;
   context.lineWidth = Math.max(2, (window.devicePixelRatio || 1) * 1.2);
   context.beginPath();
@@ -1513,6 +1606,45 @@ discardPreviewButton.addEventListener("click", () => {
   renderPreview();
   retryButton.hidden = !pendingProcessing;
   setStatus("Preview discarded. Your original input is still available.", "idle");
+});
+
+rewriteTaskAiButton.addEventListener("click", rewriteEditedTask);
+closeTaskEditorButton.addEventListener("click", closeTaskEditor);
+cancelTaskEditButton.addEventListener("click", closeTaskEditor);
+taskEditDialog.addEventListener("cancel", (event) => {
+  if (isRewritingTask) event.preventDefault();
+});
+taskEditDialog.addEventListener("close", () => {
+  editingTaskIndex = null;
+  editTaskInstruction.value = "";
+});
+taskEditForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (isRewritingTask || editingTaskIndex === null || !state.tasks[editingTaskIndex]) return;
+  const title = editTaskTitle.value.trim();
+  const subject = editTaskSubject.value.trim();
+  const date = editTaskDate.value ? fromIsoDate(editTaskDate.value) : null;
+  if (!title || !subject) {
+    setTaskEditStatus("Task title and subject are required.", "error");
+    (!title ? editTaskTitle : editTaskSubject).focus();
+    return;
+  }
+  if (editTaskDate.value && !date) {
+    setTaskEditStatus("Enter a valid due date.", "error");
+    editTaskDate.focus();
+    return;
+  }
+  state.tasks[editingTaskIndex] = normalizeTask({
+    ...state.tasks[editingTaskIndex],
+    task: title,
+    subject,
+    date,
+  });
+  state.tasks = flattenGroups(state.tasks);
+  saveState();
+  renderTasks();
+  taskEditDialog.close();
+  showPageNotice("Task updated.", "success");
 });
 
 titleInput.addEventListener("input", () => {
