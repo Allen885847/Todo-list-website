@@ -538,11 +538,6 @@ html[data-theme="dark"] .calendar-page {
   text-align: left;
 }
 
-.task-card-stack:not(.expanded) .task-stack-toggle {
-  transform: translateY(-1px) rotate(var(--fan-top-angle));
-  transform-origin: 14% 92%;
-}
-
 .task-stack-toggle:hover,
 .task-stack-toggle:focus-visible {
   background: var(--soft-accent);

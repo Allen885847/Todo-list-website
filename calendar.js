@@ -460,12 +460,13 @@ function createTaskStack(tasks, isoDate, context = "day") {
   fan.setAttribute("aria-hidden", "true");
   const visibleCards = Math.min(tasks.length, 5);
   const halfFanAngle = context === "week" ? 3.8 : 5.8;
-  const angleStep = visibleCards > 1 ? (halfFanAngle * 2) / (visibleCards - 1) : 0;
-  stack.style.setProperty("--fan-top-angle", `${visibleCards > 1 ? halfFanAngle : 0}deg`);
-  for (let cardIndex = 0; cardIndex < visibleCards - 1; cardIndex += 1) {
+  const backCardCount = visibleCards - 1;
+  const angleStep = backCardCount > 1 ? (halfFanAngle * 2) / (backCardCount - 1) : 0;
+  for (let cardIndex = 0; cardIndex < backCardCount; cardIndex += 1) {
     const card = document.createElement("i");
     card.className = "task-fan-card";
-    card.style.setProperty("--fan-angle", `${-halfFanAngle + angleStep * cardIndex}deg`);
+    const angle = backCardCount === 1 ? -halfFanAngle / 2 : -halfFanAngle + angleStep * cardIndex;
+    card.style.setProperty("--fan-angle", `${angle}deg`);
     fan.append(card);
   }
 

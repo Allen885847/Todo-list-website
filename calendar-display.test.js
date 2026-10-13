@@ -3,6 +3,7 @@ const fs = require("node:fs");
 
 const calendarHtml = fs.readFileSync("calendar.html", "utf8");
 const calendarScript = fs.readFileSync("calendar.js", "utf8");
+const calendarStyles = fs.readFileSync("calendar.css", "utf8");
 
 assert.doesNotMatch(calendarHtml, />\s*Data\s*</);
 assert.doesNotMatch(calendarScript, /["'`]All [Dd]ay["'`]/);
@@ -17,8 +18,10 @@ assert.match(calendarScript, /function renderWeek\(\) \{\s*const weekStart = sta
 assert.match(calendarScript, /function renderMonth\(\)[\s\S]*?const gridStart = startOfWeek\(first\);/);
 assert.match(calendarScript, /function createTaskStack\(tasks, isoDate, context = "day"\)/);
 assert.match(calendarScript, /const visibleCards = Math\.min\(tasks\.length, 5\)/);
-assert.match(calendarScript, /const angleStep = visibleCards > 1 \? \(halfFanAngle \* 2\) \/ \(visibleCards - 1\) : 0/);
-assert.match(calendarScript, /card\.style\.setProperty\("--fan-angle", `\$\{-halfFanAngle \+ angleStep \* cardIndex\}deg`\)/);
+assert.match(calendarScript, /const angleStep = backCardCount > 1 \? \(halfFanAngle \* 2\) \/ \(backCardCount - 1\) : 0/);
+assert.match(calendarScript, /const angle = backCardCount === 1 \? -halfFanAngle \/ 2 : -halfFanAngle \+ angleStep \* cardIndex/);
+assert.doesNotMatch(calendarScript, /--fan-top-angle/);
+assert.doesNotMatch(calendarStyles, /\.task-stack-toggle[^}]*rotate\(/s);
 assert.match(calendarScript, /chevron\.textContent = expanded \? "▴" : "▾"/);
 assert.doesNotMatch(calendarScript, /chevron\.textContent = expanded \? "−" : "\+"/);
 assert.match(calendarScript, /label\.textContent = `\$\{tasks\.length\} \$\{tasks\.length === 1 \? "Task" : "Tasks"\}`/);
