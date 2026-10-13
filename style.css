@@ -369,6 +369,81 @@ textarea:disabled {
   overflow: hidden;
 }
 
+.task-entry-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 0 0 16px;
+  padding: 3px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+
+.task-entry-tabs button {
+  padding: 9px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.task-entry-tabs button.active {
+  color: var(--on-strong);
+  background: var(--accent);
+}
+
+.manual-task-form {
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+}
+
+.manual-task-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.manual-task-fields label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.manual-task-fields .manual-task-title {
+  grid-column: 1 / -1;
+}
+
+.manual-task-fields input {
+  width: 100%;
+  margin-top: 6px;
+  padding: 11px 12px;
+  color: var(--ink);
+  background: var(--field-background);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  outline: none;
+  text-transform: none;
+}
+
+.manual-task-fields input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(234, 104, 71, 0.12);
+}
+
+.manual-task-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+}
+
 .input-heading {
   display: flex;
   align-items: end;
@@ -430,7 +505,8 @@ textarea:disabled {
   color: var(--placeholder);
 }
 
-#voice-waveform {
+#voice-waveform,
+.voice-waveform {
   display: block;
   width: calc(100% - 36px);
   height: 54px;
@@ -1135,6 +1211,23 @@ html[data-theme="dark"] .overdue-badge {
     align-items: start;
     flex-direction: column;
     gap: 8px;
+  }
+
+  .manual-task-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .manual-task-fields .manual-task-title {
+    grid-column: auto;
+  }
+
+  .manual-task-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .manual-task-actions .ask-button {
+    align-self: flex-end;
   }
 
   .preview-fields {

@@ -22,6 +22,13 @@ const waveform = document.querySelector("#voice-waveform");
 const formStatus = document.querySelector("#form-status");
 const statusIndicator = document.querySelector("#status-indicator");
 const retryButton = document.querySelector("#retry-processing");
+const taskAiTab = document.querySelector("#task-ai-tab");
+const taskManualTab = document.querySelector("#task-manual-tab");
+const manualTaskForm = document.querySelector("#manual-task-form");
+const manualTaskTitle = document.querySelector("#manual-task-title");
+const manualTaskSubject = document.querySelector("#manual-task-subject");
+const manualTaskDate = document.querySelector("#manual-task-date");
+const manualTaskStatus = document.querySelector("#manual-task-status");
 const previewSection = document.querySelector("#preview-section");
 const previewList = document.querySelector("#preview-list");
 const savePreviewButton = document.querySelector("#save-preview");
@@ -55,6 +62,7 @@ let noticeHideTimer;
 let copyResetTimer;
 let dateRefreshTimer;
 let pointerDrag = null;
+let taskEntryMode = "ai";
 let composerOpen = activeTasks().length === 0;
 let appearanceMode = loadAppearance();
 const taskLayoutAnimations = new WeakMap();
@@ -932,9 +940,63 @@ function setComposerOpen(open, { focus = false } = {}) {
   if (composerOpen) {
     requestAnimationFrame(() => {
       resizeTaskInput();
-      if (focus) taskInput.focus({ preventScroll: true });
+      if (focus) (taskEntryMode === "manual" ? manualTaskTitle : taskInput).focus({ preventScroll: true });
     });
   }
+}
+
+function setTaskEntryMode(mode, { focus = true } = {}) {
+  const aiMode = mode === "ai";
+  if (!aiMode && previewTasks.length > 0) {
+    setStatus("Save or discard the generated task preview before using manual entry.", "warning");
+    return;
+  }
+  if (!aiMode && recordingPhase === "recording") cancelRecording();
+  taskEntryMode = aiMode ? "ai" : "manual";
+  taskAiTab.classList.toggle("active", aiMode);
+  taskManualTab.classList.toggle("active", !aiMode);
+  taskAiTab.setAttribute("aria-selected", String(aiMode));
+  taskManualTab.setAttribute("aria-selected", String(!aiMode));
+  taskForm.hidden = !aiMode;
+  manualTaskForm.hidden = aiMode;
+  if (focus) requestAnimationFrame(() => (aiMode ? taskInput : manualTaskTitle).focus({ preventScroll: true }));
+}
+
+function saveManualTask() {
+  const title = manualTaskTitle.value.trim();
+  const subject = manualTaskSubject.value.trim();
+  const date = manualTaskDate.value ? fromIsoDate(manualTaskDate.value) : null;
+  if (!title) {
+    manualTaskStatus.textContent = "Enter a task title.";
+    manualTaskStatus.className = "form-status error";
+    manualTaskTitle.focus();
+    return;
+  }
+  if (!subject) {
+    manualTaskStatus.textContent = "Enter a subject.";
+    manualTaskStatus.className = "form-status error";
+    manualTaskSubject.focus();
+    return;
+  }
+  if (manualTaskDate.value && !date) {
+    manualTaskStatus.textContent = "Enter a valid due date.";
+    manualTaskStatus.className = "form-status error";
+    manualTaskDate.focus();
+    return;
+  }
+
+  const task = normalizeTask({ date, task: title, subject, completed: false, completedOn: null });
+  const combinedTasks = state.orderMode === "manual"
+    ? [...state.tasks, task]
+    : sortByDueDate([...state.tasks, task]);
+  state.tasks = flattenGroups(combinedTasks);
+  saveState();
+  renderTasks();
+  manualTaskForm.reset();
+  manualTaskStatus.textContent = "Task saved without AI.";
+  manualTaskStatus.className = "form-status success";
+  setComposerOpen(false);
+  toggleComposerButton.focus({ preventScroll: true });
 }
 
 function setStatus(message, type = "idle") {
@@ -950,6 +1012,8 @@ function setProcessing(active) {
   recordButton.disabled = active || reviewingPreview || recordingPhase === "starting" || recordingPhase === "stopping" || !navigator.mediaDevices?.getUserMedia;
   languageSelect.disabled = active || reviewingPreview || recordingPhase !== "idle";
   taskInput.disabled = active;
+  taskAiTab.disabled = active;
+  taskManualTab.disabled = active || reviewingPreview;
   askButton.textContent = active ? "Processing…" : "Ask AI";
   updateComposerToggle();
 }
@@ -1057,6 +1121,8 @@ function renderPreview() {
   savePreviewButton.textContent = unresolved
     ? `Confirm ${unresolved} ambiguous ${unresolved === 1 ? "date" : "dates"} to save`
     : `Save ${previewTasks.length} ${previewTasks.length === 1 ? "task" : "tasks"}`;
+  taskAiTab.disabled = isProcessing;
+  taskManualTab.disabled = isProcessing || previewTasks.length > 0;
   updateComposerToggle();
   updateRecordingControls();
 }
@@ -1363,6 +1429,12 @@ taskForm.addEventListener("submit", (event) => {
   event.preventDefault();
   processInput(taskInput.value, "typed");
 });
+taskAiTab.addEventListener("click", () => setTaskEntryMode("ai"));
+taskManualTab.addEventListener("click", () => setTaskEntryMode("manual"));
+manualTaskForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  saveManualTask();
+});
 
 taskInput.addEventListener("compositionstart", () => {
   isTextComposing = true;
@@ -1520,5 +1592,6 @@ applyAppearance();
 renderTasks();
 renderPreview();
 updateRecordingControls();
+setTaskEntryMode("ai", { focus: false });
 setComposerOpen(activeTasks().length === 0);
 resizeTaskInput();

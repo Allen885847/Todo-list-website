@@ -95,9 +95,41 @@
 
         <section id="natural-panel" class="natural-panel">
           <label for="event-description">Describe one event</label>
-          <p class="event-description-help">Describe your event. Include a date and, optionally, a time or time range. For example: Study group on October 14 from 3 PM to 4 PM. Leave out the time for an all-day event.</p>
+          <p class="event-description-help">Describe your event. Include a date and, optionally, a time or time range. For example: Study group on October 14 from 3 PM to 4 PM. Leave out the time when the event has no specific time.</p>
           <textarea id="event-description" rows="3" maxlength="4000" placeholder="Study group on October 14 from 3 PM to 4 PM…"></textarea>
-          <button id="interpret-event" class="dialog-primary" type="button">Ask AI</button>
+          <canvas id="event-voice-waveform" class="voice-waveform" aria-label="Live microphone waveform" hidden></canvas>
+          <div class="event-ai-controls">
+            <label class="language-picker" for="event-speech-language">
+              <span>Voice language</span>
+              <select id="event-speech-language">
+                <option value="zh-CN">Mandarin + English</option>
+                <option value="en-US">English</option>
+              </select>
+            </label>
+            <div class="event-ai-actions">
+              <button id="interpret-event" class="dialog-primary" type="button">Ask AI</button>
+              <div class="recording-controls">
+                <button id="cancel-event-recording" class="cancel-recording" type="button" hidden>Cancel</button>
+                <time id="event-recording-timer" hidden>00:00</time>
+                <button
+                  id="event-record-button"
+                  class="record-button"
+                  type="button"
+                  aria-label="Start voice recording"
+                  aria-pressed="false"
+                >
+                  <svg class="microphone-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="9" y="3" width="6" height="11" rx="3"></rect>
+                    <path d="M6 11a6 6 0 0 0 12 0M12 17v4M9 21h6"></path>
+                  </svg>
+                  <svg class="stop-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <rect x="9" y="9" width="6" height="6" rx="1"></rect>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
           <p id="event-ai-status" class="dialog-status" aria-live="polite">Your text stays here if interpretation fails.</p>
         </section>
 
@@ -114,7 +146,7 @@
             <label class="all-day-field holiday-field"><input id="event-holiday" type="checkbox" /> Holiday <span>Highlights the full date range</span></label>
             <label class="time-field">Start time <span class="optional-label">optional</span><input id="event-start-time" type="time" /></label>
             <label class="time-field">End time <span class="optional-label">optional</span><input id="event-end-time" type="time" /></label>
-            <p class="time-help wide-field">Leave both times empty for an all-day event. An end time is optional.</p>
+            <p class="time-help wide-field">Leave both times empty when the event has no specific time. An end time is optional.</p>
           </div>
           <div class="dialog-actions">
             <button id="delete-event" class="dialog-danger" type="button" hidden>Delete event</button>
@@ -151,6 +183,7 @@
     <script src="persistent-storage.js"></script>
     <script src="data-migration.js"></script>
     <script src="task-rules.js"></script>
+    <script src="voice-input.js"></script>
     <script src="calendar.js"></script>
   </body>
 </html>

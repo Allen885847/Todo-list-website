@@ -26,6 +26,11 @@ const naturalPanel = document.querySelector("#natural-panel");
 const eventDescription = document.querySelector("#event-description");
 const interpretEventButton = document.querySelector("#interpret-event");
 const eventAiStatus = document.querySelector("#event-ai-status");
+const eventSpeechLanguage = document.querySelector("#event-speech-language");
+const eventRecordButton = document.querySelector("#event-record-button");
+const cancelEventRecordingButton = document.querySelector("#cancel-event-recording");
+const eventRecordingTimer = document.querySelector("#event-recording-timer");
+const eventVoiceWaveform = document.querySelector("#event-voice-waveform");
 const eventPreview = document.querySelector("#event-preview");
 const previewLabel = document.querySelector("#preview-label");
 const eventClarification = document.querySelector("#event-clarification");
@@ -68,6 +73,7 @@ let noticeTimer;
 let dateRefreshTimer;
 let isEventDescriptionComposing = false;
 let isInterpretingEvent = false;
+let eventVoiceInput;
 
 function startOfDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -630,6 +636,7 @@ function showNotice(message) {
 
 function setEventTab(mode) {
   const natural = mode === "natural";
+  if (!natural) eventVoiceInput?.cancel();
   naturalTab.classList.toggle("active", natural);
   manualTab.classList.toggle("active", !natural);
   naturalTab.setAttribute("aria-selected", String(natural));
@@ -669,6 +676,7 @@ function fillEventFields(event) {
 }
 
 function resetEventEditor() {
+  eventVoiceInput?.cancel();
   editingEventId = null;
   needsDateConfirmation = false;
   eventEditor.reset();
@@ -684,6 +692,11 @@ function resetEventEditor() {
   saveEventButton.textContent = "Save event";
   fillEventFields({ title: "", startDate: toIsoDate(selectedDate), endDate: toIsoDate(selectedDate), allDay: true, holiday: false });
   setEventTab("natural");
+}
+
+function setEventAiStatus(message, type = "idle") {
+  eventAiStatus.textContent = message;
+  eventAiStatus.className = `dialog-status${type === "error" ? " error" : ""}`;
 }
 
 function openEventDialog(eventId = null) {
@@ -718,15 +731,14 @@ async function interpretEvent() {
   if (isInterpretingEvent) return;
   const input = eventDescription.value.trim();
   if (!input) {
-    eventAiStatus.textContent = "Describe an event before asking AI to interpret it.";
-    eventAiStatus.className = "dialog-status error";
+    setEventAiStatus("Describe an event before asking AI to interpret it.", "error");
     return;
   }
   isInterpretingEvent = true;
   interpretEventButton.disabled = true;
   interpretEventButton.textContent = "Asking AI…";
-  eventAiStatus.textContent = "DeepSeek is interpreting the event details…";
-  eventAiStatus.className = "dialog-status";
+  eventVoiceInput?.updateControls();
+  setEventAiStatus("DeepSeek is interpreting the event details…", "processing");
   try {
     const response = await fetch("/api/parse-event", {
       method: "POST",
@@ -744,16 +756,15 @@ async function interpretEvent() {
       needsDateConfirmation = false;
       eventClarification.hidden = true;
     }
-    eventAiStatus.textContent = "Review and edit the interpreted details before saving.";
-    eventAiStatus.className = "dialog-status";
+    setEventAiStatus("Review and edit the interpreted details before saving.", "success");
     requestAnimationFrame(() => eventTitle.focus());
   } catch (error) {
-    eventAiStatus.textContent = error.message || "Interpretation failed. Your text is preserved; use manual entry or retry.";
-    eventAiStatus.className = "dialog-status error";
+    setEventAiStatus(error.message || "Interpretation failed. Your text is preserved; use manual entry or retry.", "error");
   } finally {
     isInterpretingEvent = false;
     interpretEventButton.disabled = false;
     interpretEventButton.textContent = "Ask AI";
+    eventVoiceInput?.updateControls();
   }
 }
 
@@ -864,6 +875,23 @@ viewButtons.forEach((button) => button.addEventListener("click", () => {
 }));
 
 addEventButton.addEventListener("click", () => openEventDialog());
+eventVoiceInput = new DoubaoVoiceInput({
+  recordButton: eventRecordButton,
+  cancelButton: cancelEventRecordingButton,
+  timer: eventRecordingTimer,
+  waveform: eventVoiceWaveform,
+  languageSelect: eventSpeechLanguage,
+  isBusy: () => isInterpretingEvent,
+  onStatus: setEventAiStatus,
+  onTranscript: async (transcript) => {
+    eventDescription.value = transcript;
+    setEventAiStatus("Transcription complete. DeepSeek is interpreting the event…", "processing");
+    await interpretEvent();
+  },
+});
+if (!navigator.mediaDevices?.getUserMedia) {
+  setEventAiStatus("Voice recording is not supported in this browser. Continue typing instead.", "error");
+}
 naturalTab.addEventListener("click", () => setEventTab("natural"));
 manualTab.addEventListener("click", () => setEventTab("manual"));
 interpretEventButton.addEventListener("click", interpretEvent);
@@ -892,6 +920,7 @@ taskEditor.addEventListener("submit", (event) => {
   event.preventDefault();
   saveTaskFromEditor();
 });
+eventDialog.addEventListener("close", () => eventVoiceInput.cancel());
 
 appearanceSelect.addEventListener("change", () => {
   appearanceMode = appearanceSelect.value;
@@ -919,6 +948,7 @@ window.addEventListener("focus", () => {
   events = loadEvents();
   renderCalendar();
 });
+window.addEventListener("pagehide", () => eventVoiceInput.cancel());
 
 applyAppearance();
 renderCalendar();

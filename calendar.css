@@ -815,6 +815,27 @@ html[data-theme="dark"] .calendar-page {
   justify-self: end;
 }
 
+.natural-panel .voice-waveform {
+  width: 100%;
+  margin: 0;
+}
+
+.event-ai-controls,
+.event-ai-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.event-ai-actions {
+  justify-content: flex-end;
+}
+
+.event-ai-actions .dialog-primary {
+  min-height: 42px;
+}
+
 .dialog-status {
   margin: 2px 0 0;
   color: var(--muted);
@@ -1060,5 +1081,18 @@ html[data-theme="dark"] .calendar-page {
 
   .dialog-actions {
     flex-wrap: wrap;
+  }
+
+  .event-ai-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .event-ai-actions {
+    width: 100%;
+  }
+
+  .event-ai-actions .dialog-primary {
+    margin-right: auto;
   }
 }

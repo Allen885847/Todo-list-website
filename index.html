@@ -69,6 +69,10 @@
 
         <div id="composer-region" class="composer-region">
           <div class="composer-region-inner">
+            <div id="task-entry-tabs" class="task-entry-tabs" role="tablist" aria-label="Task input method">
+              <button id="task-ai-tab" class="active" type="button" role="tab" aria-selected="true">Ask AI</button>
+              <button id="task-manual-tab" type="button" role="tab" aria-selected="false">Enter manually</button>
+            </div>
             <form id="task-form" class="task-form">
               <div class="input-heading">
                 <label for="task-input">Describe everything you need to do</label>
@@ -120,6 +124,17 @@
                   Ready for typing or voice input.
                 </p>
                 <button id="retry-processing" class="text-button" type="button" hidden>Retry processing</button>
+              </div>
+            </form>
+            <form id="manual-task-form" class="manual-task-form" hidden>
+              <div class="manual-task-fields">
+                <label class="manual-task-title">Task title<input id="manual-task-title" type="text" maxlength="220" required autocomplete="off" /></label>
+                <label>Subject<input id="manual-task-subject" type="text" maxlength="80" required autocomplete="off" /></label>
+                <label>Due date <span class="optional-label">optional</span><input id="manual-task-date" type="date" /></label>
+              </div>
+              <div class="manual-task-actions">
+                <p id="manual-task-status" class="form-status" aria-live="polite">Enter task details and save without using AI.</p>
+                <button class="ask-button" type="submit">Save task</button>
               </div>
             </form>
           </div>
