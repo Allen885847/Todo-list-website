@@ -16,6 +16,8 @@ assert.match(calendarScript, /function startOfMondayWeek\(date\)/);
 assert.match(calendarScript, /function renderWeek\(\) \{\s*const weekStart = startOfMondayWeek\(selectedDate\);/);
 assert.match(calendarScript, /function renderMonth\(\)[\s\S]*?const gridStart = startOfWeek\(first\);/);
 assert.match(calendarScript, /function createTaskStack\(tasks, isoDate, context = "day"\)/);
+assert.match(calendarScript, /const visibleCards = Math\.min\(tasks\.length, 5\)/);
+assert.match(calendarScript, /card\.className = `task-fan-card task-fan-card-\$\{cardIndex\}`/);
 assert.match(calendarScript, /label\.textContent = `\$\{tasks\.length\} \$\{tasks\.length === 1 \? "Task" : "Tasks"\}`/);
 assert.match(calendarScript, /section\.append\(createTaskStack\(sectionTasks, isoDate, "day"\)\)/);
 assert.match(calendarScript, /column\.append\(createTaskStack\(groupTasks, isoDate, "week"\)\)/);

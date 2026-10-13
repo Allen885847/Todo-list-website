@@ -455,6 +455,16 @@ function createTaskStack(tasks, isoDate, context = "day") {
   const expanded = expandedTaskDates.has(isoDate);
   stack.classList.toggle("expanded", expanded);
 
+  const fan = document.createElement("span");
+  fan.className = "task-stack-fan";
+  fan.setAttribute("aria-hidden", "true");
+  const visibleCards = Math.min(tasks.length, 5);
+  for (let cardIndex = 1; cardIndex < visibleCards; cardIndex += 1) {
+    const card = document.createElement("i");
+    card.className = `task-fan-card task-fan-card-${cardIndex}`;
+    fan.append(card);
+  }
+
   const toggle = document.createElement("button");
   toggle.type = "button";
   toggle.className = "task-stack-toggle";
@@ -481,7 +491,7 @@ function createTaskStack(tasks, isoDate, context = "day") {
     else expandedTaskDates.add(isoDate);
     renderCalendar();
   });
-  stack.append(toggle);
+  stack.append(fan, toggle);
 
   if (expanded) {
     const items = document.createElement("div");

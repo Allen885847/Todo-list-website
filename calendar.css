@@ -493,31 +493,46 @@ html[data-theme="dark"] .calendar-page {
 }
 
 .task-card-stack:not(.expanded) {
-  margin-bottom: 12px;
+  margin: 7px 10px 20px;
 }
 
-.task-card-stack:not(.expanded)::before,
-.task-card-stack:not(.expanded)::after {
+.task-stack-fan {
   position: absolute;
-  z-index: -1;
-  right: 9px;
-  left: 9px;
-  height: 100%;
-  content: "";
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+}
+
+.task-card-stack.expanded .task-stack-fan {
+  display: none;
+}
+
+.task-fan-card {
+  position: absolute;
+  inset: 1px 4px;
+  display: block;
   background: color-mix(in srgb, var(--paper) 86%, var(--soft-accent));
   border: 1px solid color-mix(in srgb, var(--line) 82%, var(--accent));
+  border-left: 3px solid color-mix(in srgb, var(--accent) 62%, var(--line));
   border-radius: 11px;
+  box-shadow: 0 5px 13px rgba(23, 33, 38, 0.08);
+  transform-origin: 14% 92%;
 }
 
-.task-card-stack:not(.expanded)::before {
-  top: 6px;
+.task-fan-card-1 {
+  transform: translate(-6px, 5px) rotate(-5.5deg);
 }
 
-.task-card-stack:not(.expanded)::after {
-  top: 11px;
-  right: 17px;
-  left: 17px;
-  opacity: 0.72;
+.task-fan-card-2 {
+  transform: translate(-2px, 7px) rotate(-2.5deg);
+}
+
+.task-fan-card-3 {
+  transform: translate(3px, 7px) rotate(2.8deg);
+}
+
+.task-fan-card-4 {
+  transform: translate(7px, 4px) rotate(5.8deg);
 }
 
 .task-stack-toggle {
@@ -536,6 +551,11 @@ html[data-theme="dark"] .calendar-page {
   border-radius: 11px;
   box-shadow: 0 6px 14px rgba(23, 33, 38, 0.07);
   text-align: left;
+}
+
+.task-card-stack:not(.expanded) .task-stack-toggle {
+  transform: translateY(-1px) rotate(0.8deg);
+  transform-origin: 14% 92%;
 }
 
 .task-stack-toggle:hover,
@@ -759,7 +779,7 @@ html[data-theme="dark"] .calendar-page {
 }
 
 .week-task-stack:not(.expanded) {
-  margin-bottom: 10px;
+  margin: 5px 5px 15px;
 }
 
 .week-task-stack .task-stack-toggle {
@@ -789,6 +809,26 @@ html[data-theme="dark"] .calendar-page {
 
 .week-task-stack .task-stack-items .calendar-item {
   margin-bottom: 0;
+}
+
+.week-task-stack .task-fan-card-1 {
+  transform: translate(-3px, 4px) rotate(-3.6deg);
+}
+
+.week-task-stack .task-fan-card-2 {
+  transform: translate(-1px, 5px) rotate(-1.6deg);
+}
+
+.week-task-stack .task-fan-card-3 {
+  transform: translate(2px, 5px) rotate(1.8deg);
+}
+
+.week-task-stack .task-fan-card-4 {
+  transform: translate(4px, 3px) rotate(3.8deg);
+}
+
+.week-task-stack:not(.expanded) .task-stack-toggle {
+  transform: translateY(-1px) rotate(0.5deg);
 }
 
 .calendar-footer {
