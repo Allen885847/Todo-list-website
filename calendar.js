@@ -491,8 +491,8 @@ function renderDay() {
     return section;
   };
   wrapper.append(
-    createSection("Tasks & events", tasks, allDayEvents, "No tasks or untimed events."),
-    createSection("Schedule", [], timedEvents, "No timed events."),
+    createSection("Tasks", tasks, [], "No tasks."),
+    createSection("Events", [], [...allDayEvents, ...timedEvents], "No events."),
   );
   stage.replaceChildren(wrapper);
 }
@@ -541,8 +541,11 @@ function renderWeek() {
       groupTasks.forEach(({ task, index }) => column.append(createCalendarItem("task", task, index)));
       groupEvents.forEach((event) => column.append(createCalendarItem("event", event)));
     };
-    appendGroup("Tasks & events", tasks, dayEvents.filter((event) => event.allDay));
-    appendGroup("Schedule", [], sortTimedEvents(dayEvents.filter((event) => !event.allDay)));
+    appendGroup("Tasks", tasks, []);
+    appendGroup("Events", [], [
+      ...dayEvents.filter((event) => event.allDay),
+      ...sortTimedEvents(dayEvents.filter((event) => !event.allDay)),
+    ]);
     if (!tasks.length && !dayEvents.length) {
       const empty = document.createElement("p");
       empty.className = "empty-agenda";
