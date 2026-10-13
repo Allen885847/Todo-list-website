@@ -22,7 +22,7 @@
 
   function isVisibleInActiveList(task, today = localDateIso()) {
     if (!task?.completed) return true;
-    return dueDateIso(task) === today && normalizeCompletedOn(task.completedOn) === today;
+    return normalizeCompletedOn(task.completedOn) === today;
   }
 
   const rules = {
