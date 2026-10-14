@@ -8,6 +8,9 @@
     <script>
       (() => {
         document.documentElement.classList.add("page-transition-pending");
+        if ("startViewTransition" in document && CSS.supports("view-transition-name: root")) {
+          document.documentElement.classList.add("native-page-transition");
+        }
         try {
           document.documentElement.dataset.pageDirection = sessionStorage.getItem("todo-page-direction") || "neutral";
           sessionStorage.removeItem("todo-page-direction");

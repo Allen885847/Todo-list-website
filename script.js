@@ -1049,14 +1049,23 @@ function setTaskEntryMode(mode, { focus = true } = {}) {
     return;
   }
   if (!aiMode && recordingPhase === "recording") cancelRecording();
-  taskEntryMode = aiMode ? "ai" : "manual";
-  taskAiTab.classList.toggle("active", aiMode);
-  taskManualTab.classList.toggle("active", !aiMode);
-  taskAiTab.setAttribute("aria-selected", String(aiMode));
-  taskManualTab.setAttribute("aria-selected", String(!aiMode));
-  taskForm.hidden = !aiMode;
-  manualTaskForm.hidden = aiMode;
-  if (focus) requestAnimationFrame(() => (aiMode ? taskInput : manualTaskTitle).focus({ preventScroll: true }));
+  if ((taskEntryMode === "ai") === aiMode && taskForm.hidden === !aiMode) return;
+  const updateMode = () => {
+    taskEntryMode = aiMode ? "ai" : "manual";
+    taskAiTab.classList.toggle("active", aiMode);
+    taskManualTab.classList.toggle("active", !aiMode);
+    taskAiTab.setAttribute("aria-selected", String(aiMode));
+    taskManualTab.setAttribute("aria-selected", String(!aiMode));
+    taskForm.hidden = !aiMode;
+    manualTaskForm.hidden = aiMode;
+  };
+  const transition = window.runTodoViewTransition
+    ? window.runTodoViewTransition("task-panel", updateMode)
+    : (updateMode(), null);
+  if (focus) {
+    const ready = transition?.ready || Promise.resolve();
+    ready.finally(() => requestAnimationFrame(() => (aiMode ? taskInput : manualTaskTitle).focus({ preventScroll: true })));
+  }
 }
 
 function saveManualTask() {

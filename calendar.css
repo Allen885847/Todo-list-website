@@ -830,9 +830,17 @@ html[data-theme="dark"] .calendar-page {
   border: 0;
 }
 
+.editor-dialog[open] {
+  animation: dialog-shell-in 220ms ease both;
+}
+
 .editor-dialog::backdrop {
   background: rgba(10, 15, 17, 0.48);
   backdrop-filter: blur(3px);
+}
+
+.editor-dialog[open]::backdrop {
+  animation: dialog-backdrop-in 240ms ease both;
 }
 
 .dialog-card {
@@ -843,6 +851,50 @@ html[data-theme="dark"] .calendar-page {
   border: 1px solid var(--paper-border);
   border-radius: 22px;
   box-shadow: var(--shadow);
+}
+
+.editor-dialog[open] .dialog-card {
+  animation: dialog-card-in 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.editor-dialog.is-closing {
+  animation: dialog-shell-out 170ms ease both;
+}
+
+.editor-dialog.is-closing::backdrop {
+  animation: dialog-backdrop-out 170ms ease both;
+}
+
+.editor-dialog.is-closing .dialog-card {
+  animation: dialog-card-out 170ms ease both;
+}
+
+#event-editor {
+  view-transition-name: event-entry-content;
+}
+
+@keyframes dialog-shell-in {
+  from { opacity: 0; }
+}
+
+@keyframes dialog-backdrop-in {
+  from { opacity: 0; backdrop-filter: blur(0); }
+}
+
+@keyframes dialog-card-in {
+  from { opacity: 0; transform: translate3d(0, 18px, 0) scale(0.975); }
+}
+
+@keyframes dialog-shell-out {
+  to { opacity: 0; }
+}
+
+@keyframes dialog-backdrop-out {
+  to { opacity: 0; backdrop-filter: blur(0); }
+}
+
+@keyframes dialog-card-out {
+  to { opacity: 0; transform: translate3d(0, 10px, 0) scale(0.985); }
 }
 
 .dialog-heading,

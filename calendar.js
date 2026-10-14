@@ -3,6 +3,7 @@ const EVENT_STORAGE_KEY = "todo-calendar-events";
 const APPEARANCE_KEY = "todo-appearance";
 const CALENDAR_VIEW_KEY = "todo-calendar-view-v2.5";
 const systemDarkMode = window.matchMedia("(prefers-color-scheme: dark)");
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 const stage = document.querySelector("#calendar-stage");
 const periodLabel = document.querySelector("#period-label");
@@ -702,22 +703,43 @@ function showNotice(message) {
 function setEventTab(mode) {
   const natural = mode === "natural";
   if (!natural) eventVoiceInput?.cancel();
-  naturalTab.classList.toggle("active", natural);
-  manualTab.classList.toggle("active", !natural);
-  naturalTab.setAttribute("aria-selected", String(natural));
-  manualTab.setAttribute("aria-selected", String(!natural));
-  naturalPanel.hidden = !natural;
-  if (natural) {
-    eventPreview.hidden = true;
-  } else {
-    eventPreview.hidden = false;
-    previewLabel.textContent = "MANUAL EVENT DETAILS";
-    needsDateConfirmation = false;
-    eventClarification.hidden = true;
-    if (!eventStartDate.value) eventStartDate.value = toIsoDate(selectedDate);
-    if (!eventEndDate.value) eventEndDate.value = eventStartDate.value;
-    requestAnimationFrame(() => eventTitle.focus());
+  const updateMode = () => {
+    naturalTab.classList.toggle("active", natural);
+    manualTab.classList.toggle("active", !natural);
+    naturalTab.setAttribute("aria-selected", String(natural));
+    manualTab.setAttribute("aria-selected", String(!natural));
+    naturalPanel.hidden = !natural;
+    if (natural) {
+      eventPreview.hidden = true;
+    } else {
+      eventPreview.hidden = false;
+      previewLabel.textContent = "MANUAL EVENT DETAILS";
+      needsDateConfirmation = false;
+      eventClarification.hidden = true;
+      if (!eventStartDate.value) eventStartDate.value = toIsoDate(selectedDate);
+      if (!eventEndDate.value) eventEndDate.value = eventStartDate.value;
+    }
+  };
+  const transition = eventDialog.open && window.runTodoViewTransition
+    ? window.runTodoViewTransition("event-panel", updateMode)
+    : (updateMode(), null);
+  if (!natural && eventDialog.open) {
+    const ready = transition?.ready || Promise.resolve();
+    ready.finally(() => requestAnimationFrame(() => eventTitle.focus()));
   }
+}
+
+function closeDialogAnimated(dialog) {
+  if (!dialog?.open || dialog.classList.contains("is-closing")) return;
+  if (reducedMotion.matches) {
+    dialog.close();
+    return;
+  }
+  dialog.classList.add("is-closing");
+  window.setTimeout(() => {
+    dialog.close();
+    dialog.classList.remove("is-closing");
+  }, 170);
 }
 
 function updateTimeFields() {
@@ -781,6 +803,7 @@ function openEventDialog(eventId = null) {
   } else {
     eventDialogTitle.textContent = "Add an event";
   }
+  eventDialog.classList.remove("is-closing");
   eventDialog.showModal();
   requestAnimationFrame(() => (eventId ? eventTitle : eventDescription).focus());
 }
@@ -894,6 +917,7 @@ function openTaskDialog(index) {
   taskSubject.value = task.subject;
   taskDueDate.value = task.date ? toIsoDate(task.date) : "";
   taskCompleted.checked = task.completed;
+  taskDialog.classList.remove("is-closing");
   taskDialog.showModal();
   requestAnimationFrame(() => taskTitle.focus());
 }
@@ -979,13 +1003,20 @@ eventEditor.addEventListener("submit", (event) => {
 deleteEventButton.addEventListener("click", deleteCurrentEvent);
 deleteTaskButton.addEventListener("click", deleteCurrentTask);
 document.querySelectorAll("[data-close-dialog]").forEach((button) => {
-  button.addEventListener("click", () => button.closest("dialog")?.close());
+  button.addEventListener("click", () => closeDialogAnimated(button.closest("dialog")));
 });
 taskEditor.addEventListener("submit", (event) => {
   event.preventDefault();
   saveTaskFromEditor();
 });
 eventDialog.addEventListener("close", () => eventVoiceInput.cancel());
+[eventDialog, taskDialog].forEach((dialog) => {
+  dialog.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeDialogAnimated(dialog);
+  });
+  dialog.addEventListener("close", () => dialog.classList.remove("is-closing"));
+});
 
 appearanceSelect.addEventListener("change", () => {
   appearanceMode = appearanceSelect.value;

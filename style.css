@@ -119,39 +119,90 @@ body {
   will-change: opacity, transform, filter;
 }
 
-html.page-transition-pending[data-page-direction="forward"] .app-shell,
-html.page-transition-pending[data-page-direction="forward"] .calendar-shell {
+html:not(.native-page-transition).page-transition-pending[data-page-direction="forward"] .app-shell,
+html:not(.native-page-transition).page-transition-pending[data-page-direction="forward"] .calendar-shell {
   opacity: 0;
   transform: translate3d(18px, 3px, 0) scale(0.994);
   filter: blur(3px);
 }
 
-html.page-transition-pending[data-page-direction="back"] .app-shell,
-html.page-transition-pending[data-page-direction="back"] .calendar-shell {
+html:not(.native-page-transition).page-transition-pending[data-page-direction="back"] .app-shell,
+html:not(.native-page-transition).page-transition-pending[data-page-direction="back"] .calendar-shell {
   opacity: 0;
   transform: translate3d(-18px, 3px, 0) scale(0.994);
   filter: blur(3px);
 }
 
-html.page-transition-pending[data-page-direction="neutral"] .app-shell,
-html.page-transition-pending[data-page-direction="neutral"] .calendar-shell {
+html:not(.native-page-transition).page-transition-pending[data-page-direction="neutral"] .app-shell,
+html:not(.native-page-transition).page-transition-pending[data-page-direction="neutral"] .calendar-shell {
   opacity: 0;
   transform: translate3d(0, 8px, 0) scale(0.996);
   filter: blur(2px);
 }
 
-html.page-transition-leaving[data-page-direction="forward"] .app-shell,
-html.page-transition-leaving[data-page-direction="forward"] .calendar-shell {
+html:not(.native-page-transition).page-transition-leaving[data-page-direction="forward"] .app-shell,
+html:not(.native-page-transition).page-transition-leaving[data-page-direction="forward"] .calendar-shell {
   opacity: 0;
   transform: translate3d(-14px, -2px, 0) scale(0.996);
   filter: blur(2px);
 }
 
-html.page-transition-leaving[data-page-direction="back"] .app-shell,
-html.page-transition-leaving[data-page-direction="back"] .calendar-shell {
+html:not(.native-page-transition).page-transition-leaving[data-page-direction="back"] .app-shell,
+html:not(.native-page-transition).page-transition-leaving[data-page-direction="back"] .calendar-shell {
   opacity: 0;
   transform: translate3d(14px, -2px, 0) scale(0.996);
   filter: blur(2px);
+}
+
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-group(root) {
+  animation-duration: 360ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  mix-blend-mode: normal;
+}
+
+html[data-page-direction="forward"]::view-transition-old(root) {
+  animation-name: page-old-forward;
+}
+
+html[data-page-direction="forward"]::view-transition-new(root) {
+  animation-name: page-new-forward;
+}
+
+html[data-page-direction="back"]::view-transition-old(root) {
+  animation-name: page-old-back;
+}
+
+html[data-page-direction="back"]::view-transition-new(root) {
+  animation-name: page-new-back;
+}
+
+html[data-ui-transition]::view-transition-old(root),
+html[data-ui-transition]::view-transition-new(root) {
+  animation: none;
+}
+
+@keyframes page-old-forward {
+  to { opacity: 0.12; transform: translate3d(-14px, 0, 0) scale(0.996); }
+}
+
+@keyframes page-new-forward {
+  from { opacity: 0; transform: translate3d(18px, 2px, 0) scale(0.994); }
+}
+
+@keyframes page-old-back {
+  to { opacity: 0.12; transform: translate3d(14px, 0, 0) scale(0.996); }
+}
+
+@keyframes page-new-back {
+  from { opacity: 0; transform: translate3d(-18px, 2px, 0) scale(0.994); }
 }
 
 button,
@@ -415,6 +466,31 @@ textarea:disabled {
 .composer-region-inner {
   min-height: 0;
   overflow: hidden;
+  view-transition-name: task-entry-content;
+}
+
+::view-transition-group(task-entry-content),
+::view-transition-group(event-entry-content) {
+  animation-duration: 280ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html[data-ui-transition="task-panel"]::view-transition-old(task-entry-content),
+html[data-ui-transition="event-panel"]::view-transition-old(event-entry-content) {
+  animation: input-panel-out 150ms ease both;
+}
+
+html[data-ui-transition="task-panel"]::view-transition-new(task-entry-content),
+html[data-ui-transition="event-panel"]::view-transition-new(event-entry-content) {
+  animation: input-panel-in 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes input-panel-out {
+  to { opacity: 0; transform: translate3d(-8px, 0, 0) scale(0.995); }
+}
+
+@keyframes input-panel-in {
+  from { opacity: 0; transform: translate3d(10px, 0, 0) scale(0.995); }
 }
 
 .task-entry-tabs {
