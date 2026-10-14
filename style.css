@@ -117,8 +117,8 @@ html::before {
   box-shadow: -18px 0 45px rgba(23, 33, 38, 0.16);
   transform: translate3d(105%, 0, 0);
   transition:
-    transform 340ms cubic-bezier(0.76, 0, 0.24, 1),
-    opacity 120ms ease;
+    transform 180ms cubic-bezier(0.65, 0, 0.35, 1),
+    opacity 90ms ease;
 }
 
 html[data-page-direction="back"]::before {
@@ -135,7 +135,7 @@ html.page-transition-arriving::before {
 html.page-transition-revealing::before {
   opacity: 0;
   transform: translate3d(-10%, 0, 0);
-  transition-duration: 420ms, 360ms;
+  transition-duration: 220ms, 180ms;
   transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1), ease;
 }
 
@@ -150,9 +150,9 @@ html.page-transition-revealing[data-page-direction="back"]::before {
   filter: blur(0);
   transform-origin: 50% 42%;
   transition:
-    opacity 260ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 380ms cubic-bezier(0.22, 1, 0.36, 1),
-    filter 260ms ease;
+    opacity 170ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 230ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 170ms ease;
   will-change: opacity, transform, filter;
 }
 

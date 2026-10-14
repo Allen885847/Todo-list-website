@@ -24,7 +24,7 @@
         root.classList.remove("page-transition-pending", "page-transition-leaving", "page-transition-arriving");
         if (arrivedThroughNavigation && !reducedMotion.matches) {
           root.classList.add("page-transition-revealing");
-          window.setTimeout(() => root.classList.remove("page-transition-revealing"), 460);
+          window.setTimeout(() => root.classList.remove("page-transition-revealing"), 260);
         }
       });
     });
@@ -50,7 +50,7 @@
     }
 
     root.classList.add("page-transition-leaving");
-    window.setTimeout(() => window.location.assign(destination), 340);
+    window.setTimeout(() => window.location.assign(destination), 185);
   }
 
   document.addEventListener("click", (event) => {
