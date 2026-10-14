@@ -517,7 +517,7 @@ html[data-theme="dark"] .calendar-page {
   border-radius: 11px;
   box-shadow: 0 5px 13px rgba(23, 33, 38, 0.08);
   transform-origin: 14% 92%;
-  transform: translateY(4px) rotate(var(--fan-angle));
+  transform: translate(var(--fan-offset), 5px) rotate(var(--fan-angle));
 }
 
 .task-stack-toggle {
