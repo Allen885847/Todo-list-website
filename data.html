@@ -21,7 +21,7 @@
   <body>
     <main class="data-shell">
       <section class="data-card" aria-labelledby="data-title">
-        <a class="data-back" href="index.html">← Todo List</a>
+        <a class="data-back" href="index.html" onclick="if (window.parent !== window && typeof window.parent.todoShellNavigate === 'function') { window.parent.todoShellNavigate('todo'); return false; }">← Todo List</a>
         <p class="eyebrow">Safe upgrades</p>
         <h1 id="data-title">Data backup &amp; recovery</h1>
         <p class="data-intro">Your tasks, events, holidays, completion states, and settings are saved in both browser storage and an independent local recovery file, separately from replaceable application files.</p>

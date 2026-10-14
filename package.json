@@ -5,7 +5,7 @@
   "description": "Voice-enabled AI todo list and calendar using DeepSeek",
   "scripts": {
     "start": "node --env-file=.env server.js",
-    "check": "node --check server.js && node --check persistent-storage.js && node --check data-migration.js && node --check data.js && node --check task-rules.js && node --check voice-input.js && node --check script.js && node --check calendar.js && node --check page-transition.js",
+    "check": "node --check server.js && node --check persistent-storage.js && node --check data-migration.js && node --check data.js && node --check task-rules.js && node --check voice-input.js && node --check script.js && node --check calendar.js && node --check page-transition.js && node --check app-shell.js",
     "test": "node task-rules.test.js && node calendar-display.test.js && node entry-methods.test.js && node page-transition.test.js"
   },
   "dependencies": {

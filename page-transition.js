@@ -1,6 +1,7 @@
 (() => {
   const root = document.documentElement;
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  const embeddedInAppShell = new URLSearchParams(location.search).get("embedded") === "1" && window.parent !== window;
   let navigationStarted = false;
   let revealTimer = 0;
   let restoreAnimation = null;
@@ -117,6 +118,12 @@
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     if (link.target && link.target !== "_self") return;
     const direction = link.classList.contains("calendar-link") ? "forward" : "back";
+    if (embeddedInAppShell && typeof window.parent.todoShellNavigate === "function") {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      window.parent.todoShellNavigate(direction === "forward" ? "calendar" : "todo");
+      return;
+    }
     rememberNavigationDirection(direction);
     event.preventDefault();
     navigateWithFallback(link, direction);

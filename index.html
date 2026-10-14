@@ -7,15 +7,22 @@
     <title>Todo List</title>
     <script>
       (() => {
-        document.documentElement.classList.add("page-transition-pending");
-        try {
-          document.documentElement.dataset.pageDirection = sessionStorage.getItem("todo-page-direction") || "neutral";
-          sessionStorage.removeItem("todo-page-direction");
-        } catch {
-          document.documentElement.dataset.pageDirection = "neutral";
+        const embedded = new URLSearchParams(location.search).get("embedded") === "1";
+        if (window === window.top && !embedded) {
+          location.replace("app.html#todo");
+          return;
         }
-        if (document.documentElement.dataset.pageDirection !== "neutral") {
-          document.documentElement.classList.add("page-transition-arriving");
+        if (!embedded) {
+          document.documentElement.classList.add("page-transition-pending");
+          try {
+            document.documentElement.dataset.pageDirection = sessionStorage.getItem("todo-page-direction") || "neutral";
+            sessionStorage.removeItem("todo-page-direction");
+          } catch {
+            document.documentElement.dataset.pageDirection = "neutral";
+          }
+          if (document.documentElement.dataset.pageDirection !== "neutral") {
+            document.documentElement.classList.add("page-transition-arriving");
+          }
         }
         let saved = "system";
         try {
@@ -57,7 +64,7 @@
           <div class="title-meta">
             <p id="title-help" class="title-help">Click the title to rename your list.</p>
             <div class="title-actions">
-              <a class="calendar-link" href="calendar.html" aria-label="Open calendar" title="Open calendar">
+              <a class="calendar-link" href="calendar.html" aria-label="Open calendar" title="Open calendar" onclick="if (window.parent !== window && typeof window.parent.todoShellNavigate === 'function') { window.parent.todoShellNavigate('calendar'); return false; }">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <rect x="3" y="5" width="18" height="16" rx="3"></rect>
                   <path d="M8 3v4M16 3v4M3 10h18"></path>
@@ -180,7 +187,7 @@
         </div>
 
         <footer class="list-tools" aria-label="List tools">
-          <a class="data-link" href="data.html">Data</a>
+          <a class="data-link" href="data.html" onclick="if (window.parent !== window && typeof window.parent.todoShellNavigate === 'function') { window.parent.todoShellNavigate('data'); return false; }">Data</a>
           <button id="copy-list" class="copy-list" type="button" hidden>Copy</button>
           <div class="list-tools-actions">
             <label class="appearance-picker" for="appearance-select">

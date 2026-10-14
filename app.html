@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="AI To-Do List and Calendar." />
+    <title>Todo List</title>
+    <script>
+      (() => {
+        let saved = "system";
+        try { saved = localStorage.getItem("todo-appearance") || "system"; } catch { /* Use system. */ }
+        const mode = ["light", "dark", "system"].includes(saved) ? saved : "system";
+        const resolved = mode === "system"
+          ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+          : mode;
+        document.documentElement.dataset.appearance = mode;
+        document.documentElement.dataset.theme = resolved;
+      })();
+    </script>
+    <link rel="stylesheet" href="app-shell.css" />
+  </head>
+  <body>
+    <main id="app-stage" class="app-stage" aria-label="Todo List application">
+      <div id="app-loading" class="app-loading" role="status" aria-live="polite">
+        <span aria-hidden="true"></span>
+        <p>Opening your list…</p>
+      </div>
+    </main>
+    <script src="app-shell.js"></script>
+  </body>
+</html>

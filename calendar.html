@@ -7,15 +7,22 @@
     <title>Calendar · Todo List</title>
     <script>
       (() => {
-        document.documentElement.classList.add("page-transition-pending");
-        try {
-          document.documentElement.dataset.pageDirection = sessionStorage.getItem("todo-page-direction") || "neutral";
-          sessionStorage.removeItem("todo-page-direction");
-        } catch {
-          document.documentElement.dataset.pageDirection = "neutral";
+        const embedded = new URLSearchParams(location.search).get("embedded") === "1";
+        if (window === window.top && !embedded) {
+          location.replace("app.html#calendar");
+          return;
         }
-        if (document.documentElement.dataset.pageDirection !== "neutral") {
-          document.documentElement.classList.add("page-transition-arriving");
+        if (!embedded) {
+          document.documentElement.classList.add("page-transition-pending");
+          try {
+            document.documentElement.dataset.pageDirection = sessionStorage.getItem("todo-page-direction") || "neutral";
+            sessionStorage.removeItem("todo-page-direction");
+          } catch {
+            document.documentElement.dataset.pageDirection = "neutral";
+          }
+          if (document.documentElement.dataset.pageDirection !== "neutral") {
+            document.documentElement.classList.add("page-transition-arriving");
+          }
         }
         let saved = "system";
         try { saved = localStorage.getItem("todo-appearance") || "system"; } catch { /* Use system. */ }
@@ -38,7 +45,7 @@
     <main class="calendar-shell">
       <header class="calendar-header">
         <div class="calendar-brand">
-          <a class="back-link" href="index.html" aria-label="Return to Todo List">
+          <a class="back-link" href="index.html" aria-label="Return to Todo List" onclick="if (window.parent !== window && typeof window.parent.todoShellNavigate === 'function') { window.parent.todoShellNavigate('todo'); return false; }">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
             <span>Todo List</span>
           </a>

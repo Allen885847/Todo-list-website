@@ -29,7 +29,10 @@ const LOCAL_DATA_KEYS = new Set([
   "todo-data-backup-before-v2.5",
 ]);
 const STATIC_FILES = new Map([
-  ["/", ["index.html", "text/html; charset=utf-8"]],
+  ["/", ["app.html", "text/html; charset=utf-8"]],
+  ["/app.html", ["app.html", "text/html; charset=utf-8"]],
+  ["/app-shell.css", ["app-shell.css", "text/css; charset=utf-8"]],
+  ["/app-shell.js", ["app-shell.js", "text/javascript; charset=utf-8"]],
   ["/index.html", ["index.html", "text/html; charset=utf-8"]],
   ["/style.css", ["style.css", "text/css; charset=utf-8"]],
   ["/script.js", ["script.js", "text/javascript; charset=utf-8"]],
