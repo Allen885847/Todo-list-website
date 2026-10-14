@@ -455,28 +455,18 @@ function createTaskStack(tasks, isoDate, context = "day") {
   const expanded = expandedTaskDates.has(isoDate);
   stack.classList.toggle("expanded", expanded);
 
-  const fan = document.createElement("span");
-  fan.className = "task-stack-fan";
-  fan.setAttribute("aria-hidden", "true");
-  const visibleCards = tasks.length;
-  const backCardCount = visibleCards - 1;
-  const density = Math.max(0, backCardCount - 1);
-  const halfFanAngle = context === "week"
-    ? Math.max(2.2, 4.8 - density * 0.35)
-    : Math.max(3.1, 7.2 - density * 0.5);
-  const halfFanOffset = context === "week"
-    ? Math.max(2.5, 5.5 - density * 0.3)
-    : Math.max(4, 9 - density * 0.55);
-  const angleStep = backCardCount > 1 ? (halfFanAngle * 2) / (backCardCount - 1) : 0;
-  const offsetStep = backCardCount > 1 ? (halfFanOffset * 2) / (backCardCount - 1) : 0;
-  for (let cardIndex = 0; cardIndex < backCardCount; cardIndex += 1) {
-    const card = document.createElement("i");
-    card.className = "task-fan-card";
-    const angle = backCardCount === 1 ? -halfFanAngle / 2 : -halfFanAngle + angleStep * cardIndex;
-    const offset = backCardCount === 1 ? -halfFanOffset / 2 : -halfFanOffset + offsetStep * cardIndex;
-    card.style.setProperty("--fan-angle", `${angle}deg`);
-    card.style.setProperty("--fan-offset", `${offset}px`);
-    fan.append(card);
+  const layers = document.createElement("span");
+  layers.className = "task-stack-layers";
+  layers.setAttribute("aria-hidden", "true");
+  const layerCount = Math.min(Math.max(tasks.length - 1, 0), 3);
+  const layerRise = context === "week" ? 4 : 6;
+  const layerInset = context === "week" ? 3 : 5;
+  for (let layerIndex = layerCount; layerIndex >= 1; layerIndex -= 1) {
+    const layer = document.createElement("i");
+    layer.className = "task-stack-layer";
+    layer.style.setProperty("--stack-y", `${-layerIndex * layerRise}px`);
+    layer.style.setProperty("--stack-inset", `${layerIndex * layerInset}px`);
+    layers.append(layer);
   }
 
   const toggle = document.createElement("button");
@@ -505,7 +495,7 @@ function createTaskStack(tasks, isoDate, context = "day") {
     else expandedTaskDates.add(isoDate);
     renderCalendar();
   });
-  stack.append(fan, toggle);
+  stack.append(layers, toggle);
 
   if (expanded) {
     const items = document.createElement("div");

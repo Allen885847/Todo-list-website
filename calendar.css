@@ -493,31 +493,32 @@ html[data-theme="dark"] .calendar-page {
 }
 
 .task-card-stack:not(.expanded) {
-  margin: 7px 10px 20px;
+  margin: 25px 10px 14px;
 }
 
-.task-stack-fan {
+.task-stack-layers {
   position: absolute;
   z-index: 1;
   inset: 0;
   pointer-events: none;
 }
 
-.task-card-stack.expanded .task-stack-fan {
+.task-card-stack.expanded .task-stack-layers {
   display: none;
 }
 
-.task-fan-card {
+.task-stack-layer {
   position: absolute;
-  inset: 1px 4px;
+  top: 1px;
+  right: var(--stack-inset);
+  bottom: 1px;
+  left: var(--stack-inset);
   display: block;
   background: color-mix(in srgb, var(--paper) 86%, var(--soft-accent));
   border: 1px solid color-mix(in srgb, var(--line) 82%, var(--accent));
-  border-left: 3px solid color-mix(in srgb, var(--accent) 62%, var(--line));
-  border-radius: 11px;
-  box-shadow: 0 5px 13px rgba(23, 33, 38, 0.08);
-  transform-origin: 14% 92%;
-  transform: translate(var(--fan-offset), 5px) rotate(var(--fan-angle));
+  border-radius: 11px 11px 9px 9px;
+  box-shadow: 0 4px 10px rgba(23, 33, 38, 0.08);
+  transform: translateY(var(--stack-y));
 }
 
 .task-stack-toggle {
@@ -759,7 +760,7 @@ html[data-theme="dark"] .calendar-page {
 }
 
 .week-task-stack:not(.expanded) {
-  margin: 5px 5px 15px;
+  margin: 17px 5px 10px;
 }
 
 .week-task-stack .task-stack-toggle {
