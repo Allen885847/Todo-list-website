@@ -50,7 +50,7 @@
         { opacity: 0.9, transform: `translate3d(${offset}px, 0, 0) scale(0.998)` },
         { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)" },
       ],
-      { duration: 180, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
+      { duration: 145, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
     );
   }
 
@@ -82,7 +82,7 @@
           revealTimer = window.setTimeout(() => {
             root.classList.remove("page-transition-revealing");
             revealTimer = 0;
-          }, 260);
+          }, 210);
         }
       });
     });
@@ -108,7 +108,7 @@
     }
 
     root.classList.add("page-transition-leaving");
-    window.setTimeout(() => window.location.assign(destination), 185);
+    window.setTimeout(() => window.location.assign(destination), 140);
   }
 
   document.addEventListener("click", (event) => {
