@@ -106,6 +106,43 @@ body {
   transition: color 180ms ease, background 220ms ease;
 }
 
+html::before {
+  position: fixed;
+  z-index: 2147483646;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  opacity: 0;
+  background: var(--page-background);
+  box-shadow: -18px 0 45px rgba(23, 33, 38, 0.16);
+  transform: translate3d(105%, 0, 0);
+  transition:
+    transform 340ms cubic-bezier(0.76, 0, 0.24, 1),
+    opacity 120ms ease;
+}
+
+html[data-page-direction="back"]::before {
+  box-shadow: 18px 0 45px rgba(23, 33, 38, 0.16);
+  transform: translate3d(-105%, 0, 0);
+}
+
+html.page-transition-leaving::before,
+html.page-transition-arriving::before {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+html.page-transition-revealing::before {
+  opacity: 0;
+  transform: translate3d(-10%, 0, 0);
+  transition-duration: 420ms, 360ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1), ease;
+}
+
+html.page-transition-revealing[data-page-direction="back"]::before {
+  transform: translate3d(10%, 0, 0);
+}
+
 .app-shell,
 .calendar-shell {
   opacity: 1;
@@ -119,48 +156,39 @@ body {
   will-change: opacity, transform, filter;
 }
 
-html:not(.native-page-transition).page-transition-pending[data-page-direction="forward"] .app-shell,
-html:not(.native-page-transition).page-transition-pending[data-page-direction="forward"] .calendar-shell {
+html.page-transition-pending[data-page-direction="forward"] .app-shell,
+html.page-transition-pending[data-page-direction="forward"] .calendar-shell {
   opacity: 0;
   transform: translate3d(18px, 3px, 0) scale(0.994);
   filter: blur(3px);
 }
 
-html:not(.native-page-transition).page-transition-pending[data-page-direction="back"] .app-shell,
-html:not(.native-page-transition).page-transition-pending[data-page-direction="back"] .calendar-shell {
+html.page-transition-pending[data-page-direction="back"] .app-shell,
+html.page-transition-pending[data-page-direction="back"] .calendar-shell {
   opacity: 0;
   transform: translate3d(-18px, 3px, 0) scale(0.994);
   filter: blur(3px);
 }
 
-html:not(.native-page-transition).page-transition-pending[data-page-direction="neutral"] .app-shell,
-html:not(.native-page-transition).page-transition-pending[data-page-direction="neutral"] .calendar-shell {
+html.page-transition-pending[data-page-direction="neutral"] .app-shell,
+html.page-transition-pending[data-page-direction="neutral"] .calendar-shell {
   opacity: 0;
   transform: translate3d(0, 8px, 0) scale(0.996);
   filter: blur(2px);
 }
 
-html:not(.native-page-transition).page-transition-leaving[data-page-direction="forward"] .app-shell,
-html:not(.native-page-transition).page-transition-leaving[data-page-direction="forward"] .calendar-shell {
+html.page-transition-leaving[data-page-direction="forward"] .app-shell,
+html.page-transition-leaving[data-page-direction="forward"] .calendar-shell {
   opacity: 0;
   transform: translate3d(-14px, -2px, 0) scale(0.996);
   filter: blur(2px);
 }
 
-html:not(.native-page-transition).page-transition-leaving[data-page-direction="back"] .app-shell,
-html:not(.native-page-transition).page-transition-leaving[data-page-direction="back"] .calendar-shell {
+html.page-transition-leaving[data-page-direction="back"] .app-shell,
+html.page-transition-leaving[data-page-direction="back"] .calendar-shell {
   opacity: 0;
   transform: translate3d(14px, -2px, 0) scale(0.996);
   filter: blur(2px);
-}
-
-@view-transition {
-  navigation: auto;
-}
-
-::view-transition-group(root) {
-  animation-duration: 520ms;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 ::view-transition-old(root),
@@ -168,41 +196,9 @@ html:not(.native-page-transition).page-transition-leaving[data-page-direction="b
   mix-blend-mode: normal;
 }
 
-html[data-page-direction="forward"]::view-transition-old(root) {
-  animation-name: page-old-forward;
-}
-
-html[data-page-direction="forward"]::view-transition-new(root) {
-  animation-name: page-new-forward;
-}
-
-html[data-page-direction="back"]::view-transition-old(root) {
-  animation-name: page-old-back;
-}
-
-html[data-page-direction="back"]::view-transition-new(root) {
-  animation-name: page-new-back;
-}
-
 html[data-ui-transition]::view-transition-old(root),
 html[data-ui-transition]::view-transition-new(root) {
   animation: none;
-}
-
-@keyframes page-old-forward {
-  to { opacity: 0.18; transform: translate3d(-32px, 0, 0) scale(0.985); filter: blur(6px); }
-}
-
-@keyframes page-new-forward {
-  from { opacity: 0; transform: translate3d(38px, 4px, 0) scale(0.985); filter: blur(7px); }
-}
-
-@keyframes page-old-back {
-  to { opacity: 0.18; transform: translate3d(32px, 0, 0) scale(0.985); filter: blur(6px); }
-}
-
-@keyframes page-new-back {
-  from { opacity: 0; transform: translate3d(-38px, 4px, 0) scale(0.985); filter: blur(7px); }
 }
 
 button,

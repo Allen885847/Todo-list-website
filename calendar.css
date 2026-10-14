@@ -828,6 +828,8 @@ html[data-theme="dark"] .calendar-page {
   color: var(--ink);
   background: transparent;
   border: 0;
+  overflow: visible;
+  scrollbar-width: none;
 }
 
 .editor-dialog[open] {
@@ -847,10 +849,17 @@ html[data-theme="dark"] .calendar-page {
   max-height: 92vh;
   padding: 25px;
   overflow-y: auto;
+  scrollbar-width: none;
   background: var(--paper);
   border: 1px solid var(--paper-border);
   border-radius: 22px;
   box-shadow: var(--shadow);
+}
+
+.editor-dialog::-webkit-scrollbar,
+.dialog-card::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .editor-dialog[open] .dialog-card {

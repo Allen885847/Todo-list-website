@@ -1,7 +1,6 @@
 (() => {
   const root = document.documentElement;
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
-  const supportsNativePageTransition = root.classList.contains("native-page-transition");
   let navigationStarted = false;
 
   window.runTodoViewTransition = (type, update) => {
@@ -19,9 +18,14 @@
   };
 
   function finishPageEntry() {
+    const arrivedThroughNavigation = root.classList.contains("page-transition-arriving");
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        root.classList.remove("page-transition-pending", "page-transition-leaving");
+        root.classList.remove("page-transition-pending", "page-transition-leaving", "page-transition-arriving");
+        if (arrivedThroughNavigation && !reducedMotion.matches) {
+          root.classList.add("page-transition-revealing");
+          window.setTimeout(() => root.classList.remove("page-transition-revealing"), 460);
+        }
       });
     });
   }
@@ -46,7 +50,7 @@
     }
 
     root.classList.add("page-transition-leaving");
-    window.setTimeout(() => window.location.assign(destination), 190);
+    window.setTimeout(() => window.location.assign(destination), 340);
   }
 
   document.addEventListener("click", (event) => {
@@ -56,7 +60,6 @@
     if (link.target && link.target !== "_self") return;
     const direction = link.classList.contains("calendar-link") ? "forward" : "back";
     rememberNavigationDirection(direction);
-    if (supportsNativePageTransition && !reducedMotion.matches) return;
     event.preventDefault();
     navigateWithFallback(link, direction);
   });
