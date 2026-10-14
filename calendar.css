@@ -857,6 +857,10 @@ html[data-theme="dark"] .calendar-page {
   animation: dialog-card-in 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+.editor-dialog.is-opening .dialog-card {
+  overflow-y: hidden;
+}
+
 .editor-dialog.is-closing {
   animation: dialog-shell-out 170ms ease both;
 }

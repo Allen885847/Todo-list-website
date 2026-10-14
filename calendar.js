@@ -76,6 +76,7 @@ let isEventDescriptionComposing = false;
 let isInterpretingEvent = false;
 let eventVoiceInput;
 const expandedTaskDates = new Set();
+const dialogOpenTimers = new WeakMap();
 
 function startOfDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -731,6 +732,8 @@ function setEventTab(mode) {
 
 function closeDialogAnimated(dialog) {
   if (!dialog?.open || dialog.classList.contains("is-closing")) return;
+  clearTimeout(dialogOpenTimers.get(dialog));
+  dialog.classList.remove("is-opening");
   if (reducedMotion.matches) {
     dialog.close();
     return;
@@ -740,6 +743,17 @@ function closeDialogAnimated(dialog) {
     dialog.close();
     dialog.classList.remove("is-closing");
   }, 170);
+}
+
+function prepareDialogOpening(dialog) {
+  clearTimeout(dialogOpenTimers.get(dialog));
+  dialog.classList.remove("is-closing", "is-opening");
+  if (reducedMotion.matches) return;
+  dialog.classList.add("is-opening");
+  dialogOpenTimers.set(dialog, window.setTimeout(() => {
+    dialog.classList.remove("is-opening");
+    dialogOpenTimers.delete(dialog);
+  }, 360));
 }
 
 function updateTimeFields() {
@@ -803,7 +817,7 @@ function openEventDialog(eventId = null) {
   } else {
     eventDialogTitle.textContent = "Add an event";
   }
-  eventDialog.classList.remove("is-closing");
+  prepareDialogOpening(eventDialog);
   eventDialog.showModal();
   requestAnimationFrame(() => (eventId ? eventTitle : eventDescription).focus());
 }
@@ -917,7 +931,7 @@ function openTaskDialog(index) {
   taskSubject.value = task.subject;
   taskDueDate.value = task.date ? toIsoDate(task.date) : "";
   taskCompleted.checked = task.completed;
-  taskDialog.classList.remove("is-closing");
+  prepareDialogOpening(taskDialog);
   taskDialog.showModal();
   requestAnimationFrame(() => taskTitle.focus());
 }
@@ -1016,6 +1030,11 @@ eventDialog.addEventListener("close", () => eventVoiceInput.cancel());
     closeDialogAnimated(dialog);
   });
   dialog.addEventListener("close", () => dialog.classList.remove("is-closing"));
+  dialog.addEventListener("close", () => {
+    clearTimeout(dialogOpenTimers.get(dialog));
+    dialogOpenTimers.delete(dialog);
+    dialog.classList.remove("is-opening");
+  });
 });
 
 appearanceSelect.addEventListener("change", () => {

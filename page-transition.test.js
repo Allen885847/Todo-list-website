@@ -28,9 +28,12 @@ assert.match(styles, /view-transition-name: task-entry-content/);
 assert.match(calendarStyles, /view-transition-name: event-entry-content/);
 assert.match(calendarStyles, /dialog-card-in/);
 assert.match(calendarStyles, /dialog-backdrop-in/);
+assert.match(calendarStyles, /\.editor-dialog\.is-opening \.dialog-card\s*\{\s*overflow-y: hidden;/);
 assert.match(taskScript, /runTodoViewTransition\("task-panel", updateMode\)/);
 assert.match(calendarScript, /runTodoViewTransition\("event-panel", updateMode\)/);
 assert.match(calendarScript, /function closeDialogAnimated\(dialog\)/);
+assert.match(calendarScript, /function prepareDialogOpening\(dialog\)/);
+assert.match(calendarScript, /dialog\.classList\.remove\("is-opening"\)/);
 assert.match(server, /\["\/page-transition\.js", \["page-transition\.js", "text\/javascript; charset=utf-8"\]\]/);
 
 console.log("Page transitions and stable composer boot state passed.");
