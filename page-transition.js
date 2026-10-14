@@ -22,7 +22,6 @@
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         root.classList.remove("page-transition-pending", "page-transition-leaving");
-        root.dataset.pageDirection = "neutral";
       });
     });
   }

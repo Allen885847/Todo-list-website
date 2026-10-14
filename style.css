@@ -159,7 +159,7 @@ html:not(.native-page-transition).page-transition-leaving[data-page-direction="b
 }
 
 ::view-transition-group(root) {
-  animation-duration: 360ms;
+  animation-duration: 520ms;
   animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -190,19 +190,19 @@ html[data-ui-transition]::view-transition-new(root) {
 }
 
 @keyframes page-old-forward {
-  to { opacity: 0.12; transform: translate3d(-14px, 0, 0) scale(0.996); }
+  to { opacity: 0.18; transform: translate3d(-32px, 0, 0) scale(0.985); filter: blur(6px); }
 }
 
 @keyframes page-new-forward {
-  from { opacity: 0; transform: translate3d(18px, 2px, 0) scale(0.994); }
+  from { opacity: 0; transform: translate3d(38px, 4px, 0) scale(0.985); filter: blur(7px); }
 }
 
 @keyframes page-old-back {
-  to { opacity: 0.12; transform: translate3d(14px, 0, 0) scale(0.996); }
+  to { opacity: 0.18; transform: translate3d(32px, 0, 0) scale(0.985); filter: blur(6px); }
 }
 
 @keyframes page-new-back {
-  from { opacity: 0; transform: translate3d(-18px, 2px, 0) scale(0.994); }
+  from { opacity: 0; transform: translate3d(-38px, 4px, 0) scale(0.985); filter: blur(7px); }
 }
 
 button,
