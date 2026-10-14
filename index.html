@@ -7,6 +7,13 @@
     <title>Todo List</title>
     <script>
       (() => {
+        document.documentElement.classList.add("page-transition-pending");
+        try {
+          document.documentElement.dataset.pageDirection = sessionStorage.getItem("todo-page-direction") || "neutral";
+          sessionStorage.removeItem("todo-page-direction");
+        } catch {
+          document.documentElement.dataset.pageDirection = "neutral";
+        }
         let saved = "system";
         try {
           saved = localStorage.getItem("todo-appearance") || "system";
@@ -27,6 +34,7 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap"
       rel="stylesheet"
     />
+    <link rel="prefetch" href="calendar.html" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -58,7 +66,7 @@
                 class="toggle-composer"
                 type="button"
                 aria-controls="composer-region"
-                aria-expanded="true"
+                aria-expanded="false"
                 hidden
               >
                 Add tasks
@@ -67,7 +75,7 @@
           </div>
         </header>
 
-        <div id="composer-region" class="composer-region">
+        <div id="composer-region" class="composer-region collapsed" aria-hidden="true" inert>
           <div class="composer-region-inner">
             <div id="task-entry-tabs" class="task-entry-tabs" role="tablist" aria-label="Task input method">
               <button id="task-ai-tab" class="active" type="button" role="tab" aria-selected="true">Ask AI</button>
@@ -227,5 +235,6 @@
     <script src="data-migration.js"></script>
     <script src="task-rules.js"></script>
     <script src="script.js"></script>
+    <script src="page-transition.js"></script>
   </body>
 </html>

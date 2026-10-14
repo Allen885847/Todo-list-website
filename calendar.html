@@ -7,6 +7,13 @@
     <title>Calendar · Todo List</title>
     <script>
       (() => {
+        document.documentElement.classList.add("page-transition-pending");
+        try {
+          document.documentElement.dataset.pageDirection = sessionStorage.getItem("todo-page-direction") || "neutral";
+          sessionStorage.removeItem("todo-page-direction");
+        } catch {
+          document.documentElement.dataset.pageDirection = "neutral";
+        }
         let saved = "system";
         try { saved = localStorage.getItem("todo-appearance") || "system"; } catch { /* Use system. */ }
         const mode = ["light", "dark", "system"].includes(saved) ? saved : "system";
@@ -20,6 +27,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet" />
+    <link rel="prefetch" href="index.html" />
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="calendar.css" />
   </head>
@@ -185,5 +193,6 @@
     <script src="task-rules.js"></script>
     <script src="voice-input.js"></script>
     <script src="calendar.js"></script>
+    <script src="page-transition.js"></script>
   </body>
 </html>

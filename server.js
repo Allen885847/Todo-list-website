@@ -43,6 +43,7 @@ const STATIC_FILES = new Map([
   ["/persistent-storage.js", ["persistent-storage.js", "text/javascript; charset=utf-8"]],
   ["/task-rules.js", ["task-rules.js", "text/javascript; charset=utf-8"]],
   ["/voice-input.js", ["voice-input.js", "text/javascript; charset=utf-8"]],
+  ["/page-transition.js", ["page-transition.js", "text/javascript; charset=utf-8"]],
 ]);
 
 function sendJson(response, status, data) {
