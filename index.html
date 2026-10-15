@@ -148,6 +148,7 @@
               <div class="manual-task-fields">
                 <label class="manual-task-title">Task title<input id="manual-task-title" type="text" maxlength="220" required autocomplete="off" /></label>
                 <label>Subject<input id="manual-task-subject" type="text" maxlength="80" required autocomplete="off" /></label>
+                <label>Label <span class="optional-label">optional</span><input id="manual-task-label" type="text" maxlength="40" placeholder="Extra" autocomplete="off" /></label>
                 <label>Due date <span class="optional-label">optional</span><input id="manual-task-date" type="date" /></label>
               </div>
               <div class="manual-task-actions">
@@ -166,7 +167,7 @@
             </div>
             <button id="discard-preview" class="text-button" type="button">Discard preview</button>
           </div>
-          <p class="preview-help">Edit titles, subjects, and due dates, remove unwanted tasks, and confirm any ambiguous dates.</p>
+          <p class="preview-help">Edit titles, subjects, labels, and due dates, remove unwanted tasks, and confirm any ambiguous dates.</p>
           <ul id="preview-list" class="preview-list"></ul>
           <button id="save-preview" class="save-preview" type="button">Save tasks</button>
         </section>
@@ -223,12 +224,13 @@
         <div class="task-edit-fields">
           <label>Task title<input id="edit-task-title" type="text" maxlength="220" required autocomplete="off" /></label>
           <label>Subject<input id="edit-task-subject" type="text" maxlength="80" required autocomplete="off" /></label>
+          <label>Label <span class="optional-label">optional</span><input id="edit-task-label" type="text" maxlength="40" placeholder="Extra" autocomplete="off" /></label>
           <label>Due date <span class="optional-label">optional</span><input id="edit-task-date" type="date" /></label>
         </div>
 
         <section class="task-ai-rewrite" aria-labelledby="task-ai-rewrite-title">
           <h3 id="task-ai-rewrite-title">Rewrite with AI</h3>
-          <p>Describe how this saved task should change. You can revise its wording, subject, or due date.</p>
+          <p>Describe how this saved task should change. You can revise its wording, subject, label, or due date.</p>
           <textarea id="edit-task-instruction" rows="3" maxlength="3000" placeholder="For example: Change this to physics practice due next Friday."></textarea>
           <button id="rewrite-task-ai" class="secondary-action" type="button">Rewrite with AI</button>
         </section>

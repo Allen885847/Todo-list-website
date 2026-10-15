@@ -19,6 +19,8 @@ V3.0 brings a major voice input upgrade, accurately recognizing English, Chinese
 - Task titles use consistent, concise noun phrases without leading action verbs for both single-task and multi-task input
 - Generated tasks are initially sorted by due date, earliest first
 - Within each date section, tasks are grouped under editable subject headings; English Language and English Literature remain separate subjects
+- Add, edit, or remove optional custom task labels; AI marks time-permitting work with the default `Extra` label and preserves explicitly requested label wording
+- Show task labels as distinct badges in both the To-Do List and Calendar, alongside the Past Due badge when both apply
 - Copy the current list as readable plain text containing its title and every displayed task, with emoji removed and a blank line between tasks
 - Open a dedicated calendar page from the To-Do List and switch between Day, Week, Month, and Year views while preserving the selected date
 - See tasks on their due dates, edit task details from the calendar, and keep undated tasks exclusively in the To-Do List
@@ -36,7 +38,7 @@ V3.0 brings a major voice input upgrade, accurately recognizing English, Chinese
 - Export the complete ordered task list as a validated `.png` through the browser's reliable download flow, showing every exported task as unchecked while leaving website completion states unchanged
 - Choose Light, Dark, or System appearance from the bottom toolbar with a remembered preference and a neutral charcoal dark theme
 - Celebrate the transition to a fully completed non-empty list with a lively canvas-confetti burst and smooth physics-based fall, or a reduced-motion message
-- Every task is stored as an object with `date`, `task`, and `completed`
+- Every task is stored as an object that includes its date, text, subject, optional label, completion state, and completion date
 - Delete tasks
 - Mark tasks complete with a checkbox
 - Completed-task strikethrough
@@ -48,6 +50,8 @@ V3.0 brings a major voice input upgrade, accurately recognizing English, Chinese
 ## Upgrades and data recovery
 
 User data is stored twice: in browser storage under the stable desktop origin (`http://127.0.0.1:4192`) and in a version-independent local JSON file. Every relevant browser-storage change is automatically written to the local file through `/api/local-data`; writes are atomic and the previous file is retained for recovery. On startup, the local file is merged back into browser storage without duplicating matching tasks or events.
+
+Because the desktop shortcut always uses the same local origin and restores from the shared JSON file, changing the shortcut from Chrome to Safari does not create a separate data set. Safari receives the existing tasks, events, holidays, labels, and settings from that file on first load, while the system default browser remains unchanged.
 
 Before changing versions, open **Data** and choose **Download backup**. After an upgrade, the application automatically creates a pre-migration recovery snapshot in browser storage, migrates legacy event keys to the stable `todo-calendar-events` key, and retains task, event, holiday, date, time, completion, appearance, and calendar-view data. Re-running the migration or importing the same backup is idempotent and does not duplicate matching tasks or events.
 

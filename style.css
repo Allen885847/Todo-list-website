@@ -870,7 +870,7 @@ body.recording .stop-icon {
 
 .preview-fields {
   display: grid;
-  grid-template-columns: auto minmax(160px, 1fr) minmax(125px, 0.52fr) minmax(145px, 0.46fr) auto;
+  grid-template-columns: auto minmax(160px, 1fr) minmax(120px, 0.5fr) minmax(105px, 0.42fr) minmax(145px, 0.46fr) auto;
   align-items: end;
   gap: 12px;
 }
@@ -1139,6 +1139,13 @@ body.is-reordering * {
   min-width: 0;
 }
 
+.task-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
 .overdue-badge {
   justify-self: start;
   padding: 3px 7px;
@@ -1157,6 +1164,28 @@ html[data-theme="dark"] .overdue-badge {
   color: #ffb7aa;
   background: #492923;
   border-color: #78473e;
+}
+
+.task-label-badge {
+  justify-self: start;
+  max-width: 100%;
+  padding: 3px 8px;
+  overflow: hidden;
+  color: #36559a;
+  background: #edf2ff;
+  border: 1px solid #b9c8ed;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 750;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html[data-theme="dark"] .task-label-badge {
+  color: #c7d6ff;
+  background: #273451;
+  border-color: #465b8a;
 }
 
 .task-date {
@@ -1526,6 +1555,7 @@ html[data-theme="dark"] .overdue-badge {
 
   .date-field,
   .subject-field,
+  .label-field,
   .remove-preview {
     grid-column: 2;
   }

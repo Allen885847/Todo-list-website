@@ -27,6 +27,7 @@ const taskManualTab = document.querySelector("#task-manual-tab");
 const manualTaskForm = document.querySelector("#manual-task-form");
 const manualTaskTitle = document.querySelector("#manual-task-title");
 const manualTaskSubject = document.querySelector("#manual-task-subject");
+const manualTaskLabel = document.querySelector("#manual-task-label");
 const manualTaskDate = document.querySelector("#manual-task-date");
 const manualTaskStatus = document.querySelector("#manual-task-status");
 const previewSection = document.querySelector("#preview-section");
@@ -41,6 +42,7 @@ const taskEditDialog = document.querySelector("#task-edit-dialog");
 const taskEditForm = document.querySelector("#task-edit-form");
 const editTaskTitle = document.querySelector("#edit-task-title");
 const editTaskSubject = document.querySelector("#edit-task-subject");
+const editTaskLabel = document.querySelector("#edit-task-label");
 const editTaskDate = document.querySelector("#edit-task-date");
 const editTaskInstruction = document.querySelector("#edit-task-instruction");
 const rewriteTaskAiButton = document.querySelector("#rewrite-task-ai");
@@ -112,6 +114,10 @@ function normalizeSubject(value, taskText = "") {
   return subject || inferLegacySubject(taskText);
 }
 
+function normalizeLabel(value) {
+  return String(value || "").trim().replace(/\s+/g, " ").slice(0, 40);
+}
+
 function taskGroupKey(task) {
   return JSON.stringify([task.date ? toIsoDate(task.date) : "undated", task.subject]);
 }
@@ -150,6 +156,7 @@ function normalizeTask(task) {
     } : null,
     task: String(task.task ?? task.text ?? "Untitled task"),
     subject: normalizeSubject(task.subject, task.task ?? task.text),
+    label: normalizeLabel(task.label),
     completed: Boolean(task.completed),
     completedOn: TodoTaskRules.normalizeCompletedOn(task.completedOn),
   };
@@ -267,6 +274,7 @@ function openTaskEditor(index) {
   editingTaskIndex = index;
   editTaskTitle.value = task.task;
   editTaskSubject.value = task.subject;
+  editTaskLabel.value = task.label;
   editTaskDate.value = toIsoDate(task.date);
   editTaskInstruction.value = "";
   setTaskEditStatus("Make changes, then save the updated task.");
@@ -284,7 +292,8 @@ async function rewriteEditedTask() {
   }
 
   const currentDate = editTaskDate.value || "no due date";
-  const input = `Update this one saved task only. Current task: ${editTaskTitle.value.trim()}. Subject: ${editTaskSubject.value.trim()}. Due date: ${currentDate}. Requested change: ${instruction}`;
+  const currentLabel = editTaskLabel.value.trim() || "no label";
+  const input = `Update this one saved task only. Current task: ${editTaskTitle.value.trim()}. Subject: ${editTaskSubject.value.trim()}. Label: ${currentLabel}. Due date: ${currentDate}. Requested change: ${instruction}`;
   setTaskRewriteProcessing(true);
   setTaskEditStatus("DeepSeek is rewriting this task…", "processing");
   try {
@@ -304,6 +313,7 @@ async function rewriteEditedTask() {
     const rewritten = result.tasks[0];
     editTaskTitle.value = [rewritten.emoji, rewritten.title].filter(Boolean).join(" ").trim();
     editTaskSubject.value = normalizeSubject(rewritten.subject, rewritten.title);
+    editTaskLabel.value = normalizeLabel(rewritten.label);
     editTaskDate.value = toIsoDate(rewritten.date);
     setTaskEditStatus(
       rewritten.dateAmbiguous
@@ -343,11 +353,19 @@ function createTaskElement(todo, index) {
   const text = document.createElement("span");
   text.className = "task-text";
   text.textContent = todo.task;
+  const badges = document.createElement("span");
+  badges.className = "task-badges";
   if (isTaskOverdue(todo)) {
     const overdue = document.createElement("span");
     overdue.className = "overdue-badge";
-    overdue.textContent = "Overdue";
-    content.append(overdue);
+    overdue.textContent = "Past Due";
+    badges.append(overdue);
+  }
+  if (todo.label) {
+    const label = document.createElement("span");
+    label.className = "task-label-badge";
+    label.textContent = todo.label;
+    badges.append(label);
   }
 
   const deleteButton = document.createElement("button");
@@ -402,6 +420,7 @@ function createTaskElement(todo, index) {
   });
 
   content.append(text);
+  if (badges.childElementCount) content.append(badges);
   item.append(dragHandle, checkbox, content, editButton, deleteButton);
   return item;
 }
@@ -1071,6 +1090,7 @@ function setTaskEntryMode(mode, { focus = true } = {}) {
 function saveManualTask() {
   const title = manualTaskTitle.value.trim();
   const subject = manualTaskSubject.value.trim();
+  const label = normalizeLabel(manualTaskLabel.value);
   const date = manualTaskDate.value ? fromIsoDate(manualTaskDate.value) : null;
   if (!title) {
     manualTaskStatus.textContent = "Enter a task title.";
@@ -1091,7 +1111,7 @@ function saveManualTask() {
     return;
   }
 
-  const task = normalizeTask({ date, task: title, subject, completed: false, completedOn: null });
+  const task = normalizeTask({ date, task: title, subject, label, completed: false, completedOn: null });
   const combinedTasks = state.orderMode === "manual"
     ? [...state.tasks, task]
     : sortByDueDate([...state.tasks, task]);
@@ -1169,6 +1189,17 @@ function createPreviewElement(item, index) {
   subject.addEventListener("input", () => { previewTasks[index].subject = subject.value; });
   subjectLabel.append(subject);
 
+  const taskLabel = document.createElement("label");
+  taskLabel.className = "preview-field label-field";
+  taskLabel.innerHTML = "<span>Label (optional)</span>";
+  const label = document.createElement("input");
+  label.type = "text";
+  label.maxLength = 40;
+  label.placeholder = "Extra";
+  label.value = item.label || "";
+  label.addEventListener("input", () => { previewTasks[index].label = normalizeLabel(label.value); });
+  taskLabel.append(label);
+
   const dateLabel = document.createElement("label");
   dateLabel.className = "preview-field date-field";
   dateLabel.innerHTML = "<span>Due date</span>";
@@ -1189,7 +1220,7 @@ function createPreviewElement(item, index) {
     previewTasks.splice(index, 1);
     renderPreview();
   });
-  fields.append(emoji, titleLabel, subjectLabel, dateLabel, remove);
+  fields.append(emoji, titleLabel, subjectLabel, taskLabel, dateLabel, remove);
   row.append(fields);
 
   if (item.dateAmbiguous) {
@@ -1271,6 +1302,7 @@ async function processInput(input, source) {
     previewTasks = sortByDueDate(result.tasks.map((item) => ({
       title: item.title,
       subject: normalizeSubject(item.subject, item.title),
+      label: normalizeLabel(item.label),
       emoji: item.emoji,
       date: item.date,
       dateAmbiguous: Boolean(item.dateAmbiguous),
@@ -1590,6 +1622,7 @@ savePreviewButton.addEventListener("click", () => {
     date: item.date,
     task: `${item.emoji} ${item.title.trim()}`,
     subject: item.subject,
+    label: item.label,
     completed: false,
   })));
   const combinedTasks = state.orderMode === "manual"
@@ -1632,6 +1665,7 @@ taskEditForm.addEventListener("submit", (event) => {
   if (isRewritingTask || editingTaskIndex === null || !state.tasks[editingTaskIndex]) return;
   const title = editTaskTitle.value.trim();
   const subject = editTaskSubject.value.trim();
+  const label = normalizeLabel(editTaskLabel.value);
   const date = editTaskDate.value ? fromIsoDate(editTaskDate.value) : null;
   if (!title || !subject) {
     setTaskEditStatus("Task title and subject are required.", "error");
@@ -1647,6 +1681,7 @@ taskEditForm.addEventListener("submit", (event) => {
     ...state.tasks[editingTaskIndex],
     task: title,
     subject,
+    label,
     date,
   });
   state.tasks = flattenGroups(state.tasks);

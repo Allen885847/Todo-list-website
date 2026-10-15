@@ -31,5 +31,9 @@ assert.match(calendarScript, /label\.textContent = `\$\{tasks\.length\} \$\{task
 assert.match(calendarScript, /section\.append\(createTaskStack\(sectionTasks, isoDate, "day"\)\)/);
 assert.match(calendarScript, /column\.append\(createTaskStack\(groupTasks, isoDate, "week"\)\)/);
 assert.match(calendarScript, /groupEvents\.forEach\(\(event\) => column\.append\(createCalendarItem\("event", event\)\)\)/);
+assert.match(calendarHtml, /id="task-label"/);
+assert.match(calendarScript, /className = "calendar-label-badge"/);
+assert.match(calendarScript, /status\.textContent = data\.completed \? "Completed" : "Past Due"/);
+assert.match(calendarStyles, /\.calendar-task-badges/);
 
 console.log("Calendar labels and controls passed.");

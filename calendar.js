@@ -50,6 +50,7 @@ const taskDialog = document.querySelector("#task-dialog");
 const taskEditor = document.querySelector("#task-editor");
 const taskTitle = document.querySelector("#task-title");
 const taskSubject = document.querySelector("#task-subject");
+const taskLabel = document.querySelector("#task-label");
 const taskDueDate = document.querySelector("#task-due-date");
 const taskCompleted = document.querySelector("#task-completed");
 const deleteTaskButton = document.querySelector("#delete-task");
@@ -147,6 +148,7 @@ function normalizeTask(task) {
     ...task,
     task: String(task?.task ?? task?.text ?? "Untitled task"),
     subject: String(task?.subject || "General").trim() || "General",
+    label: String(task?.label || "").trim().replace(/\s+/g, " ").slice(0, 40),
     date,
     completed: Boolean(task?.completed),
     completedOn: TodoTaskRules.normalizeCompletedOn(task?.completedOn),
@@ -319,11 +321,27 @@ function createCalendarItem(type, data, index) {
     const timing = formatEventTiming(data);
     meta.textContent = [data.holiday ? "Holiday" : "", timing].filter(Boolean).join(" · ");
   } else {
-    const status = data.completed ? "Completed" : (isTaskOverdue(data) ? "Overdue" : "");
-    meta.textContent = [data.subject, status].filter(Boolean).join(" · ");
+    meta.textContent = data.subject;
   }
   content.append(title);
   if (meta.textContent) content.append(meta);
+  if (type === "task" && (data.completed || isTaskOverdue(data) || data.label)) {
+    const badges = document.createElement("span");
+    badges.className = "calendar-task-badges";
+    if (data.completed || isTaskOverdue(data)) {
+      const status = document.createElement("span");
+      status.className = "calendar-status-badge";
+      status.textContent = data.completed ? "Completed" : "Past Due";
+      badges.append(status);
+    }
+    if (data.label) {
+      const label = document.createElement("span");
+      label.className = "calendar-label-badge";
+      label.textContent = data.label;
+      badges.append(label);
+    }
+    content.append(badges);
+  }
   button.append(symbol, content);
   button.addEventListener("click", () => {
     if (type === "event") openEventDialog(data.id);
@@ -929,6 +947,7 @@ function openTaskDialog(index) {
   editingTaskIndex = index;
   taskTitle.value = task.task;
   taskSubject.value = task.subject;
+  taskLabel.value = task.label;
   taskDueDate.value = task.date ? toIsoDate(task.date) : "";
   taskCompleted.checked = task.completed;
   prepareDialogOpening(taskDialog);
@@ -941,6 +960,7 @@ function saveTaskFromEditor() {
   const task = taskState.tasks[editingTaskIndex];
   task.task = taskTitle.value.trim();
   task.subject = taskSubject.value.trim();
+  task.label = taskLabel.value.trim().replace(/\s+/g, " ").slice(0, 40);
   task.date = taskDueDate.value ? dateObjectFromIso(taskDueDate.value) : null;
   if (task.completed !== taskCompleted.checked) {
     Object.assign(task, TodoTaskRules.withCompletion(task, taskCompleted.checked));

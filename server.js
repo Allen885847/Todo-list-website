@@ -334,11 +334,12 @@ function normalizeGeneratedTasks(payload) {
   return payload.tasks.map((item) => {
     const title = typeof item?.title === "string" ? item.title.trim() : "";
     const subject = typeof item?.subject === "string" ? item.subject.trim() : "";
+    const label = typeof item?.label === "string" ? item.label.trim().replace(/\s+/g, " ") : "";
     const emoji = typeof item?.emoji === "string" ? item.emoji.trim() : "";
     const dateAmbiguous = item?.dateAmbiguous === true;
     const dateQuestion = typeof item?.dateQuestion === "string" ? item.dateQuestion.trim() : "";
 
-    if (!title || title.length > 200 || !subject || subject.length > 80 || !isSingleEmoji(emoji) || !isValidDate(item?.date)) {
+    if (!title || title.length > 200 || !subject || subject.length > 80 || label.length > 40 || !isSingleEmoji(emoji) || !isValidDate(item?.date)) {
       throw new Error("DeepSeek returned an invalid task.");
     }
     if (dateAmbiguous && !dateQuestion) {
@@ -348,6 +349,7 @@ function normalizeGeneratedTasks(payload) {
     return {
       title,
       subject,
+      label,
       emoji,
       date: {
         day: item.date.day,
@@ -436,7 +438,7 @@ Current local context:
 - Current local date and time: ${localTime}
 
 Return JSON only, in exactly this shape:
-{"tasks":[{"title":"Clear concise English task title","subject":"History","emoji":"📚","date":{"day":9,"month":10,"year":2026},"dateAmbiguous":false,"dateQuestion":""}]}
+{"tasks":[{"title":"Clear concise English task title","subject":"History","label":"Extra","emoji":"📚","date":{"day":9,"month":10,"year":2026},"dateAmbiguous":false,"dateQuestion":""}]}
 
 Rules:
 1. Create one item for every independently actionable task. Keep supporting details with their relevant task. Do not invent tasks, omit explicit actions, or turn background details into tasks.
@@ -447,11 +449,13 @@ Rules:
 6. Assign exactly one relevant Unicode emoji to each item. Keep it in the emoji field, not the title. Variety is welcome, but similar tasks may repeat an emoji.
 7. Assign every task one concise English subject label in subject. Infer it from the task meaning and normalize equivalent subjects to exactly the same label so related tasks group together. Use familiar labels such as History, Physics, Chinese, Mathematics, Biology, Chemistry, Computer Science, Art, Music, or General. Use General only when no more specific subject is clear.
 8. English Language and English Literature are always distinct subjects. Use English Language for grammar, vocabulary, language practice, composition, and similar work; use English Literature for novels, poems, plays, literary analysis, and similar work. Never merge these two labels.
-9. Interpret due dates task by task from sentence meaning and structure. A date applies to multiple tasks only when the wording clearly gives them a shared deadline. Different dates must stay with their correct tasks.
-10. If a task has no explicit or clearly shared deadline, use today (${today}) for that task, even when another task in the same input has a date.
-11. Resolve relative dates such as today, tomorrow, this Friday, and next week using the local context above. Do not treat a date that merely describes a past event, meeting, trip, document, or other background information as a task deadline.
-12. If a date has two or more reasonable deadline interpretations, set dateAmbiguous to true, choose the most likely tentative date for the editable date field, and put a short English confirmation question in dateQuestion. This includes an unqualified weekday such as "Friday" when it could mean today/this week's occurrence or the following week's occurrence, and a numeric date whose month/day order is unclear. Otherwise use false and an empty string.
-13. day, month, and year must be integers. Return at most 30 tasks. If the input contains no actionable task, return {"tasks":[]}.`,
+9. Set label to "Extra" when the user says a task is optional, can be done if there is time, is a bonus, or has equivalent meaning. Example: "This task is due today, but I’ll only do it if I have time" must keep today's due date and use label "Extra".
+10. If the user explicitly supplies a custom task label, preserve their wording in label (including Chinese wording). Do not translate, normalize, or invent a custom label. Use an empty string when no optional meaning or custom label is stated. Labels are at most 40 characters.
+11. Interpret due dates task by task from sentence meaning and structure. A date applies to multiple tasks only when the wording clearly gives them a shared deadline. Different dates must stay with their correct tasks.
+12. If a task has no explicit or clearly shared deadline, use today (${today}) for that task, even when another task in the same input has a date.
+13. Resolve relative dates such as today, tomorrow, this Friday, and next week using the local context above. Do not treat a date that merely describes a past event, meeting, trip, document, or other background information as a task deadline.
+14. If a date has two or more reasonable deadline interpretations, set dateAmbiguous to true, choose the most likely tentative date for the editable date field, and put a short English confirmation question in dateQuestion. This includes an unqualified weekday such as "Friday" when it could mean today/this week's occurrence or the following week's occurrence, and a numeric date whose month/day order is unclear. Otherwise use false and an empty string.
+15. day, month, and year must be integers. Return at most 30 tasks. If the input contains no actionable task, return {"tasks":[]}.`,
         },
         { role: "user", content: input },
       ],

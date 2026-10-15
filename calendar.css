@@ -644,6 +644,51 @@ html[data-theme="dark"] .calendar-page {
   font-size: 0.7rem;
 }
 
+.calendar-task-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.calendar-status-badge,
+.calendar-label-badge {
+  max-width: 100%;
+  padding: 2px 6px;
+  overflow: hidden;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 0.6rem;
+  font-weight: 750;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-status-badge {
+  color: #a63125;
+  background: #fff0ec;
+  border-color: #efb2a7;
+}
+
+.calendar-label-badge {
+  color: #36559a;
+  background: #edf2ff;
+  border-color: #b9c8ed;
+}
+
+html[data-theme="dark"] .calendar-status-badge {
+  color: #ffb7aa;
+  background: #492923;
+  border-color: #78473e;
+}
+
+html[data-theme="dark"] .calendar-label-badge {
+  color: #c7d6ff;
+  background: #273451;
+  border-color: #465b8a;
+}
+
 .completed-item .item-title {
   color: var(--completed);
   text-decoration: line-through;
