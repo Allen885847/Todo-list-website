@@ -51,7 +51,7 @@ V3.0 brings a major voice input upgrade, accurately recognizing English, Chinese
 
 User data is stored twice: in browser storage under the stable desktop origin (`http://127.0.0.1:4192`) and in a version-independent local JSON file. Every relevant browser-storage change is automatically written to the local file through `/api/local-data`; writes are atomic and the previous file is retained for recovery. On startup, the local file is merged back into browser storage without duplicating matching tasks or events.
 
-Because the desktop shortcut always uses the same local origin and restores from the shared JSON file, changing the shortcut from Chrome to Safari does not create a separate data set. Safari receives the existing tasks, events, holidays, labels, and settings from that file on first load, while the system default browser remains unchanged.
+Because the desktop shortcut always uses the same local origin and restores from the shared JSON file, browser changes do not create a separate permanent data set. The current shortcut opens the To-Do List in Google Chrome, which receives the existing tasks, events, holidays, labels, and settings from that shared file while the system default browser remains unchanged.
 
 Before changing versions, open **Data** and choose **Download backup**. After an upgrade, the application automatically creates a pre-migration recovery snapshot in browser storage, migrates legacy event keys to the stable `todo-calendar-events` key, and retains task, event, holiday, date, time, completion, appearance, and calendar-view data. Re-running the migration or importing the same backup is idempotent and does not duplicate matching tasks or events.
 

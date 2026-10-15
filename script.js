@@ -419,8 +419,8 @@ function createTaskElement(todo, index) {
     renderTasks();
   });
 
-  content.append(text);
   if (badges.childElementCount) content.append(badges);
+  content.append(text);
   item.append(dragHandle, checkbox, content, editButton, deleteButton);
   return item;
 }

@@ -40,5 +40,6 @@ assert.match(serverScript, /only do it if I have time/);
 assert.match(serverScript, /preserve their wording in label/);
 assert.match(taskScript, /label: normalizeLabel\(task\.label\)/);
 assert.match(taskScript, /className = "task-label-badge"/);
+assert.match(taskScript, /if \(badges\.childElementCount\) content\.append\(badges\);\s*content\.append\(text\);/);
 
 console.log("Manual task, customizable labels, and calendar voice entry methods passed.");

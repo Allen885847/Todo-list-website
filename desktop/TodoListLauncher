@@ -2,7 +2,7 @@
 
 STABLE_DIR="/Users/wanghaoyu/Desktop/MyCode/Todo-list-website-v3.0"
 STABLE_PORT="4192"
-CALENDAR_URL="http://127.0.0.1:${STABLE_PORT}/app.html#calendar"
+APP_URL="http://127.0.0.1:${STABLE_PORT}/app.html#todo"
 HEALTH_URL="http://127.0.0.1:${STABLE_PORT}/calendar.html"
 LOG_FILE="${HOME}/Library/Logs/AI-Todo-List-v3.0.log"
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
@@ -11,8 +11,8 @@ show_error() {
   /usr/bin/osascript -e "display alert \"AI Todo List V3.0 could not start\" message \"$1\" as critical buttons {\"OK\"} default button \"OK\""
 }
 
-open_calendar() {
-  /usr/bin/open -a "Safari" "$CALENDAR_URL"
+open_todo_list() {
+  /usr/bin/open -a "Google Chrome" "$APP_URL"
 }
 
 if [[ ! -d "$STABLE_DIR" ]]; then
@@ -26,7 +26,7 @@ if [[ ! -f "$STABLE_DIR/.env" ]]; then
 fi
 
 if /usr/bin/curl --fail --silent "$HEALTH_URL" | /usr/bin/grep --quiet "Calendar · Todo List"; then
-  open_calendar
+  open_todo_list
   exit 0
 fi
 
@@ -36,7 +36,7 @@ cd "$STABLE_DIR" || exit 1
 
 for attempt in {1..40}; do
   if /usr/bin/curl --fail --silent "$HEALTH_URL" | /usr/bin/grep --quiet "Calendar · Todo List"; then
-    open_calendar
+    open_todo_list
     exit 0
   fi
   /bin/sleep 0.25

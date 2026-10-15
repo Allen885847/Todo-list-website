@@ -1169,14 +1169,15 @@ html[data-theme="dark"] .overdue-badge {
 .task-label-badge {
   justify-self: start;
   max-width: 100%;
-  padding: 3px 8px;
+  padding: 3px 7px;
   overflow: hidden;
   color: #36559a;
   background: #edf2ff;
   border: 1px solid #b9c8ed;
   border-radius: 999px;
-  font-size: 0.66rem;
-  font-weight: 750;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   line-height: 1.1;
   text-overflow: ellipsis;
   white-space: nowrap;
