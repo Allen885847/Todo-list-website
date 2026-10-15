@@ -52,12 +52,17 @@ body {
 }
 
 .app-view.is-current,
-.app-view.is-entering {
+.app-view.is-entering,
+.app-view.is-leaving {
   visibility: visible;
 }
 
 .app-view.is-entering {
   z-index: 2;
+  pointer-events: auto;
+}
+
+.app-view.is-leaving {
   pointer-events: none;
 }
 

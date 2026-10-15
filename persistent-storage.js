@@ -41,6 +41,12 @@
     saveTimer = window.setTimeout(() => saveNow(), 250);
   }
 
+  function notifyShellReady() {
+    if (window.parent !== window) {
+      window.parent.postMessage({ type: "todo-storage-ready" }, location.origin);
+    }
+  }
+
   Storage.prototype.setItem = function setItem(key, value) {
     nativeSetItem.call(this, key, value);
     if (this === localStorage && keys.includes(String(key))) scheduleSave();
@@ -93,6 +99,7 @@
       await saveNow();
     }
     sessionStorage.removeItem("todo-local-file-restored");
+    notifyShellReady();
   }
 
   window.addEventListener("pagehide", () => saveNow({ keepalive: true }));

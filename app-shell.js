@@ -47,6 +47,23 @@
     });
   }
 
+  function waitForStorageReady(frame) {
+    return new Promise((resolve) => {
+      let timer;
+      const finish = () => {
+        window.removeEventListener("message", handleMessage);
+        window.clearTimeout(timer);
+        resolve();
+      };
+      const handleMessage = (event) => {
+        if (event.origin !== location.origin || event.source !== frame.contentWindow) return;
+        if (event.data?.type === "todo-storage-ready") finish();
+      };
+      window.addEventListener("message", handleMessage);
+      timer = window.setTimeout(finish, 5000);
+    });
+  }
+
   function waitForPaint() {
     return new Promise((resolve) => {
       requestAnimationFrame(() => requestAnimationFrame(resolve));
@@ -84,6 +101,11 @@
 
   async function revealFrame(nextFrame, direction) {
     const previousFrame = currentFrame;
+    if (previousFrame) {
+      previousFrame.classList.add("is-leaving");
+      previousFrame.inert = true;
+    }
+    nextFrame.inert = false;
     nextFrame.classList.add("is-entering");
     await waitForPaint();
 
@@ -130,9 +152,11 @@
 
     const nextFrame = createFrame(nextRoute);
     const frameLoaded = waitForLoad(nextFrame);
+    const storageReady = waitForStorageReady(nextFrame);
     stage.append(nextFrame);
     try {
       await frameLoaded;
+      await storageReady;
       connectFrame(nextFrame);
       await revealFrame(nextFrame, direction);
       currentFrame = nextFrame;

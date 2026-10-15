@@ -1754,10 +1754,6 @@ window.addEventListener("pageshow", () => {
   state = loadState();
   renderTasks();
 });
-window.addEventListener("focus", () => {
-  state = loadState();
-  renderTasks();
-});
 window.addEventListener("storage", (event) => {
   if (event.key !== STORAGE_KEY) return;
   state = loadState();

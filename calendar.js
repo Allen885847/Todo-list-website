@@ -1078,11 +1078,6 @@ window.addEventListener("pageshow", () => {
   events = loadEvents();
   renderCalendar();
 });
-window.addEventListener("focus", () => {
-  taskState = loadTaskState();
-  events = loadEvents();
-  renderCalendar();
-});
 window.addEventListener("pagehide", () => eventVoiceInput.cancel());
 
 applyAppearance();
