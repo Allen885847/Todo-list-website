@@ -95,18 +95,17 @@
     }
 
     const entersFromRight = direction !== "back";
-    const startClip = entersFromRight ? "inset(0 0 0 100%)" : "inset(0 100% 0 0)";
-    const enterOffset = entersFromRight ? "14px" : "-14px";
-    const leaveOffset = entersFromRight ? "-7px" : "7px";
-    const timing = { duration: 215, easing: "cubic-bezier(0.32, 0.72, 0, 1)", fill: "forwards" };
+    const enterOffset = entersFromRight ? "100%" : "-100%";
+    const leaveOffset = entersFromRight ? "-6%" : "6%";
+    const timing = { duration: 300, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "forwards" };
 
     const incoming = nextFrame.animate([
-      { clipPath: startClip, transform: `translate3d(${enterOffset}, 0, 0)` },
-      { clipPath: "inset(0 0 0 0)", transform: "translate3d(0, 0, 0)" },
+      { transform: `translate3d(${enterOffset}, 0, 0)` },
+      { transform: "translate3d(0, 0, 0)" },
     ], timing);
     const outgoing = previousFrame.animate([
-      { transform: "translate3d(0, 0, 0) scale(1)", filter: "brightness(1)" },
-      { transform: `translate3d(${leaveOffset}, 0, 0) scale(0.996)`, filter: "brightness(0.96)" },
+      { transform: "translate3d(0, 0, 0) scale(1)" },
+      { transform: `translate3d(${leaveOffset}, 0, 0) scale(0.995)` },
     ], timing);
 
     await Promise.allSettled([incoming.finished, outgoing.finished]);

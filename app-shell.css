@@ -45,6 +45,8 @@ body {
   visibility: hidden;
   background: transparent;
   transform: translateZ(0);
+  transform-origin: center;
+  will-change: transform;
   backface-visibility: hidden;
   contain: strict;
 }
