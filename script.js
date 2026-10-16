@@ -14,7 +14,6 @@ const copyButton = document.querySelector("#copy-list");
 const taskForm = document.querySelector("#task-form");
 const taskInput = document.querySelector("#task-input");
 const askButton = document.querySelector("#add-task-button");
-const languageSelect = document.querySelector("#speech-language");
 const recordButton = document.querySelector("#record-button");
 const cancelRecordingButton = document.querySelector("#cancel-recording");
 const recordingTimer = document.querySelector("#recording-timer");
@@ -77,6 +76,7 @@ let pointerDrag = null;
 let taskEntryMode = "ai";
 let editingTaskIndex = null;
 let isRewritingTask = false;
+let taskEditDialogTimer;
 let composerOpen = activeTasks().length === 0;
 let appearanceMode = loadAppearance();
 const taskLayoutAnimations = new WeakMap();
@@ -264,8 +264,28 @@ function setTaskRewriteProcessing(active) {
 }
 
 function closeTaskEditor() {
-  if (isRewritingTask) return;
-  taskEditDialog.close();
+  if (isRewritingTask || !taskEditDialog.open || taskEditDialog.classList.contains("is-closing")) return;
+  clearTimeout(taskEditDialogTimer);
+  taskEditDialog.classList.remove("is-opening");
+  if (prefersReducedMotion) {
+    taskEditDialog.close();
+    return;
+  }
+  taskEditDialog.classList.add("is-closing");
+  taskEditDialogTimer = window.setTimeout(() => {
+    taskEditDialog.close();
+    taskEditDialog.classList.remove("is-closing");
+  }, 170);
+}
+
+function prepareTaskEditorOpening() {
+  clearTimeout(taskEditDialogTimer);
+  taskEditDialog.classList.remove("is-closing", "is-opening");
+  if (prefersReducedMotion) return;
+  taskEditDialog.classList.add("is-opening");
+  taskEditDialogTimer = window.setTimeout(() => {
+    taskEditDialog.classList.remove("is-opening");
+  }, 360);
 }
 
 function openTaskEditor(index) {
@@ -278,6 +298,7 @@ function openTaskEditor(index) {
   editTaskDate.value = toIsoDate(task.date);
   editTaskInstruction.value = "";
   setTaskEditStatus("Make changes, then save the updated task.");
+  prepareTaskEditorOpening();
   taskEditDialog.showModal();
   requestAnimationFrame(() => editTaskTitle.focus());
 }
@@ -1136,7 +1157,6 @@ function setProcessing(active) {
   const reviewingPreview = previewTasks.length > 0;
   askButton.disabled = active || reviewingPreview || recordingPhase !== "idle";
   recordButton.disabled = active || reviewingPreview || recordingPhase === "starting" || recordingPhase === "stopping" || !navigator.mediaDevices?.getUserMedia;
-  languageSelect.disabled = active || reviewingPreview || recordingPhase !== "idle";
   taskInput.disabled = active;
   taskAiTab.disabled = active;
   taskManualTab.disabled = active || reviewingPreview;
@@ -1444,7 +1464,6 @@ function updateRecordingControls() {
   cancelRecordingButton.hidden = !recording;
   recordButton.disabled = isProcessing || reviewingPreview || recordingPhase === "starting" || recordingPhase === "stopping" || !navigator.mediaDevices?.getUserMedia;
   askButton.disabled = isProcessing || reviewingPreview || recordingPhase !== "idle";
-  languageSelect.disabled = isProcessing || reviewingPreview || recordingPhase !== "idle";
 }
 
 function finishCanceledRecording() {
@@ -1463,7 +1482,7 @@ async function transcribeRecording(recording) {
   setProcessing(true);
   setStatus("Transcribing your recording with Doubao Speech 2.0…", "processing");
   try {
-    const response = await fetch(`/api/transcribe?language=${encodeURIComponent(recording.language)}`, {
+    const response = await fetch("/api/transcribe", {
       method: "POST",
       headers: { "Content-Type": "audio/wav" },
       body: recording.blob,
@@ -1553,7 +1572,7 @@ async function stopRecording() {
     setStatus("No speech was detected. Check your microphone and try again.", "error");
     return;
   }
-  await transcribeRecording({ blob: wav, language: languageSelect.value });
+  await transcribeRecording({ blob: wav });
 }
 
 function cancelRecording() {
@@ -1654,9 +1673,12 @@ rewriteTaskAiButton.addEventListener("click", rewriteEditedTask);
 closeTaskEditorButton.addEventListener("click", closeTaskEditor);
 cancelTaskEditButton.addEventListener("click", closeTaskEditor);
 taskEditDialog.addEventListener("cancel", (event) => {
-  if (isRewritingTask) event.preventDefault();
+  event.preventDefault();
+  closeTaskEditor();
 });
 taskEditDialog.addEventListener("close", () => {
+  clearTimeout(taskEditDialogTimer);
+  taskEditDialog.classList.remove("is-opening", "is-closing");
   editingTaskIndex = null;
   editTaskInstruction.value = "";
 });
@@ -1687,7 +1709,7 @@ taskEditForm.addEventListener("submit", (event) => {
   state.tasks = flattenGroups(state.tasks);
   saveState();
   renderTasks();
-  taskEditDialog.close();
+  closeTaskEditor();
   showPageNotice("Task updated.", "success");
 });
 

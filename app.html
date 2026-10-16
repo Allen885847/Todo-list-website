@@ -18,14 +18,45 @@
       })();
     </script>
     <link rel="stylesheet" href="app-shell.css" />
+    <link rel="stylesheet" href="login.css" />
   </head>
   <body>
-    <main id="app-stage" class="app-stage" aria-label="Todo List application">
-      <div id="app-loading" class="app-loading" role="status" aria-live="polite">
-        <span aria-hidden="true"></span>
-        <p>Opening your list…</p>
-      </div>
+    <main id="auth-stage" class="auth-stage" aria-label="Account access">
+      <section id="auth-card" class="auth-card">
+        <div class="auth-brand">
+          <p class="auth-eyebrow">YOUR DAY, CLEARLY PLANNED</p>
+          <h1>Todo-List</h1>
+          <p>A calm, focused home for your tasks and calendar.</p>
+        </div>
+
+        <div id="auth-tabs" class="auth-tabs" role="tablist" aria-label="Account action">
+          <button id="login-tab" class="active" type="button" role="tab" aria-selected="true">Sign in</button>
+          <button id="register-tab" type="button" role="tab" aria-selected="false">Create account</button>
+        </div>
+
+        <form id="auth-form" class="auth-form">
+          <label>Email address<input id="auth-email" type="email" autocomplete="email" required /></label>
+          <label>Password<input id="auth-password" type="password" minlength="8" autocomplete="current-password" required /></label>
+          <label id="confirm-password-field" style="display: none" hidden>Confirm password<input id="auth-password-confirm" type="password" minlength="8" autocomplete="new-password" /></label>
+          <p id="password-help" class="password-help">Use the password for your existing account.</p>
+          <button id="auth-submit" class="auth-primary" type="submit">Sign in</button>
+        </form>
+        <button id="forgot-password" class="auth-link" type="button">Forgot password?</button>
+        <p id="auth-status" class="auth-status" role="status" aria-live="polite">Authentication is not connected yet. This is the interface preview only.</p>
+      </section>
+
+      <section id="recovery-panel" class="auth-card recovery-card" hidden>
+        <button id="back-to-login" class="auth-back" type="button">← Back to sign in</button>
+        <p class="auth-eyebrow">ACCOUNT RECOVERY</p>
+        <h1>Reset your password</h1>
+        <p>Enter your email address. Password-reset delivery will be connected in the authentication step.</p>
+        <form id="recovery-form" class="auth-form">
+          <label>Email address<input id="recovery-email" type="email" autocomplete="email" required /></label>
+          <button class="auth-primary" type="submit">Continue</button>
+        </form>
+        <p id="recovery-status" class="auth-status" role="status" aria-live="polite"></p>
+      </section>
     </main>
-    <script src="app-shell.js"></script>
+    <script src="login-ui.js"></script>
   </body>
 </html>

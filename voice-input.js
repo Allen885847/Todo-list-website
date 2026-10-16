@@ -30,7 +30,6 @@
       this.recordButton.disabled = unavailable || locked || (!recording && Boolean(this.isBusy?.()));
       this.cancelButton.hidden = !recording;
       this.timer.hidden = !recording;
-      this.languageSelect.disabled = recording || locked || Boolean(this.isBusy?.());
     }
 
     resizeWaveform() {
@@ -225,7 +224,7 @@
       this.updateControls();
       this.status("Transcribing with Doubao Speech 2.0…", "processing");
       try {
-        const response = await fetch(`/api/transcribe?language=${encodeURIComponent(this.languageSelect.value)}`, {
+        const response = await fetch("/api/transcribe", {
           method: "POST",
           headers: { "Content-Type": "audio/wav" },
           body: blob,

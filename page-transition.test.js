@@ -21,7 +21,7 @@ assert.match(indexHtml, /location\.replace\("app\.html#todo"\)/);
 assert.match(calendarHtml, /location\.replace\("app\.html#calendar"\)/);
 assert.match(indexHtml, /todoShellNavigate\('calendar'\)/);
 assert.match(calendarHtml, /todoShellNavigate\('todo'\)/);
-assert.match(appHtml, /app-shell\.js/);
+assert.match(appHtml, /login-ui\.js/);
 assert.match(appShell, /index\.html\?embedded=1/);
 assert.match(appShell, /calendar\.html\?embedded=1/);
 assert.match(appShell, /const frameLoaded = waitForLoad\(nextFrame\);[\s\S]*?stage\.append\(nextFrame\);[\s\S]*?await frameLoaded;/);

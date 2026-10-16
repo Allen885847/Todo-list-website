@@ -2,6 +2,8 @@
 
 A responsive, AI-powered to-do list built with HTML, CSS, JavaScript, and a small Node.js server.
 
+The `Online-1.0` branch currently contains the email/password sign-in, registration, and recovery interface. Authentication and cloud syncing are intentionally not connected yet.
+
 Release: **V3.0**.
 
 V3.0 brings a major voice input upgrade, accurately recognizing English, Chinese, and mixed-language speech to create separate tasks. It also makes calendar holidays clearer and improves exports.

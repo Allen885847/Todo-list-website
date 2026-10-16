@@ -27,7 +27,6 @@ const naturalPanel = document.querySelector("#natural-panel");
 const eventDescription = document.querySelector("#event-description");
 const interpretEventButton = document.querySelector("#interpret-event");
 const eventAiStatus = document.querySelector("#event-ai-status");
-const eventSpeechLanguage = document.querySelector("#event-speech-language");
 const eventRecordButton = document.querySelector("#event-record-button");
 const cancelEventRecordingButton = document.querySelector("#cancel-event-recording");
 const eventRecordingTimer = document.querySelector("#event-recording-timer");
@@ -472,7 +471,7 @@ function appendAgendaItems(list, tasks, dayEvents) {
 function createTaskStack(tasks, isoDate, context = "day") {
   const stack = document.createElement("div");
   stack.className = `task-card-stack ${context}-task-stack`;
-  const expanded = expandedTaskDates.has(isoDate);
+  let expanded = expandedTaskDates.has(isoDate);
   stack.classList.toggle("expanded", expanded);
 
   const layers = document.createElement("span");
@@ -493,6 +492,7 @@ function createTaskStack(tasks, isoDate, context = "day") {
   toggle.type = "button";
   toggle.className = "task-stack-toggle";
   toggle.setAttribute("aria-expanded", String(expanded));
+  toggle.setAttribute("aria-controls", `task-stack-items-${context}-${isoDate}`);
   toggle.setAttribute("aria-label", `${expanded ? "Collapse" : "Expand"} ${tasks.length} ${tasks.length === 1 ? "task" : "tasks"} for ${isoDate}`);
 
   const icon = document.createElement("span");
@@ -510,19 +510,39 @@ function createTaskStack(tasks, isoDate, context = "day") {
   chevron.setAttribute("aria-hidden", "true");
   chevron.textContent = expanded ? "▴" : "▾";
   toggle.append(icon, label, hint, chevron);
-  toggle.addEventListener("click", () => {
-    if (expanded) expandedTaskDates.delete(isoDate);
-    else expandedTaskDates.add(isoDate);
-    renderCalendar();
-  });
-  stack.append(layers, toggle);
 
-  if (expanded) {
-    const items = document.createElement("div");
-    items.className = "task-stack-items";
-    tasks.forEach(({ task, index }) => items.append(createCalendarItem("task", task, index)));
-    stack.append(items);
-  }
+  const itemsClip = document.createElement("div");
+  itemsClip.id = `task-stack-items-${context}-${isoDate}`;
+  itemsClip.className = "task-stack-items-clip";
+  itemsClip.inert = !expanded;
+  const itemsClipInner = document.createElement("div");
+  itemsClipInner.className = "task-stack-items-clip-inner";
+  const items = document.createElement("div");
+  items.className = "task-stack-items";
+  tasks.forEach(({ task, index }, taskPosition) => {
+    const item = createCalendarItem("task", task, index);
+    item.style.setProperty("--task-stack-delay", `${Math.min(taskPosition * 18, 72)}ms`);
+    items.append(item);
+  });
+  itemsClipInner.append(items);
+  itemsClip.append(itemsClipInner);
+
+  const updateExpandedState = (nextExpanded) => {
+    expanded = nextExpanded;
+    if (expanded) expandedTaskDates.add(isoDate);
+    else expandedTaskDates.delete(isoDate);
+    stack.classList.toggle("expanded", expanded);
+    itemsClip.inert = !expanded;
+    toggle.setAttribute("aria-expanded", String(expanded));
+    toggle.setAttribute("aria-label", `${expanded ? "Collapse" : "Expand"} ${tasks.length} ${tasks.length === 1 ? "task" : "tasks"} for ${isoDate}`);
+    hint.textContent = expanded ? "Collapse" : "Show all";
+    chevron.textContent = expanded ? "▴" : "▾";
+  };
+
+  toggle.addEventListener("click", () => {
+    updateExpandedState(!expanded);
+  });
+  stack.append(layers, toggle, itemsClip);
   return stack;
 }
 
@@ -815,7 +835,7 @@ function resetEventEditor() {
 
 function setEventAiStatus(message, type = "idle") {
   eventAiStatus.textContent = message;
-  eventAiStatus.className = `dialog-status${type === "error" ? " error" : ""}`;
+  eventAiStatus.className = `dialog-status${type === "idle" ? "" : ` ${type}`}`;
 }
 
 function openEventDialog(eventId = null) {
@@ -847,9 +867,9 @@ function showEventClarification(message, required = true) {
   dateConfirmed.checked = false;
 }
 
-async function interpretEvent() {
+async function interpretEvent(inputOverride) {
   if (isInterpretingEvent) return;
-  const input = eventDescription.value.trim();
+  const input = typeof inputOverride === "string" ? inputOverride.trim() : eventDescription.value.trim();
   if (!input) {
     setEventAiStatus("Describe an event before asking AI to interpret it.", "error");
     return;
@@ -1003,13 +1023,11 @@ eventVoiceInput = new DoubaoVoiceInput({
   cancelButton: cancelEventRecordingButton,
   timer: eventRecordingTimer,
   waveform: eventVoiceWaveform,
-  languageSelect: eventSpeechLanguage,
   isBusy: () => isInterpretingEvent,
   onStatus: setEventAiStatus,
   onTranscript: async (transcript) => {
-    eventDescription.value = transcript;
-    setEventAiStatus("Transcription complete. DeepSeek is interpreting the event…", "processing");
-    await interpretEvent();
+    setEventAiStatus("Speech recognized. DeepSeek is generating the event preview…", "processing");
+    await interpretEvent(transcript);
   },
 });
 if (!navigator.mediaDevices?.getUserMedia) {

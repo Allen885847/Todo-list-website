@@ -33,6 +33,8 @@ const STATIC_FILES = new Map([
   ["/app.html", ["app.html", "text/html; charset=utf-8"]],
   ["/app-shell.css", ["app-shell.css", "text/css; charset=utf-8"]],
   ["/app-shell.js", ["app-shell.js", "text/javascript; charset=utf-8"]],
+  ["/login.css", ["login.css", "text/css; charset=utf-8"]],
+  ["/login-ui.js", ["login-ui.js", "text/javascript; charset=utf-8"]],
   ["/index.html", ["index.html", "text/html; charset=utf-8"]],
   ["/style.css", ["style.css", "text/css; charset=utf-8"]],
   ["/script.js", ["script.js", "text/javascript; charset=utf-8"]],
@@ -200,7 +202,7 @@ function extractDoubaoTranscript(payload) {
   return "";
 }
 
-function transcribeWithDoubao(audio, language) {
+function transcribeWithDoubao(audio) {
   return new Promise((resolve, reject) => {
     const requestId = crypto.randomUUID();
     const socket = new WebSocket("wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_nostream", {
@@ -234,7 +236,6 @@ function transcribeWithDoubao(audio, language) {
           rate: 16000,
           bits: 16,
           channel: 1,
-          ...(language === "en-US" ? { language: "en-US" } : {}),
         },
         request: {
           model_name: "bigmodel",
@@ -558,8 +559,7 @@ const server = http.createServer(async (request, response) => {
         sendJson(response, 400, { error: "The recording was not a valid WAV audio file." });
         return;
       }
-      const language = url.searchParams.get("language") === "en-US" ? "en-US" : "auto";
-      const transcript = await transcribeWithDoubao(audio, language);
+      const transcript = await transcribeWithDoubao(audio);
       if (!transcript) {
         sendJson(response, 422, { error: "No speech was detected. Check your microphone and try again." });
         return;

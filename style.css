@@ -577,23 +577,6 @@ html[data-ui-transition="event-panel"]::view-transition-new(event-entry-content)
   font-weight: 700;
 }
 
-.language-picker {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.language-picker select {
-  padding: 6px 26px 6px 9px;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 9px;
-}
-
 .task-composer {
   overflow: hidden;
   background: var(--surface);
@@ -870,14 +853,42 @@ body.recording .stop-icon {
 
 .preview-fields {
   display: grid;
-  grid-template-columns: auto minmax(160px, 1fr) minmax(120px, 0.5fr) minmax(105px, 0.42fr) minmax(145px, 0.46fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 0.85fr) minmax(145px, 0.9fr) auto;
   align-items: end;
   gap: 12px;
 }
 
 .preview-emoji {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: end;
   padding-bottom: 9px;
   font-size: 1.45rem;
+}
+
+.title-field {
+  grid-column: 2 / -1;
+  grid-row: 1;
+}
+
+.subject-field {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.label-field {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.date-field {
+  grid-column: 4;
+  grid-row: 2;
+}
+
+.remove-preview {
+  grid-column: 5;
+  grid-row: 2;
 }
 
 .preview-field {
@@ -1317,11 +1328,21 @@ html[data-theme="dark"] .task-label-badge {
   color: var(--ink);
   background: transparent;
   border: 0;
+  overflow: visible;
+  scrollbar-width: none;
+}
+
+.task-edit-dialog[open] {
+  animation: task-dialog-shell-in 220ms ease both;
 }
 
 .task-edit-dialog::backdrop {
   background: rgba(8, 20, 38, 0.5);
   backdrop-filter: blur(4px);
+}
+
+.task-edit-dialog[open]::backdrop {
+  animation: task-dialog-backdrop-in 240ms ease both;
 }
 
 .task-edit-card {
@@ -1332,6 +1353,57 @@ html[data-theme="dark"] .task-label-badge {
   border: 1px solid var(--paper-border);
   border-radius: 22px;
   box-shadow: var(--shadow);
+}
+
+.task-edit-dialog::-webkit-scrollbar,
+.task-edit-card::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.task-edit-dialog[open] .task-edit-card {
+  animation: task-dialog-card-in 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.task-edit-dialog.is-opening .task-edit-card {
+  overflow-y: hidden;
+}
+
+.task-edit-dialog.is-closing {
+  pointer-events: none;
+  animation: task-dialog-shell-out 170ms ease both;
+}
+
+.task-edit-dialog.is-closing::backdrop {
+  animation: task-dialog-backdrop-out 170ms ease both;
+}
+
+.task-edit-dialog.is-closing .task-edit-card {
+  animation: task-dialog-card-out 170ms ease both;
+}
+
+@keyframes task-dialog-shell-in {
+  from { opacity: 0; }
+}
+
+@keyframes task-dialog-backdrop-in {
+  from { opacity: 0; backdrop-filter: blur(0); }
+}
+
+@keyframes task-dialog-card-in {
+  from { opacity: 0; transform: translate3d(0, 18px, 0) scale(0.975); }
+}
+
+@keyframes task-dialog-shell-out {
+  to { opacity: 0; }
+}
+
+@keyframes task-dialog-backdrop-out {
+  to { opacity: 0; backdrop-filter: blur(0); }
+}
+
+@keyframes task-dialog-card-out {
+  to { opacity: 0; transform: translate3d(0, 10px, 0) scale(0.985); }
 }
 
 .task-edit-heading,
@@ -1549,9 +1621,15 @@ html[data-theme="dark"] .task-label-badge {
   }
 
   .preview-emoji {
-    grid-row: span 3;
-    align-self: start;
-    padding-top: 24px;
+    grid-column: 1;
+    grid-row: 1;
+    align-self: end;
+    padding: 0 0 9px;
+  }
+
+  .title-field {
+    grid-column: 2;
+    grid-row: 1;
   }
 
   .date-field,
@@ -1559,6 +1637,7 @@ html[data-theme="dark"] .task-label-badge {
   .label-field,
   .remove-preview {
     grid-column: 2;
+    grid-row: auto;
   }
 
   .remove-preview {

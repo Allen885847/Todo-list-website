@@ -1,5 +1,12 @@
 .env
+.env.*
+!.env.example
 .DS_Store
 node_modules/
 backups/
 *.backup.json
+*.txt
+Todo-list-user-data/
+state.json
+state.previous.json
+*.local.json
