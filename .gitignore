@@ -10,3 +10,8 @@ Todo-list-user-data/
 state.json
 state.previous.json
 *.local.json
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+.wrangler/
+dist/
