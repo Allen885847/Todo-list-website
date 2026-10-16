@@ -867,7 +867,7 @@ function showEventClarification(message, required = true) {
   dateConfirmed.checked = false;
 }
 
-async function interpretEvent(inputOverride) {
+async function interpretEvent(inputOverride, inputMethod = "typed") {
   if (isInterpretingEvent) return;
   const input = typeof inputOverride === "string" ? inputOverride.trim() : eventDescription.value.trim();
   if (!input) {
@@ -883,7 +883,7 @@ async function interpretEvent(inputOverride) {
     const response = await fetch("/api/parse-event", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ input, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" }),
+      body: JSON.stringify({ input, inputMethod, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" }),
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Event interpretation failed.");
@@ -1027,7 +1027,7 @@ eventVoiceInput = new DoubaoVoiceInput({
   onStatus: setEventAiStatus,
   onTranscript: async (transcript) => {
     setEventAiStatus("Speech recognized. DeepSeek is generating the event preview…", "processing");
-    await interpretEvent(transcript);
+    await interpretEvent(transcript, "voice");
   },
 });
 if (!navigator.mediaDevices?.getUserMedia) {

@@ -1311,6 +1311,7 @@ async function processInput(input, source) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         input: cleanInput,
+        inputMethod: source === "voice" ? "voice" : "typed",
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
       }),
     });

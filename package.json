@@ -5,7 +5,7 @@
   "description": "Voice-enabled AI todo list and calendar using DeepSeek",
   "scripts": {
     "start": "node --env-file=.env server.js",
-    "check": "node --check server.js && node --check persistent-storage.js && node --check data-migration.js && node --check data.js && node --check task-rules.js && node --check voice-input.js && node --check script.js && node --check calendar.js && node --check page-transition.js && node --check app-shell.js && node --check login-ui.js && node --check src/cloudflare-worker.mjs && node --check scripts/build-cloudflare.mjs",
+    "check": "node --check server.js && node --check persistent-storage.js && node --check data-migration.js && node --check data.js && node --check task-rules.js && node --check voice-input.js && node --check script.js && node --check calendar.js && node --check page-transition.js && node --check app-shell.js && node --check login-ui.js && node --check src/cloudflare-worker.mjs && node --check src/cloudflare-auth.mjs && node --check src/cloudflare-data.mjs && node --check src/cloudflare-ai.mjs && node --check scripts/build-cloudflare.mjs",
     "test": "node task-rules.test.js && node calendar-display.test.js && node entry-methods.test.js && node page-transition.test.js && node login-ui.test.js && node cloudflare-schema.test.js && node cloudflare-worker.test.mjs",
     "cloudflare:build": "node scripts/build-cloudflare.mjs",
     "cloudflare:dev": "npm run cloudflare:build && wrangler dev",
@@ -14,9 +14,14 @@
     "cloudflare:deploy": "npm run cloudflare:build && wrangler deploy"
   },
   "dependencies": {
+    "better-auth": "^1.7.10",
     "ws": "^8.18.3"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261016.1",
+    "wrangler": "^4.151.1"
   }
 }

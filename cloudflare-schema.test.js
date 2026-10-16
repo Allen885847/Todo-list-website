@@ -6,12 +6,15 @@ const { execFileSync } = require("node:child_process");
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "todo-cloud-schema-"));
 const database = path.join(tempDir, "test.sqlite");
-const migration = fs.readFileSync("migrations/0001_initial_cloud_schema.sql", "utf8");
+const migration = [
+  fs.readFileSync("migrations/0001_initial_cloud_schema.sql", "utf8"),
+  fs.readFileSync("migrations/0002_user_snapshots.sql", "utf8"),
+].join("\n");
 
 try {
   execFileSync("sqlite3", [database], { input: migration });
   const tables = execFileSync("sqlite3", [database, ".tables"], { encoding: "utf8" });
-  ["user", "session", "account", "verification", "tasks", "events", "labels", "task_labels", "user_settings", "messages", "data_imports"]
+  ["user", "session", "account", "verification", "tasks", "events", "labels", "task_labels", "user_settings", "messages", "data_imports", "user_snapshots"]
     .forEach((table) => assert.match(tables, new RegExp(`\\b${table}\\b`)));
 
   execFileSync("sqlite3", [database], {

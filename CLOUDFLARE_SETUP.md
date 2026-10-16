@@ -1,26 +1,35 @@
 # Cloudflare online setup
 
-The `Online-1.0` branch contains a local Cloudflare foundation. It does not enable account creation or cloud data writes until authentication, email delivery, and abuse protection are configured.
+The `Online-1.0` branch is deployed at `https://todo-list-online.allenwhy888.workers.dev`. Account creation stays disabled until a verified transactional-email sender is configured.
 
 ## Architecture
 
 - Workers Static Assets serves the existing HTML, CSS, JavaScript, and icons.
 - A Cloudflare Worker owns every `/api/*` request.
-- D1 stores authentication records, tasks, events, holidays, labels, settings, AI messages, and idempotent import records.
-- R2 stores private exports, attachments, optional temporary audio, and long-term database exports.
-- Better Auth will provide email/password sessions.
+- D1 stores authentication records, tasks, events, holidays, labels, settings, AI messages, idempotent import records, and per-account application snapshots.
+- R2 stores a private latest-known-good recovery copy of each account snapshot. Audio recordings are processed in memory and are not stored.
+- Better Auth provides email/password sessions.
 - Resend will deliver email verification and password-reset messages.
 - Turnstile will protect registration, sign-in, and recovery endpoints.
 
-## What the owner needs to prepare
+## Deployed resources
 
-1. A Cloudflare account. Prefer `npx wrangler login` on the development computer; do not send the Cloudflare password or API token to anyone.
-2. A domain managed by Cloudflare, or approval to begin on the generated `workers.dev` domain.
-3. A D1 database named `todo-list-online`.
-4. A private R2 bucket named `todo-list-online-files`.
-5. A transactional email provider. The planned provider is Resend, with a verified sending domain and a sender such as `Todo List <no-reply@your-domain>`.
-6. A Turnstile widget for the production hostname. Keep its secret key private; the site key is public.
-7. A decision about how long AI message history should be retained. The recommended default is 90 days, with a user control to delete it sooner.
+- Cloudflare account: `allenwhy888@gmail.com`
+- D1 database: `todo-list-online`
+- Private R2 bucket: `todo-list-online-files`
+- Worker: `todo-list-online`
+- Turnstile widget: configured for the production `workers.dev` hostname
+- DeepSeek and Doubao credentials: stored only as Cloudflare Worker secrets
+- Better Auth encryption secret: stored only as a Cloudflare Worker secret
+
+## Remaining owner-provided item
+
+A transactional email provider is still required for public email verification and password reset. The current integration expects Resend. Provide:
+
+1. A Resend API key with sending permission.
+2. A verified sender such as `Todo List <no-reply@your-domain>`.
+
+The Cloudflare account currently has no domain, so Cloudflare Email Service cannot be used for arbitrary new-user addresses until a domain is added and onboarded.
 
 ## Local preparation
 
@@ -36,7 +45,7 @@ npx wrangler dev
 
 The local health endpoint will be `http://localhost:8787/api/health`.
 
-## Create hosted resources
+## Recreate hosted resources
 
 Run these only after Wrangler is signed into the intended Cloudflare account:
 
@@ -57,7 +66,7 @@ npx wrangler secret put DEEPSEEK_API_KEY
 npx wrangler secret put DOUBAO_SPEECH_API_KEY
 ```
 
-Before the first production deployment, set `BETTER_AUTH_URL`, `EMAIL_FROM`, and the production environment in `wrangler.jsonc`, then apply migrations with `npm run cloudflare:migrate:remote`.
+Set `EMAIL_FROM` in `wrangler.jsonc` after the sending domain is verified, upload `RESEND_API_KEY` with `wrangler secret put`, and redeploy. `BETTER_AUTH_URL`, Turnstile, D1, R2, and production mode are already configured.
 
 ## Safety rules
 

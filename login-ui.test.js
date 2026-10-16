@@ -12,15 +12,19 @@ assert.match(appHtml, /id="register-tab"/);
 assert.match(appHtml, /id="confirm-password-field"[^>]*hidden/);
 assert.match(appHtml, /id="forgot-password"/);
 assert.match(appHtml, /id="recovery-panel"/);
-assert.match(appHtml, /Authentication is not connected yet/);
+assert.match(appHtml, /id="turnstile-widget"/);
+assert.match(appHtml, /id="app-stage"/);
 assert.match(appHtml, /<script src="login-ui\.js"><\/script>/);
 assert.doesNotMatch(appHtml, /cloud|supabase/i);
 
 assert.match(loginScript, /function setMode\(nextMode\)/);
 assert.match(loginScript, /authPasswordConfirm\.required = registering/);
 assert.match(loginScript, /The two passwords must match/);
-assert.match(loginScript, /interface preview only/);
-assert.doesNotMatch(loginScript, /fetch\(|localStorage|sessionStorage/);
+assert.match(loginScript, /\/api\/auth\/sign-in\/email/);
+assert.match(loginScript, /\/api\/auth\/sign-up\/email/);
+assert.match(loginScript, /x-captcha-response/);
+assert.match(loginScript, /\/api\/auth\/request-password-reset/);
+assert.match(loginScript, /\/api\/auth\/sign-out/);
 
 assert.match(loginStyles, /\.auth-tabs/);
 assert.match(loginStyles, /:root\[data-theme="dark"\] \.auth-card/);

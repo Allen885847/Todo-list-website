@@ -14,7 +14,7 @@
     {
       "binding": "DB",
       "database_name": "todo-list-online",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "d2b3d984-ddbf-473b-af8a-a8d26cc84291",
       "migrations_dir": "migrations"
     }
   ],
@@ -25,9 +25,12 @@
     }
   ],
   "vars": {
-    "APP_ENV": "development",
-    "BETTER_AUTH_URL": "http://localhost:8787",
-    "EMAIL_FROM": "Todo List <no-reply@example.com>"
+    "APP_ENV": "production",
+    "BETTER_AUTH_URL": "https://todo-list-online.allenwhy888.workers.dev",
+    "BETTER_AUTH_TRUSTED_ORIGINS": "https://todo-list-online.allenwhy888.workers.dev",
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAFYikpnJBINL2qnU",
+    "TURNSTILE_HOSTNAMES": "todo-list-online.allenwhy888.workers.dev",
+    "EMAIL_FROM": ""
   },
   "observability": {
     "enabled": true

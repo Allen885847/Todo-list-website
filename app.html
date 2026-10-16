@@ -39,23 +39,46 @@
           <label>Password<input id="auth-password" type="password" minlength="8" autocomplete="current-password" required /></label>
           <label id="confirm-password-field" style="display: none" hidden>Confirm password<input id="auth-password-confirm" type="password" minlength="8" autocomplete="new-password" /></label>
           <p id="password-help" class="password-help">Use the password for your existing account.</p>
+          <div id="turnstile-widget" class="turnstile-widget" aria-label="Security check"></div>
           <button id="auth-submit" class="auth-primary" type="submit">Sign in</button>
         </form>
         <button id="forgot-password" class="auth-link" type="button">Forgot password?</button>
-        <p id="auth-status" class="auth-status" role="status" aria-live="polite">Authentication is not connected yet. This is the interface preview only.</p>
+        <p id="auth-status" class="auth-status" role="status" aria-live="polite">Checking secure sign-in…</p>
       </section>
 
       <section id="recovery-panel" class="auth-card recovery-card" hidden>
         <button id="back-to-login" class="auth-back" type="button">← Back to sign in</button>
         <p class="auth-eyebrow">ACCOUNT RECOVERY</p>
         <h1>Reset your password</h1>
-        <p>Enter your email address. Password-reset delivery will be connected in the authentication step.</p>
+        <p>Enter your email address and we will send a secure password-reset link.</p>
         <form id="recovery-form" class="auth-form">
           <label>Email address<input id="recovery-email" type="email" autocomplete="email" required /></label>
           <button class="auth-primary" type="submit">Continue</button>
         </form>
         <p id="recovery-status" class="auth-status" role="status" aria-live="polite"></p>
       </section>
+    </main>
+    <main id="reset-stage" class="auth-stage" aria-label="Reset password" hidden>
+      <section class="auth-card recovery-card">
+        <p class="auth-eyebrow">ACCOUNT RECOVERY</p>
+        <h1>Choose a new password</h1>
+        <form id="reset-form" class="auth-form">
+          <label>New password<input id="reset-password" type="password" minlength="8" autocomplete="new-password" required /></label>
+          <label>Confirm password<input id="reset-password-confirm" type="password" minlength="8" autocomplete="new-password" required /></label>
+          <button class="auth-primary" type="submit">Update password</button>
+        </form>
+        <p id="reset-status" class="auth-status" role="status" aria-live="polite"></p>
+      </section>
+    </main>
+    <main id="app-stage" class="app-stage" aria-label="Todo List application" hidden>
+      <div class="account-bar">
+        <span id="account-email"></span>
+        <button id="logout-button" type="button">Log out</button>
+      </div>
+      <div id="app-loading" class="app-loading" role="status" aria-live="polite">
+        <span aria-hidden="true"></span>
+        <p>Opening your list…</p>
+      </div>
     </main>
     <script src="login-ui.js"></script>
   </body>

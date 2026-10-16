@@ -24,12 +24,14 @@
   async function saveNow({ keepalive = false } = {}) {
     clearTimeout(saveTimer);
     try {
-      await fetch("/api/local-data", {
-        method: "POST",
+      const cloudMode = location.protocol === "https:" || location.hostname === "localhost";
+      const response = await fetch(cloudMode ? "/api/storage" : "/api/local-data", {
+        method: cloudMode ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: collect() }),
+        body: JSON.stringify({ schemaVersion: 1, data: collect() }),
         keepalive,
       });
+      if (!response.ok && response.status !== 401) throw new Error(`Save failed (${response.status}).`);
     } catch (error) {
       console.warn("Local file backup could not be updated.", error);
     }
@@ -59,7 +61,8 @@
   async function restore() {
     let serverPayload;
     try {
-      const response = await fetch("/api/local-data", { cache: "no-store" });
+      const cloudMode = location.protocol === "https:" || location.hostname === "localhost";
+      const response = await fetch(cloudMode ? "/api/storage" : "/api/local-data", { cache: "no-store" });
       if (response.ok) serverPayload = await response.json();
     } catch (error) {
       console.warn("Local file backup could not be loaded.", error);
@@ -71,6 +74,9 @@
     });
 
     const remoteData = serverPayload?.data;
+    if (serverPayload?.exists === false) {
+      keys.forEach((key) => nativeRemoveItem.call(localStorage, key));
+    }
     if (remoteData && Object.values(remoteData).some((value) => typeof value === "string" && value.length)) {
       const localData = collect();
       const before = JSON.stringify(localData);
