@@ -1,11 +1,12 @@
 import { betterAuth } from "better-auth";
 import { captcha } from "better-auth/plugins";
+import { sendQQEmail } from "./qq-smtp.mjs";
 
 const REQUIRED_AUTH_CONFIG = [
   "BETTER_AUTH_SECRET",
   "BETTER_AUTH_URL",
-  "RESEND_API_KEY",
-  "EMAIL_FROM",
+  "QQ_SMTP_USER",
+  "QQ_SMTP_AUTH_CODE",
   "TURNSTILE_SECRET_KEY",
   "TURNSTILE_SITE_KEY",
 ];
@@ -36,21 +37,12 @@ function escapeHtml(value) {
 }
 
 async function sendEmail(env, { to, subject, heading, message, actionLabel, actionUrl }) {
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: env.EMAIL_FROM,
-      to: [to],
-      subject,
-      text: `${heading}\n\n${message}\n\n${actionLabel}: ${actionUrl}`,
-      html: `<!doctype html><html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#172126;background:#f8f4ec;padding:32px"><div style="max-width:560px;margin:auto;background:white;border:1px solid #eadfd6;border-radius:20px;padding:32px"><p style="color:#ea6847;font-weight:800;letter-spacing:.12em">TODO-LIST</p><h1>${escapeHtml(heading)}</h1><p style="line-height:1.6">${escapeHtml(message)}</p><p><a href="${escapeHtml(actionUrl)}" style="display:inline-block;padding:12px 18px;border-radius:10px;background:#ea6847;color:white;text-decoration:none;font-weight:700">${escapeHtml(actionLabel)}</a></p></div></body></html>`,
-    }),
+  await sendQQEmail(env, {
+    to,
+    subject,
+    text: `${heading}\n\n${message}\n\n${actionLabel}: ${actionUrl}`,
+    html: `<!doctype html><html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#172126;background:#f8f4ec;padding:32px"><div style="max-width:560px;margin:auto;background:white;border:1px solid #eadfd6;border-radius:20px;padding:32px"><p style="color:#ea6847;font-weight:800;letter-spacing:.12em">TODO-LIST</p><h1>${escapeHtml(heading)}</h1><p style="line-height:1.6">${escapeHtml(message)}</p><p><a href="${escapeHtml(actionUrl)}" style="display:inline-block;padding:12px 18px;border-radius:10px;background:#ea6847;color:white;text-decoration:none;font-weight:700">${escapeHtml(actionLabel)}</a></p></div></body></html>`,
   });
-  if (!response.ok) throw new Error(`Email delivery failed (${response.status}).`);
 }
 
 export function createAuth(request, env, ctx) {

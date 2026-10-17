@@ -30,7 +30,7 @@
     "BETTER_AUTH_TRUSTED_ORIGINS": "https://todo-list-online.allenwhy888.workers.dev",
     "TURNSTILE_SITE_KEY": "0x4AAAAAAFYikpnJBINL2qnU",
     "TURNSTILE_HOSTNAMES": "todo-list-online.allenwhy888.workers.dev",
-    "EMAIL_FROM": ""
+    "QQ_SMTP_FROM_NAME": "Todo List"
   },
   "observability": {
     "enabled": true

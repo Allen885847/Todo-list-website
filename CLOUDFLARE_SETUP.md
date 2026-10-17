@@ -9,7 +9,7 @@ The `Online-1.0` branch is deployed at `https://todo-list-online.allenwhy888.wor
 - D1 stores authentication records, tasks, events, holidays, labels, settings, AI messages, idempotent import records, and per-account application snapshots.
 - R2 stores a private latest-known-good recovery copy of each account snapshot. Audio recordings are processed in memory and are not stored.
 - Better Auth provides email/password sessions.
-- Resend will deliver email verification and password-reset messages.
+- QQ Mail SMTP delivers email verification and password-reset messages over implicit TLS.
 - Turnstile will protect registration, sign-in, and recovery endpoints.
 
 ## Deployed resources
@@ -22,14 +22,14 @@ The `Online-1.0` branch is deployed at `https://todo-list-online.allenwhy888.wor
 - DeepSeek and Doubao credentials: stored only as Cloudflare Worker secrets
 - Better Auth encryption secret: stored only as a Cloudflare Worker secret
 
-## Remaining owner-provided item
+## Remaining owner-provided items
 
-A transactional email provider is still required for public email verification and password reset. The current integration expects Resend. Provide:
+A QQ mailbox must be enabled for SMTP before public registration and password reset can be activated. Provide:
 
-1. A Resend API key with sending permission.
-2. A verified sender such as `Todo List <no-reply@your-domain>`.
+1. The complete QQ email address, such as `123456789@qq.com`.
+2. A QQ Mail SMTP authorization code generated after enabling IMAP/SMTP or POP3/SMTP. Do not use the QQ login password.
 
-The Cloudflare account currently has no domain, so Cloudflare Email Service cannot be used for arbitrary new-user addresses until a domain is added and onboarded.
+The address is stored as the private `QQ_SMTP_USER` Worker secret and the authorization code as `QQ_SMTP_AUTH_CODE`. The application connects to `smtp.qq.com:465` with implicit TLS. A custom domain is not required.
 
 ## Local preparation
 
@@ -60,13 +60,14 @@ Configure secrets interactively so they never appear in shell history or source 
 
 ```sh
 npx wrangler secret put BETTER_AUTH_SECRET
-npx wrangler secret put RESEND_API_KEY
+npx wrangler secret put QQ_SMTP_USER
+npx wrangler secret put QQ_SMTP_AUTH_CODE
 npx wrangler secret put TURNSTILE_SECRET_KEY
 npx wrangler secret put DEEPSEEK_API_KEY
 npx wrangler secret put DOUBAO_SPEECH_API_KEY
 ```
 
-Set `EMAIL_FROM` in `wrangler.jsonc` after the sending domain is verified, upload `RESEND_API_KEY` with `wrangler secret put`, and redeploy. `BETTER_AUTH_URL`, Turnstile, D1, R2, and production mode are already configured.
+Upload both QQ values with `wrangler secret put`, send a real verification email, then redeploy. `BETTER_AUTH_URL`, Turnstile, D1, R2, and production mode are already configured.
 
 ## Safety rules
 

@@ -1,7 +1,8 @@
 # Copy this file to .dev.vars for local Worker development.
 # Never commit .dev.vars or paste these secret values into chat.
 BETTER_AUTH_SECRET=
-RESEND_API_KEY=
+QQ_SMTP_USER=
+QQ_SMTP_AUTH_CODE=
 TURNSTILE_SECRET_KEY=
 DEEPSEEK_API_KEY=
 DOUBAO_SPEECH_API_KEY=
