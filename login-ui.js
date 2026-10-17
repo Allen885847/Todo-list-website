@@ -175,15 +175,31 @@
         body: JSON.stringify(body),
       });
       if (mode === "register" && !result?.token) {
+        setStatus(authStatus, "Sending your verification email…");
+        await api("/api/auth/send-verification-email", {
+          method: "POST",
+          body: JSON.stringify({ email: authEmail.value, callbackURL: "/app.html" }),
+        });
         setMode("login");
-        setStatus(authStatus, "Account created. Check your email to verify it before signing in.");
+        setStatus(authStatus, "Account created. A verification email was sent. Check your inbox and spam folder.");
       } else {
         startApplication(result.user);
       }
     } catch (error) {
-      setStatus(authStatus, error.status === 403
-        ? "Please verify your email address before signing in."
-        : error.message, "error");
+      if (mode === "login" && error.status === 403) {
+        try {
+          setStatus(authStatus, "Sending a new verification email…");
+          await api("/api/auth/send-verification-email", {
+            method: "POST",
+            body: JSON.stringify({ email: authEmail.value, callbackURL: "/app.html" }),
+          });
+          setStatus(authStatus, "A new verification email was sent. Check your inbox and spam folder.");
+        } catch (deliveryError) {
+          setStatus(authStatus, `The verification email could not be sent: ${deliveryError.message}`, "error");
+        }
+      } else {
+        setStatus(authStatus, error.message, "error");
+      }
     } finally {
       setBusy(false);
       resetTurnstile();
