@@ -39,6 +39,7 @@
   const turnstileContainer = $("#turnstile-widget");
   let mode = "login";
   let awaitingVerification = false;
+  let verificationPurpose = "email-verification";
   let busy = false;
   let turnstileWidgetId = null;
   let turnstileToken = "";
@@ -76,8 +77,9 @@
     if (window.turnstile && turnstileWidgetId !== null) window.turnstile.reset(turnstileWidgetId);
   }
 
-  function setVerificationStep(active) {
+  function setVerificationStep(active, purpose = "email-verification") {
     awaitingVerification = active;
+    verificationPurpose = purpose;
     verificationFields.hidden = !active;
     verificationCode.required = active;
     authEmail.readOnly = active;
@@ -86,7 +88,9 @@
     confirmField.style.display = !active && mode === "register" ? "grid" : "none";
     passwordHelp.hidden = active;
     authSubmit.textContent = active ? "Verify email and continue" : (mode === "register" ? "Create account" : "Sign in");
-    resendVerification.textContent = active ? "Resend verification code" : "Resend code for an existing account";
+    resendVerification.textContent = active
+      ? (purpose === "forget-password" ? "Resend password code" : "Resend verification code")
+      : "Set or reset an existing account password";
   }
 
   function setMode(nextMode) {
@@ -104,7 +108,7 @@
     forgotPassword.hidden = registering;
     forgotPassword.style.display = registering ? "none" : "inline-block";
     passwordHelp.textContent = registering
-      ? "Use 12–128 characters. We will send a six-digit verification code."
+      ? "Use 8–128 characters. We will send a six-digit verification code."
       : "Use the password for your existing account.";
     setStatus(authStatus, registering
       ? "New accounts start with a completely empty To-Do List."
@@ -191,6 +195,15 @@
     setStatus(authStatus, awaitingVerification ? "Checking your verification code…" : (mode === "register" ? "Creating your account…" : "Signing in…"));
     try {
       if (awaitingVerification) {
+        if (verificationPurpose === "forget-password") {
+          await api("/api/auth/email-otp/reset-password", {
+            method: "POST",
+            body: JSON.stringify({ email: authEmail.value, otp: verificationCode.value, password: authPassword.value }),
+          });
+          setMode("login");
+          setStatus(authStatus, "Password saved. Complete the security check and sign in with your new password.");
+          return;
+        }
         const result = await api("/api/auth/email-otp/verify-email", {
           method: "POST",
           body: JSON.stringify({ email: authEmail.value, otp: verificationCode.value }),
@@ -224,6 +237,12 @@
 
   resendVerification.addEventListener("click", async () => {
     if (busy || !authEmail.reportValidity()) return;
+    if (!authPassword.reportValidity() || !authPasswordConfirm.reportValidity()) return;
+    if (authPassword.value !== authPasswordConfirm.value) {
+      setStatus(authStatus, "The two passwords must match.", "error");
+      authPasswordConfirm.focus();
+      return;
+    }
     if (!turnstileToken) {
       setStatus(authStatus, "Please complete the security check before sending a code.", "error");
       return;
@@ -231,13 +250,13 @@
     setBusy(true);
     setStatus(authStatus, "Sending a six-digit verification code…");
     try {
-      await api("/api/auth/email-otp/send-verification-otp", {
+      await api("/api/auth/email-otp/request-password-reset", {
         method: "POST",
         headers: { "x-captcha-response": turnstileToken },
-        body: JSON.stringify({ email: authEmail.value, type: "email-verification" }),
+        body: JSON.stringify({ email: authEmail.value }),
       });
-      setVerificationStep(true);
-      setStatus(authStatus, "If this account is awaiting verification, a code was sent. Check your inbox and spam folder.");
+      setVerificationStep(true, "forget-password");
+      setStatus(authStatus, "If this account exists, a password code was sent. Enter it to save the password you chose.");
       verificationCode.focus();
     } catch (error) {
       setStatus(authStatus, error.message, "error");

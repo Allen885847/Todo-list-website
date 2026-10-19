@@ -15,6 +15,7 @@ assert.match(appHtml, /id="recovery-panel"/);
 assert.match(appHtml, /id="turnstile-widget"/);
 assert.match(appHtml, /id="verification-code"/);
 assert.match(appHtml, /id="send-recovery-code"/);
+assert.match(appHtml, /id="auth-password"[^>]*minlength="8"/);
 assert.match(appHtml, /id="app-stage"/);
 assert.match(appHtml, /<script src="login-ui\.js"><\/script>/);
 assert.doesNotMatch(appHtml, /cloud|supabase/i);
@@ -28,6 +29,7 @@ assert.match(loginScript, /x-captcha-response/);
 assert.match(loginScript, /\/api\/auth\/email-otp\/verify-email/);
 assert.match(loginScript, /\/api\/auth\/email-otp\/request-password-reset/);
 assert.match(loginScript, /\/api\/auth\/email-otp\/reset-password/);
+assert.match(loginScript, /Set or reset an existing account password/);
 assert.match(loginScript, /\/api\/auth\/sign-out/);
 
 assert.match(loginStyles, /\.auth-tabs/);
