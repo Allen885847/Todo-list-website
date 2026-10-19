@@ -1,13 +1,13 @@
 :root {
   color-scheme: light;
-  --shell-background: radial-gradient(circle at 15% 15%, rgba(255, 255, 255, 0.8), transparent 24rem), linear-gradient(135deg, #d9eee0, #f0e8d4 55%, #efd4c5);
+  --shell-background: linear-gradient(135deg, #d9eee0, #f0e8d4 55%, #efd4c5);
   --shell-ink: #172126;
   --shell-accent: #ea6847;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --shell-background: radial-gradient(circle at 15% 15%, rgba(255, 128, 96, 0.09), transparent 25rem), linear-gradient(135deg, #101114, #17181b 55%, #211b1a);
+  --shell-background: linear-gradient(135deg, #101114, #17181b 55%, #211b1a);
   --shell-ink: #f3f1ed;
   --shell-accent: #ff8060;
 }

@@ -11,7 +11,7 @@
   --green: #23836c;
   --warning: #a35b00;
   --shadow: 0 24px 70px rgba(45, 66, 57, 0.14);
-  --page-background: radial-gradient(circle at 15% 15%, rgba(255, 255, 255, 0.8), transparent 24rem), linear-gradient(135deg, #d9eee0, #f0e8d4 55%, #efd4c5);
+  --page-background: linear-gradient(135deg, #d9eee0, #f0e8d4 55%, #efd4c5);
   --paper-border: rgba(255, 255, 255, 0.75);
   --soft-accent: #f9e7e1;
   --soft-accent-border: rgba(234, 104, 71, 0.24);
@@ -59,7 +59,7 @@ html[data-theme="dark"] {
   --green: #8ad0bc;
   --warning: #ffc276;
   --shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
-  --page-background: radial-gradient(circle at 15% 15%, rgba(255, 128, 96, 0.09), transparent 25rem), linear-gradient(135deg, #101114, #17181b 55%, #211b1a);
+  --page-background: linear-gradient(135deg, #101114, #17181b 55%, #211b1a);
   --paper-border: rgba(255, 255, 255, 0.08);
   --soft-accent: #382724;
   --soft-accent-border: rgba(255, 128, 96, 0.34);
