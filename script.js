@@ -1782,6 +1782,11 @@ window.addEventListener("storage", (event) => {
   state = loadState();
   renderTasks();
 });
+window.addEventListener("message", (event) => {
+  if (event.origin !== location.origin || event.data?.type !== "todo-view-activated") return;
+  state = loadState();
+  renderTasks();
+});
 
 if (!navigator.mediaDevices?.getUserMedia) {
   recordButton.disabled = true;

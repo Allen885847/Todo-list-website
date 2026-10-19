@@ -11,6 +11,8 @@
   let currentRoute = null;
   let transitionRunning = false;
   let queuedRoute = null;
+  const frames = new Map();
+  const frameReadiness = new Map();
 
   function normalizeRoute(value) {
     return Object.hasOwn(routes, value) ? value : "todo";
@@ -37,7 +39,44 @@
     frame.allow = "microphone";
     frame.src = routes[route].src;
     frame.dataset.route = route;
+    frame.inert = true;
     return frame;
+  }
+
+  function prepareFrame(route) {
+    const preparedRoute = normalizeRoute(route);
+    if (frameReadiness.has(preparedRoute)) return frameReadiness.get(preparedRoute);
+
+    const frame = createFrame(preparedRoute);
+    const frameLoaded = waitForLoad(frame);
+    const storageReady = waitForStorageReady(frame);
+    frames.set(preparedRoute, frame);
+    stage.append(frame);
+
+    const readiness = Promise.all([frameLoaded, storageReady])
+      .then(() => {
+        connectFrame(frame);
+        frame.dataset.ready = "true";
+        return frame;
+      })
+      .catch((error) => {
+        frames.delete(preparedRoute);
+        frameReadiness.delete(preparedRoute);
+        frame.remove();
+        throw error;
+      });
+    frameReadiness.set(preparedRoute, readiness);
+    return readiness;
+  }
+
+  function preloadPrimaryViews() {
+    const preload = () => {
+      ["todo", "calendar"].forEach((route) => {
+        if (route !== currentRoute) prepareFrame(route).catch(() => {});
+      });
+    };
+    if (typeof requestIdleCallback === "function") requestIdleCallback(preload, { timeout: 900 });
+    else window.setTimeout(preload, 80);
   }
 
   function waitForLoad(frame) {
@@ -102,6 +141,7 @@
   async function revealFrame(nextFrame, direction) {
     const previousFrame = currentFrame;
     if (previousFrame) {
+      previousFrame.classList.remove("is-current");
       previousFrame.classList.add("is-leaving");
       previousFrame.inert = true;
     }
@@ -110,7 +150,7 @@
     await waitForPaint();
 
     if (!previousFrame || reducedMotion.matches) {
-      previousFrame?.remove();
+      previousFrame?.classList.remove("is-leaving");
       nextFrame.classList.remove("is-entering");
       nextFrame.classList.add("is-current");
       return;
@@ -131,7 +171,8 @@
     ], timing);
 
     await Promise.allSettled([incoming.finished, outgoing.finished]);
-    previousFrame.remove();
+    previousFrame.getAnimations().forEach((animation) => animation.cancel());
+    previousFrame.classList.remove("is-leaving");
     nextFrame.getAnimations().forEach((animation) => animation.cancel());
     nextFrame.classList.remove("is-entering");
     nextFrame.classList.add("is-current");
@@ -150,22 +191,18 @@
     const direction = nextRoute === "todo" && previousRoute !== "todo" ? "back" : "forward";
     if (updateHistory) history.pushState({ route: nextRoute }, "", `#${nextRoute}`);
 
-    const nextFrame = createFrame(nextRoute);
-    const frameLoaded = waitForLoad(nextFrame);
-    const storageReady = waitForStorageReady(nextFrame);
-    stage.append(nextFrame);
     try {
-      await frameLoaded;
-      await storageReady;
-      connectFrame(nextFrame);
+      const nextFrame = await prepareFrame(nextRoute);
       await revealFrame(nextFrame, direction);
       currentFrame = nextFrame;
       currentRoute = nextRoute;
       document.title = routes[nextRoute].title;
       stage.classList.add("is-ready");
       syncShellTheme();
+      nextFrame.contentWindow?.postMessage({ type: "todo-view-activated", route: nextRoute }, location.origin);
+      preloadPrimaryViews();
     } catch {
-      nextFrame.remove();
+      // Keep the current view available if a destination cannot be prepared.
     } finally {
       transitionRunning = false;
       if (queuedRoute && queuedRoute !== currentRoute) {

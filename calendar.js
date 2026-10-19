@@ -1091,6 +1091,12 @@ window.addEventListener("storage", (event) => {
   if (event.key === EVENT_STORAGE_KEY) events = loadEvents();
   if (event.key === TASK_STORAGE_KEY || event.key === EVENT_STORAGE_KEY) renderCalendar();
 });
+window.addEventListener("message", (event) => {
+  if (event.origin !== location.origin || event.data?.type !== "todo-view-activated") return;
+  taskState = loadTaskState();
+  events = loadEvents();
+  renderCalendar();
+});
 window.addEventListener("pageshow", () => {
   taskState = loadTaskState();
   events = loadEvents();
