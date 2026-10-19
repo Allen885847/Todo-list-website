@@ -21,6 +21,10 @@ function base64Utf8(value) {
   return btoa(binary);
 }
 
+function base64Mime(value) {
+  return base64Utf8(value).match(/.{1,76}/g)?.join("\r\n") || "";
+}
+
 function validEmail(value) {
   return typeof value === "string"
     && value.length <= 254
@@ -53,12 +57,12 @@ export function buildMimeMessage({ from, fromName = "Todo List", to, subject, te
     "Content-Type: text/plain; charset=UTF-8",
     "Content-Transfer-Encoding: base64",
     "",
-    base64Utf8(normalizeLines(text)),
+    base64Mime(normalizeLines(text)),
     `--${boundary}`,
     "Content-Type: text/html; charset=UTF-8",
     "Content-Transfer-Encoding: base64",
     "",
-    base64Utf8(normalizeLines(html)),
+    base64Mime(normalizeLines(html)),
     `--${boundary}--`,
     "",
   ].join("\r\n");

@@ -16,6 +16,14 @@ assert.match(smtp, /replace\(\/\(\^\|\\r\\n\)\\\.\/g, "\$1\.\."\)/);
 assert.match(auth, /"QQ_SMTP_USER"/);
 assert.match(auth, /"QQ_SMTP_AUTH_CODE"/);
 assert.match(auth, /await sendQQEmail\(env/);
+assert.match(auth, /sendOnSignUp: false/);
+assert.match(auth, /sendOnSignIn: false/);
+assert.match(auth, /emailOTP\(\{/);
+assert.match(auth, /expiresIn: 600/);
+assert.match(auth, /allowedAttempts: 5/);
+assert.match(auth, /storeOTP: "hashed"/);
+assert.match(auth, /QQ SMTP OTP delivery completed/);
+assert.doesNotMatch(auth, /backgroundTasks/);
 assert.doesNotMatch(auth, /RESEND_API_KEY|api\.resend\.com/);
 assert.match(config, /"QQ_SMTP_FROM_NAME": "Todo List"/);
 assert.doesNotMatch(config, /EMAIL_FROM/);
@@ -27,13 +35,16 @@ assert.doesNotMatch(config, /EMAIL_FROM/);
     to: "student@example.com",
     subject: "Verify 测试",
     text: "Plain verification link",
-    html: "<p>HTML verification link</p>",
+    html: `<p>${"HTML verification link ".repeat(120)}</p>`,
   });
   assert.match(message, /From: =\?UTF-8\?B\?.+\?= <sender@qq\.com>/);
   assert.match(message, /To: <student@example\.com>/);
   assert.match(message, /Subject: =\?UTF-8\?B\?.+\?=/);
   assert.match(message, /Content-Type: text\/plain; charset=UTF-8/);
   assert.match(message, /Content-Type: text\/html; charset=UTF-8/);
+  for (const line of message.split("\r\n")) {
+    assert.ok(line.length <= 998, "SMTP message lines must stay within RFC limits");
+  }
   assert.throws(() => buildMimeMessage({
     from: "sender@qq.com\r\nBcc: attacker@example.com",
     to: "student@example.com",

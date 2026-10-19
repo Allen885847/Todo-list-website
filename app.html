@@ -36,11 +36,16 @@
 
         <form id="auth-form" class="auth-form">
           <label>Email address<input id="auth-email" type="email" autocomplete="email" required /></label>
-          <label>Password<input id="auth-password" type="password" minlength="8" autocomplete="current-password" required /></label>
-          <label id="confirm-password-field" style="display: none" hidden>Confirm password<input id="auth-password-confirm" type="password" minlength="8" autocomplete="new-password" /></label>
+          <label id="auth-password-field">Password<input id="auth-password" type="password" minlength="12" autocomplete="current-password" required /></label>
+          <label id="confirm-password-field" style="display: none" hidden>Confirm password<input id="auth-password-confirm" type="password" minlength="12" autocomplete="new-password" /></label>
           <p id="password-help" class="password-help">Use the password for your existing account.</p>
+          <div id="verification-fields" class="verification-fields" hidden>
+            <label>Email verification code<input id="verification-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" /></label>
+            <p class="password-help">Enter the six-digit code from your email. It expires in 10 minutes.</p>
+          </div>
           <div id="turnstile-widget" class="turnstile-widget" aria-label="Security check"></div>
           <button id="auth-submit" class="auth-primary" type="submit">Sign in</button>
+          <button id="resend-verification" class="auth-secondary" type="button" hidden>Send verification code</button>
         </form>
         <button id="forgot-password" class="auth-link" type="button">Forgot password?</button>
         <p id="auth-status" class="auth-status" role="status" aria-live="polite">Checking secure sign-in…</p>
@@ -50,10 +55,14 @@
         <button id="back-to-login" class="auth-back" type="button">← Back to sign in</button>
         <p class="auth-eyebrow">ACCOUNT RECOVERY</p>
         <h1>Reset your password</h1>
-        <p>Enter your email address and we will send a secure password-reset link.</p>
+        <p>Enter your email address. We will send a six-digit code so you can choose a new password.</p>
         <form id="recovery-form" class="auth-form">
           <label>Email address<input id="recovery-email" type="email" autocomplete="email" required /></label>
-          <button class="auth-primary" type="submit">Continue</button>
+          <button id="send-recovery-code" class="auth-secondary" type="button">Send verification code</button>
+          <label>Verification code<input id="recovery-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required /></label>
+          <label>New password<input id="recovery-password" type="password" minlength="12" autocomplete="new-password" required /></label>
+          <label>Confirm password<input id="recovery-password-confirm" type="password" minlength="12" autocomplete="new-password" required /></label>
+          <button class="auth-primary" type="submit">Reset password</button>
         </form>
         <p id="recovery-status" class="auth-status" role="status" aria-live="polite"></p>
       </section>
