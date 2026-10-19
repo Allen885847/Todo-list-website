@@ -11,16 +11,24 @@
   const registerTab = $("#register-tab");
   const authForm = $("#auth-form");
   const authEmail = $("#auth-email");
+  const authPasswordField = $("#auth-password-field");
   const authPassword = $("#auth-password");
   const confirmField = $("#confirm-password-field");
   const authPasswordConfirm = $("#auth-password-confirm");
   const passwordHelp = $("#password-help");
   const authSubmit = $("#auth-submit");
+  const verificationFields = $("#verification-fields");
+  const verificationCode = $("#verification-code");
+  const resendVerification = $("#resend-verification");
   const forgotPassword = $("#forgot-password");
   const authStatus = $("#auth-status");
   const backToLogin = $("#back-to-login");
   const recoveryForm = $("#recovery-form");
   const recoveryEmail = $("#recovery-email");
+  const recoveryCode = $("#recovery-code");
+  const recoveryPassword = $("#recovery-password");
+  const recoveryPasswordConfirm = $("#recovery-password-confirm");
+  const sendRecoveryCode = $("#send-recovery-code");
   const recoveryStatus = $("#recovery-status");
   const resetForm = $("#reset-form");
   const resetPassword = $("#reset-password");
@@ -30,6 +38,7 @@
   const logoutButton = $("#logout-button");
   const turnstileContainer = $("#turnstile-widget");
   let mode = "login";
+  let awaitingVerification = false;
   let busy = false;
   let turnstileWidgetId = null;
   let turnstileToken = "";
@@ -58,11 +67,26 @@
     authSubmit.disabled = active;
     loginTab.disabled = active;
     registerTab.disabled = active;
+    resendVerification.disabled = active;
+    sendRecoveryCode.disabled = active;
   }
 
   function resetTurnstile() {
     turnstileToken = "";
     if (window.turnstile && turnstileWidgetId !== null) window.turnstile.reset(turnstileWidgetId);
+  }
+
+  function setVerificationStep(active) {
+    awaitingVerification = active;
+    verificationFields.hidden = !active;
+    verificationCode.required = active;
+    authEmail.readOnly = active;
+    authPasswordField.hidden = active;
+    confirmField.hidden = active || mode !== "register";
+    confirmField.style.display = !active && mode === "register" ? "grid" : "none";
+    passwordHelp.hidden = active;
+    authSubmit.textContent = active ? "Verify email and continue" : (mode === "register" ? "Create account" : "Sign in");
+    resendVerification.textContent = active ? "Resend verification code" : "Resend code for an existing account";
   }
 
   function setMode(nextMode) {
@@ -76,15 +100,16 @@
     confirmField.hidden = !registering;
     confirmField.style.display = registering ? "grid" : "none";
     authPasswordConfirm.required = registering;
-    authSubmit.textContent = registering ? "Create account" : "Sign in";
+    resendVerification.hidden = !registering;
     forgotPassword.hidden = registering;
     forgotPassword.style.display = registering ? "none" : "inline-block";
     passwordHelp.textContent = registering
-      ? "Use at least eight characters. We will send an email verification link."
+      ? "Use 12–128 characters. We will send a six-digit verification code."
       : "Use the password for your existing account.";
     setStatus(authStatus, registering
       ? "New accounts start with a completely empty To-Do List."
       : "Sign in to securely restore your private tasks and calendar.");
+    setVerificationStep(false);
     resetTurnstile();
   }
 
@@ -153,18 +178,25 @@
   authForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (busy) return;
-    if (mode === "register" && authPassword.value !== authPasswordConfirm.value) {
+    if (mode === "register" && !awaitingVerification && authPassword.value !== authPasswordConfirm.value) {
       setStatus(authStatus, "The two passwords must match.", "error");
       authPasswordConfirm.focus();
       return;
     }
-    if (!turnstileToken) {
+    if (!awaitingVerification && !turnstileToken) {
       setStatus(authStatus, "Please complete the security check.", "error");
       return;
     }
     setBusy(true);
-    setStatus(authStatus, mode === "register" ? "Creating your account…" : "Signing in…");
+    setStatus(authStatus, awaitingVerification ? "Checking your verification code…" : (mode === "register" ? "Creating your account…" : "Signing in…"));
     try {
+      if (awaitingVerification) {
+        const result = await api("/api/auth/email-otp/verify-email", {
+          method: "POST",
+          body: JSON.stringify({ email: authEmail.value, otp: verificationCode.value }),
+        });
+        return startApplication(result.user);
+      }
       const path = mode === "register" ? "/api/auth/sign-up/email" : "/api/auth/sign-in/email";
       const body = mode === "register"
         ? { name: authEmail.value.split("@")[0], email: authEmail.value, password: authPassword.value, callbackURL: "/app.html" }
@@ -175,31 +207,40 @@
         body: JSON.stringify(body),
       });
       if (mode === "register" && !result?.token) {
-        setStatus(authStatus, "Sending your verification email…");
-        await api("/api/auth/send-verification-email", {
-          method: "POST",
-          body: JSON.stringify({ email: authEmail.value, callbackURL: "/app.html" }),
-        });
-        setMode("login");
-        setStatus(authStatus, "Account created. A verification email was sent. Check your inbox and spam folder.");
+        setVerificationStep(true);
+        resetTurnstile();
+        verificationCode.focus();
+        setStatus(authStatus, "A six-digit verification code was sent. Check your inbox and spam folder.");
       } else {
         startApplication(result.user);
       }
     } catch (error) {
-      if (mode === "login" && error.status === 403) {
-        try {
-          setStatus(authStatus, "Sending a new verification email…");
-          await api("/api/auth/send-verification-email", {
-            method: "POST",
-            body: JSON.stringify({ email: authEmail.value, callbackURL: "/app.html" }),
-          });
-          setStatus(authStatus, "A new verification email was sent. Check your inbox and spam folder.");
-        } catch (deliveryError) {
-          setStatus(authStatus, `The verification email could not be sent: ${deliveryError.message}`, "error");
-        }
-      } else {
-        setStatus(authStatus, error.message, "error");
-      }
+      setStatus(authStatus, error.message, "error");
+    } finally {
+      setBusy(false);
+      resetTurnstile();
+    }
+  });
+
+  resendVerification.addEventListener("click", async () => {
+    if (busy || !authEmail.reportValidity()) return;
+    if (!turnstileToken) {
+      setStatus(authStatus, "Please complete the security check before sending a code.", "error");
+      return;
+    }
+    setBusy(true);
+    setStatus(authStatus, "Sending a six-digit verification code…");
+    try {
+      await api("/api/auth/email-otp/send-verification-otp", {
+        method: "POST",
+        headers: { "x-captcha-response": turnstileToken },
+        body: JSON.stringify({ email: authEmail.value, type: "email-verification" }),
+      });
+      setVerificationStep(true);
+      setStatus(authStatus, "If this account is awaiting verification, a code was sent. Check your inbox and spam folder.");
+      verificationCode.focus();
+    } catch (error) {
+      setStatus(authStatus, error.message, "error");
     } finally {
       setBusy(false);
       resetTurnstile();
@@ -223,25 +264,50 @@
     requestAnimationFrame(() => authEmail.focus());
   });
 
+  sendRecoveryCode.addEventListener("click", async () => {
+    if (busy || !recoveryEmail.reportValidity()) return;
+    if (!turnstileToken) {
+      setStatus(recoveryStatus, "Please complete the security check before sending a code.", "error");
+      return;
+    }
+    setBusy(true);
+    setStatus(recoveryStatus, "Sending a password-reset code…");
+    try {
+      await api("/api/auth/email-otp/request-password-reset", {
+        method: "POST",
+        headers: { "x-captcha-response": turnstileToken },
+        body: JSON.stringify({ email: recoveryEmail.value }),
+      });
+      setStatus(recoveryStatus, "If that account exists, a six-digit code was sent. Check your inbox and spam folder.");
+      recoveryCode.focus();
+    } catch (error) {
+      setStatus(recoveryStatus, error.message, "error");
+    } finally {
+      setBusy(false);
+      resetTurnstile();
+    }
+  });
+
   recoveryForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (busy || !turnstileToken) {
-      setStatus(recoveryStatus, "Please complete the security check.", "error");
+    if (busy) return;
+    if (recoveryPassword.value !== recoveryPasswordConfirm.value) {
+      setStatus(recoveryStatus, "The two passwords must match.", "error");
+      recoveryPasswordConfirm.focus();
       return;
     }
     busy = true;
     try {
-      await api("/api/auth/request-password-reset", {
+      await api("/api/auth/email-otp/reset-password", {
         method: "POST",
-        headers: { "x-captcha-response": turnstileToken },
-        body: JSON.stringify({ email: recoveryEmail.value, redirectTo: `${location.origin}/app.html` }),
+        body: JSON.stringify({ email: recoveryEmail.value, otp: recoveryCode.value, password: recoveryPassword.value }),
       });
-      setStatus(recoveryStatus, "If that account exists, a reset link has been sent.");
+      setStatus(recoveryStatus, "Password updated. Returning to sign in…");
+      setTimeout(() => { location.href = "/app.html"; }, 700);
     } catch (error) {
       setStatus(recoveryStatus, error.message, "error");
     } finally {
       busy = false;
-      resetTurnstile();
     }
   });
 

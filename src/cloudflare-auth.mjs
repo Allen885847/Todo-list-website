@@ -1,5 +1,5 @@
 import { betterAuth } from "better-auth";
-import { captcha } from "better-auth/plugins";
+import { captcha, emailOTP } from "better-auth/plugins";
 import { sendQQEmail } from "./qq-smtp.mjs";
 
 const REQUIRED_AUTH_CONFIG = [
@@ -51,6 +51,22 @@ async function sendEmail(env, { to, subject, heading, message, actionLabel, acti
   }
 }
 
+async function sendOtpEmail(env, { email, otp, type }) {
+  const resetting = type === "forget-password";
+  try {
+    await sendQQEmail(env, {
+      to: email,
+      subject: resetting ? "Todo List password reset code" : "Todo List email verification code",
+      text: `Your Todo List verification code is ${otp}. It expires in 10 minutes and can be used once. If you did not request this, ignore this email.`,
+      html: `<!doctype html><html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#172126;background:#f8f4ec;padding:32px"><div style="max-width:560px;margin:auto;background:white;border:1px solid #eadfd6;border-radius:20px;padding:32px"><p style="color:#ea6847;font-weight:800;letter-spacing:.12em">TODO-LIST</p><h1>${resetting ? "Reset your password" : "Verify your email"}</h1><p style="line-height:1.6">Enter this six-digit code in Todo List. It expires in 10 minutes and can be used once.</p><p style="font-size:34px;font-weight:800;letter-spacing:.22em;margin:28px 0">${escapeHtml(otp)}</p><p style="color:#667277">If you did not request this, you can ignore this email.</p></div></body></html>`,
+    });
+    console.log("QQ SMTP OTP delivery completed.");
+  } catch (error) {
+    console.error("QQ SMTP OTP delivery failed:", error instanceof Error ? error.message : "Unknown error");
+    throw error;
+  }
+}
+
 export function createAuth(request, env, ctx) {
   const readiness = getAuthReadiness(env);
   if (!readiness.ready) return null;
@@ -69,7 +85,7 @@ export function createAuth(request, env, ctx) {
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,
-      minPasswordLength: 8,
+      minPasswordLength: 12,
       maxPasswordLength: 128,
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: async ({ user, url }) => {
@@ -98,11 +114,31 @@ export function createAuth(request, env, ctx) {
         });
       },
     },
-    plugins: [captcha({
-      provider: "cloudflare-turnstile",
-      secretKey: env.TURNSTILE_SECRET_KEY,
-      ...(allowedHostnames.length ? { allowedHostnames } : {}),
-    })],
+    plugins: [
+      emailOTP({
+        expiresIn: 600,
+        otpLength: 6,
+        allowedAttempts: 5,
+        storeOTP: "hashed",
+        resendStrategy: "rotate",
+        sendVerificationOnSignUp: true,
+        async sendVerificationOTP({ email, otp, type }) {
+          await sendOtpEmail(env, { email, otp, type });
+        },
+      }),
+      captcha({
+        provider: "cloudflare-turnstile",
+        secretKey: env.TURNSTILE_SECRET_KEY,
+        endpoints: [
+          "/sign-up/email",
+          "/sign-in/email",
+          "/request-password-reset",
+          "/email-otp/send-verification-otp",
+          "/email-otp/request-password-reset",
+        ],
+        ...(allowedHostnames.length ? { allowedHostnames } : {}),
+      }),
+    ],
     advanced: {
       ipAddress: {
         ipAddressHeaders: ["cf-connecting-ip", "x-forwarded-for"],

@@ -20,7 +20,8 @@
 }
 
 #confirm-password-field[hidden],
-#forgot-password[hidden] {
+#forgot-password[hidden],
+.verification-fields[hidden] {
   display: none;
 }
 
@@ -139,6 +140,36 @@
   border-radius: 12px;
   font: inherit;
   font-weight: 800;
+}
+
+.auth-secondary {
+  min-height: 44px;
+  padding: 10px 15px;
+  color: var(--shell-accent);
+  background: color-mix(in srgb, var(--shell-accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--shell-accent) 28%, transparent);
+  border-radius: 12px;
+  font: inherit;
+  font-weight: 780;
+}
+
+.auth-secondary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--shell-accent) 16%, transparent);
+}
+
+.auth-secondary:disabled,
+.auth-primary:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.verification-fields {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  background: color-mix(in srgb, var(--shell-accent) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--shell-accent) 19%, transparent);
+  border-radius: 14px;
 }
 
 :root[data-theme="dark"] .auth-primary {
