@@ -2,12 +2,17 @@ const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 
+const { createAuth } = require("./auth");
+
 const PORT = Number(process.env.PORT) || 4173;
 const API_KEY = process.env.DEEPSEEK_API_KEY;
 const ROOT = __dirname;
 const MAX_BODY_SIZE = 30_000;
 const MAX_INPUT_LENGTH = 4_000;
 const STATIC_FILES = new Map([
+  ["/account", ["account.html", "text/html; charset=utf-8"]],
+  ["/account.js", ["account.js", "text/javascript; charset=utf-8"]],
+  ["/account.css", ["account.css", "text/css; charset=utf-8"]],
   ["/", ["index.html", "text/html; charset=utf-8"]],
   ["/index.html", ["index.html", "text/html; charset=utf-8"]],
   ["/style.css", ["style.css", "text/css; charset=utf-8"]],
@@ -184,8 +189,12 @@ Rules:
   return normalizeGeneratedTasks(JSON.parse(content));
 }
 
+function createServer(authOptions) {
+const auth = createAuth(authOptions);
 const server = http.createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
+
+  if (await auth.handle(request, response, url, readJson, sendJson)) return;
 
   if (request.method === "POST" && url.pathname === "/api/parse-tasks") {
     if (!API_KEY) {
@@ -230,6 +239,11 @@ const server = http.createServer(async (request, response) => {
   response.end("Not found");
 });
 
-server.listen(PORT, "127.0.0.1", () => {
+server.on("close", () => auth.close());
+return server;
+}
+module.exports = { createServer };
+
+if (require.main === module) createServer().listen(PORT, "127.0.0.1", () => {
   console.log(`Todo List running at http://127.0.0.1:${PORT}`);
 });

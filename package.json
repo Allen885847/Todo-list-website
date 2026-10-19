@@ -5,9 +5,17 @@
   "description": "Voice-enabled AI todo list using DeepSeek V4.1 Flash",
   "scripts": {
     "start": "node --env-file=.env server.js",
-    "check": "node --check server.js && node --check script.js"
+    "check": "node --check server.js && node --check script.js && node --check auth.js && node --check account.js",
+    "test": "node --test test/auth.test.js",
+    "test:ui": "playwright test"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "nodemailer": "^10.1.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
   }
 }

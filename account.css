@@ -1,0 +1,26 @@
+.account-card { width: min(100%, 480px); padding: 36px; border-radius: 16px; background: var(--paper); box-shadow: var(--shadow); }
+.account-card h1 { font: 700 clamp(2rem, 6vw, 2.6rem)/1.15 "Fraunces", serif; margin: 28px 0 12px; text-wrap: balance; }
+.account-card p { line-height: 1.55; }
+.account-card a { color: #a43820; text-underline-offset: 4px; }
+.account-card a:hover { color: var(--ink); }
+.account-card .storage-note, .account-card .field-help { color: #546166; font-size: 0.875rem; }
+.storage-note { padding-bottom: 20px; border-bottom: 1px solid var(--line); margin-bottom: 24px; }
+.account-card label { display: block; margin: 18px 0 8px; font-weight: 600; }
+.account-card input:not([type=checkbox]) { width: 100%; min-width: 0; padding: 12px; color: var(--ink); background: white; border: 1px solid #98a49f; border-radius: 8px; font-size: 1rem; caret-color: var(--accent-dark); }
+.account-card button { min-height: 44px; border: 0; border-radius: 8px; padding: 12px 16px; background: #b64025; color: white; font-weight: 600; touch-action: manipulation; }
+.account-card button:hover:not(:disabled) { background: #96321c; }
+.account-card .primary { width: 100%; margin-top: 8px; }
+.account-card .secondary { background: var(--mint); color: var(--ink); white-space: nowrap; }
+.account-card .secondary:hover:not(:disabled) { background: #b5d6c0; }
+.account-card :focus-visible { outline: 3px solid var(--green); outline-offset: 3px; }
+.account-card ::selection { background: var(--mint); color: var(--ink); }
+.account-card .code-row { display: flex; gap: 8px; }
+.account-card .field-help { margin: 8px 0 0; }
+.account-card .show-password { display: flex; gap: 8px; align-items: center; min-height: 44px; font-weight: 400; margin: 8px 0; }
+.show-password input { width: 18px; height: 18px; accent-color: var(--green); }
+#account-status { overflow-wrap: anywhere; color: #43564c; min-height: 24px; }
+#account-status.error { color: #a02b1c; }
+#account-email { overflow-wrap: anywhere; }
+#account-nav { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 20px; }
+#account-nav a { padding-block: 8px; }
+@media (max-width: 480px) { .account-card { padding: 24px; } .app-shell { padding: 24px 16px; } .account-card .code-row { flex-wrap: wrap; } .code-row input { flex: 1 1 120px; } }
