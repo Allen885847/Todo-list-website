@@ -41,6 +41,9 @@
   --primary-button-hover: #c7482b;
   --primary-button-active: #a43a23;
   --primary-button-disabled: #697477;
+  --notice-background: #172126;
+  --notice-text: #ffffff;
+  --notice-border: transparent;
 }
 
 html[data-theme="dark"] {
@@ -86,6 +89,9 @@ html[data-theme="dark"] {
   --primary-button-hover: #ff9a7d;
   --primary-button-active: #e7684a;
   --primary-button-disabled: #70453d;
+  --notice-background: #292b30;
+  --notice-text: #f3f1ed;
+  --notice-border: rgba(138, 208, 188, 0.38);
 }
 
 * {
@@ -1287,8 +1293,9 @@ html[data-theme="dark"] .task-label-badge {
   max-width: min(90vw, 520px);
   margin: 0;
   padding: 11px 17px;
-  color: var(--on-strong);
-  background: var(--ink);
+  color: var(--notice-text);
+  background: var(--notice-background);
+  border: 1px solid var(--notice-border);
   border-radius: 999px;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
   font-size: 0.86rem;

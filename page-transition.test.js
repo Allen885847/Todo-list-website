@@ -79,6 +79,8 @@ assert.match(styles, /transform 140ms cubic-bezier\(0\.65, 0, 0\.35, 1\)/);
 assert.match(styles, /transition-duration: 170ms, 140ms/);
 assert.match(styles, /page-transition-leaving/);
 assert.match(styles, /view-transition-name: task-entry-content/);
+assert.match(styles, /html\[data-theme="dark"\][\s\S]*?--notice-background: #292b30;/);
+assert.match(styles, /\.page-notice\s*\{[\s\S]*?color: var\(--notice-text\);[\s\S]*?background: var\(--notice-background\);/);
 assert.match(calendarStyles, /view-transition-name: event-entry-content/);
 assert.match(calendarStyles, /dialog-card-in/);
 assert.match(calendarStyles, /dialog-backdrop-in/);
