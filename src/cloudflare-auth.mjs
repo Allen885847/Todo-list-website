@@ -85,7 +85,7 @@ export function createAuth(request, env, ctx) {
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,
-      minPasswordLength: 12,
+      minPasswordLength: 8,
       maxPasswordLength: 128,
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: async ({ user, url }) => {

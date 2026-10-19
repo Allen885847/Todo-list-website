@@ -21,6 +21,7 @@ assert.match(auth, /sendOnSignIn: false/);
 assert.match(auth, /emailOTP\(\{/);
 assert.match(auth, /expiresIn: 600/);
 assert.match(auth, /allowedAttempts: 5/);
+assert.match(auth, /minPasswordLength: 8/);
 assert.match(auth, /storeOTP: "hashed"/);
 assert.match(auth, /QQ SMTP OTP delivery completed/);
 assert.doesNotMatch(auth, /backgroundTasks/);

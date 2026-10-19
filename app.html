@@ -36,8 +36,8 @@
 
         <form id="auth-form" class="auth-form">
           <label>Email address<input id="auth-email" type="email" autocomplete="email" required /></label>
-          <label id="auth-password-field">Password<input id="auth-password" type="password" minlength="12" autocomplete="current-password" required /></label>
-          <label id="confirm-password-field" style="display: none" hidden>Confirm password<input id="auth-password-confirm" type="password" minlength="12" autocomplete="new-password" /></label>
+          <label id="auth-password-field">Password<input id="auth-password" type="password" minlength="8" autocomplete="current-password" required /></label>
+          <label id="confirm-password-field" style="display: none" hidden>Confirm password<input id="auth-password-confirm" type="password" minlength="8" autocomplete="new-password" /></label>
           <p id="password-help" class="password-help">Use the password for your existing account.</p>
           <div id="verification-fields" class="verification-fields" hidden>
             <label>Email verification code<input id="verification-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" /></label>
@@ -60,8 +60,8 @@
           <label>Email address<input id="recovery-email" type="email" autocomplete="email" required /></label>
           <button id="send-recovery-code" class="auth-secondary" type="button">Send verification code</button>
           <label>Verification code<input id="recovery-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required /></label>
-          <label>New password<input id="recovery-password" type="password" minlength="12" autocomplete="new-password" required /></label>
-          <label>Confirm password<input id="recovery-password-confirm" type="password" minlength="12" autocomplete="new-password" required /></label>
+          <label>New password<input id="recovery-password" type="password" minlength="8" autocomplete="new-password" required /></label>
+          <label>Confirm password<input id="recovery-password-confirm" type="password" minlength="8" autocomplete="new-password" required /></label>
           <button class="auth-primary" type="submit">Reset password</button>
         </form>
         <p id="recovery-status" class="auth-status" role="status" aria-live="polite"></p>
