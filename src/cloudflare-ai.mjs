@@ -1,6 +1,7 @@
 const MAX_JSON_BYTES = 30_000;
 const MAX_AUDIO_BYTES = 15 * 1024 * 1024;
 const MAX_INPUT_LENGTH = 4_000;
+const MAX_UPLOAD_TEXT_LENGTH = 16_000;
 
 function json(data, status = 200) {
   return Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
@@ -47,7 +48,7 @@ function validEmoji(value) {
   return typeof value === "string" && value.length <= 20 && /\p{Extended_Pictographic}/u.test(value.trim());
 }
 
-function normalizeTasks(payload) {
+function normalizeTasks(payload, { allowIncomplete = false } = {}) {
   if (!Array.isArray(payload?.tasks) || payload.tasks.length > 30) throw new Error("INVALID_AI_RESULT");
   return payload.tasks.map((item) => {
     const title = typeof item?.title === "string" ? item.title.trim() : "";
@@ -56,11 +57,17 @@ function normalizeTasks(payload) {
     const emoji = typeof item?.emoji === "string" ? item.emoji.trim() : "";
     const dateQuestion = typeof item?.dateQuestion === "string" ? item.dateQuestion.trim().slice(0, 240) : "";
     const dateAmbiguous = item?.dateAmbiguous === true;
-    if (!title || title.length > 200 || !subject || subject.length > 80 || label.length > 40
-      || !validEmoji(emoji) || !validDate(item?.date) || (dateAmbiguous && !dateQuestion)) {
+    const hasValidDate = validDate(item?.date);
+    if ((!allowIncomplete && (!title || !subject || !hasValidDate))
+      || title.length > 200 || subject.length > 80 || label.length > 40
+      || !validEmoji(emoji) || ((dateAmbiguous || !hasValidDate) && !dateQuestion)) {
       throw new Error("INVALID_AI_RESULT");
     }
-    return { title, subject, label, emoji, date: item.date, dateAmbiguous, dateQuestion: dateAmbiguous ? dateQuestion : "" };
+    return {
+      title, subject, label, emoji, date: hasValidDate ? item.date : null,
+      dateAmbiguous: dateAmbiguous || !hasValidDate,
+      dateQuestion: (dateAmbiguous || !hasValidDate) ? dateQuestion : "",
+    };
   });
 }
 
@@ -107,9 +114,9 @@ async function callDeepSeek(env, messages, maxTokens) {
   return JSON.parse(content);
 }
 
-async function parseTasks(env, input, timeZone) {
+async function parseTasks(env, input, timeZone, { fromUpload = false } = {}) {
   const { today, localTime } = localContext(timeZone);
-  const system = `Turn Mandarin, English, or mixed-language plans into an editable task preview.
+  const system = `Turn Mandarin, English, or mixed-language ${fromUpload ? "text extracted from an uploaded image or document" : "plans"} into an editable task preview.
 Local time zone: ${timeZone}. Today: ${today}. Current local time: ${localTime}.
 Return JSON only: {"tasks":[{"title":"Math worksheet","subject":"Mathematics","label":"Extra","emoji":"📝","date":{"day":16,"month":10,"year":2026},"dateAmbiguous":false,"dateQuestion":""}]}.
 Rules:
@@ -119,10 +126,15 @@ Rules:
 4. Give exactly one relevant Unicode emoji in emoji, never in title.
 5. Give one concise English subject. Normalize related subjects. Keep English Language and English Literature separate. Use General only when necessary.
 6. Use label “Extra” for optional/if-there-is-time/bonus tasks. Preserve an explicitly supplied custom label exactly, including Chinese. Otherwise label is empty.
-7. Interpret dates per task from sentence meaning. Share a date only when wording clearly shares it. For a task without a clear deadline, use today (${today}) even when other tasks have dates. Resolve relative dates in the user’s time zone. Background dates are not deadlines.
+7. Interpret dates per task from sentence meaning. Share a date only when wording clearly shares it. ${fromUpload
+  ? "Never invent a deadline, subject, or task description from uploaded content. If a due date is missing or unreadable, return date as null, set dateAmbiguous true, and explain what the user must enter in dateQuestion. If a subject or task description is missing or unreadable, use an empty string for that field so the user can complete it in the preview."
+  : `For a task without a clear deadline, use today (${today}) even when other tasks have dates.`} Resolve relative dates in the user’s time zone. Background dates are not deadlines.
 8. If a deadline has multiple reasonable interpretations, set dateAmbiguous true, choose the likeliest tentative date, and ask a short English dateQuestion. Otherwise use false and empty dateQuestion.
 9. Date parts are integers. Return at most 30 tasks. If no actionable task exists return {"tasks":[]}.`;
-  return normalizeTasks(await callDeepSeek(env, [{ role: "system", content: system }, { role: "user", content: input }], 4_000));
+  return normalizeTasks(
+    await callDeepSeek(env, [{ role: "system", content: system }, { role: "user", content: input }], 4_000),
+    { allowIncomplete: fromUpload },
+  );
 }
 
 async function parseEvent(env, input, timeZone) {
@@ -278,10 +290,14 @@ export async function handleAiRequest(request, env, userId) {
   try {
     const body = await readJson(request);
     input = typeof body.input === "string" ? body.input.trim() : "";
+    const fromUpload = isTask && body.inputMethod === "upload";
     inputMethod = body.inputMethod === "voice" ? "voice" : "typed";
-    if (!input || input.length > MAX_INPUT_LENGTH) return json({ error: isTask ? "Enter one or more tasks in 1–4,000 characters." : "Describe one event in 1–4,000 characters." }, 400);
+    const inputLimit = fromUpload ? MAX_UPLOAD_TEXT_LENGTH : MAX_INPUT_LENGTH;
+    if (!input || input.length > inputLimit) return json({ error: fromUpload
+      ? "The readable file content must be between 1 and 16,000 characters. Try a shorter document."
+      : (isTask ? "Enter one or more tasks in 1–4,000 characters." : "Describe one event in 1–4,000 characters.") }, 400);
     const timeZone = resolveTimeZone(body.timeZone);
-    const result = isTask ? { tasks: await parseTasks(env, input, timeZone) } : { event: await parseEvent(env, input, timeZone) };
+    const result = isTask ? { tasks: await parseTasks(env, input, timeZone, { fromUpload }) } : { event: await parseEvent(env, input, timeZone) };
     await logMessage(env, userId, isTask ? "task_generation" : "event_generation", inputMethod, input, result, "success");
     return json(result);
   } catch (error) {

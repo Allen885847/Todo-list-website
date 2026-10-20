@@ -110,6 +110,24 @@
                   <div class="recording-controls">
                     <button id="cancel-recording" class="cancel-recording" type="button" hidden>Cancel</button>
                     <time id="recording-timer" hidden>00:00</time>
+                    <input
+                      id="task-file-input"
+                      class="sr-only"
+                      type="file"
+                      accept="image/*,.pdf,.docx,.txt,.md,.csv,.json,.html,.htm"
+                      aria-label="Choose an image or document containing tasks"
+                    />
+                    <button
+                      id="upload-task-button"
+                      class="upload-task-button"
+                      type="button"
+                      aria-label="Upload an image or document"
+                      title="Upload an image or document"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 5v14M5 12h14"></path>
+                      </svg>
+                    </button>
                     <button
                       id="record-button"
                       class="record-button"
@@ -128,6 +146,10 @@
                     </button>
                   </div>
                 </div>
+              </div>
+              <div id="upload-progress" class="upload-progress" role="status" aria-live="polite" hidden>
+                <span class="upload-spinner" aria-hidden="true"></span>
+                <span id="upload-progress-text">Preparing file…</span>
               </div>
               <div class="status-row">
                 <span id="status-indicator" class="status-indicator" aria-hidden="true"></span>
@@ -160,7 +182,7 @@
             </div>
             <button id="discard-preview" class="text-button" type="button">Discard preview</button>
           </div>
-          <p class="preview-help">Edit titles, subjects, labels, and due dates, remove unwanted tasks, and confirm any ambiguous dates.</p>
+          <p class="preview-help">Edit titles, subjects, labels, and due dates, remove unwanted tasks, and complete any missing or unclear details.</p>
           <ul id="preview-list" class="preview-list"></ul>
           <button id="save-preview" class="save-preview" type="button">Save tasks</button>
         </section>
@@ -239,6 +261,7 @@
     <script src="persistent-storage.js"></script>
     <script src="data-migration.js"></script>
     <script src="task-rules.js"></script>
+    <script src="task-file-scanner.js"></script>
     <script src="script.js"></script>
     <script src="page-transition.js"></script>
   </body>

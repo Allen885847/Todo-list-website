@@ -15,6 +15,10 @@ const taskForm = document.querySelector("#task-form");
 const taskInput = document.querySelector("#task-input");
 const askButton = document.querySelector("#add-task-button");
 const recordButton = document.querySelector("#record-button");
+const uploadTaskButton = document.querySelector("#upload-task-button");
+const taskFileInput = document.querySelector("#task-file-input");
+const uploadProgress = document.querySelector("#upload-progress");
+const uploadProgressText = document.querySelector("#upload-progress-text");
 const cancelRecordingButton = document.querySelector("#cancel-recording");
 const recordingTimer = document.querySelector("#recording-timer");
 const waveform = document.querySelector("#voice-waveform");
@@ -66,6 +70,7 @@ let recordingStartedAt = 0;
 let recordingPhase = "idle";
 let cancelRequested = false;
 let isProcessing = false;
+let isReadingUpload = false;
 let isTextComposing = false;
 let isExporting = false;
 let noticeTimer;
@@ -1157,6 +1162,7 @@ function setProcessing(active) {
   const reviewingPreview = previewTasks.length > 0;
   askButton.disabled = active || reviewingPreview || recordingPhase !== "idle";
   recordButton.disabled = active || reviewingPreview || recordingPhase === "starting" || recordingPhase === "stopping" || !navigator.mediaDevices?.getUserMedia;
+  uploadTaskButton.disabled = active || reviewingPreview || recordingPhase !== "idle";
   taskInput.disabled = active;
   taskAiTab.disabled = active;
   taskManualTab.disabled = active || reviewingPreview;
@@ -1195,6 +1201,7 @@ function createPreviewElement(item, index) {
   const title = document.createElement("input");
   title.type = "text";
   title.maxLength = 200;
+  title.placeholder = "Enter task title";
   title.value = item.title;
   title.addEventListener("input", () => { previewTasks[index].title = title.value; });
   titleLabel.append(title);
@@ -1205,6 +1212,7 @@ function createPreviewElement(item, index) {
   const subject = document.createElement("input");
   subject.type = "text";
   subject.maxLength = 80;
+  subject.placeholder = "Enter subject";
   subject.value = item.subject;
   subject.addEventListener("input", () => { previewTasks[index].subject = subject.value; });
   subjectLabel.append(subject);
@@ -1276,7 +1284,7 @@ function renderPreview() {
   const unresolved = previewTasks.filter((item) => item.dateAmbiguous).length;
   savePreviewButton.disabled = previewTasks.length === 0 || unresolved > 0;
   savePreviewButton.textContent = unresolved
-    ? `Confirm ${unresolved} ambiguous ${unresolved === 1 ? "date" : "dates"} to save`
+    ? `Confirm ${unresolved} ${unresolved === 1 ? "date" : "dates"} to save`
     : `Save ${previewTasks.length} ${previewTasks.length === 1 ? "task" : "tasks"}`;
   taskAiTab.disabled = isProcessing;
   taskManualTab.disabled = isProcessing || previewTasks.length > 0;
@@ -1295,15 +1303,20 @@ async function processInput(input, source) {
     setStatus(source === "voice" ? "No speech was detected. Please try recording again." : "Enter at least one task.", "error");
     return;
   }
-  if (cleanInput.length > 4000) {
-    setStatus("Keep your request under 4,000 characters.", "error");
+  const inputLimit = source === "upload" ? 16000 : 4000;
+  if (cleanInput.length > inputLimit) {
+    setStatus(source === "upload"
+      ? "This file contains too much readable text. Use a shorter document under 16,000 characters."
+      : "Keep your request under 4,000 characters.", "error");
     return;
   }
 
   pendingProcessing = { input: cleanInput, source };
   retryButton.hidden = true;
   setProcessing(true);
-  setStatus(source === "voice" ? "Transcription complete. DeepSeek is generating your tasks…" : "DeepSeek is generating your tasks…", "processing");
+  setStatus(source === "voice"
+    ? "Transcription complete. DeepSeek is generating your tasks…"
+    : (source === "upload" ? "File text extracted. DeepSeek is identifying tasks…" : "DeepSeek is generating your tasks…"), "processing");
 
   try {
     const response = await fetch("/api/parse-tasks", {
@@ -1311,7 +1324,7 @@ async function processInput(input, source) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         input: cleanInput,
-        inputMethod: source === "voice" ? "voice" : "typed",
+        inputMethod: source === "voice" ? "voice" : (source === "upload" ? "upload" : "typed"),
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
       }),
     });
@@ -1322,7 +1335,7 @@ async function processInput(input, source) {
     }
     previewTasks = sortByDueDate(result.tasks.map((item) => ({
       title: item.title,
-      subject: normalizeSubject(item.subject, item.title),
+      subject: source === "upload" ? String(item.subject || "").trim() : normalizeSubject(item.subject, item.title),
       label: normalizeLabel(item.label),
       emoji: item.emoji,
       date: item.date,
@@ -1333,7 +1346,7 @@ async function processInput(input, source) {
     const ambiguousCount = previewTasks.filter((item) => item.dateAmbiguous).length;
     setStatus(
       ambiguousCount
-        ? `Review ${previewTasks.length} generated tasks and confirm ${ambiguousCount} ambiguous ${ambiguousCount === 1 ? "date" : "dates"}.`
+        ? `Review ${previewTasks.length} generated tasks and complete ${ambiguousCount} unresolved ${ambiguousCount === 1 ? "date" : "dates"}.`
         : `Review ${previewTasks.length} generated ${previewTasks.length === 1 ? "task" : "tasks"} before saving.`,
       ambiguousCount ? "warning" : "success",
     );
@@ -1343,6 +1356,42 @@ async function processInput(input, source) {
     retryButton.hidden = false;
   } finally {
     setProcessing(false);
+  }
+}
+
+function setUploadProgress(message = "", active = false) {
+  uploadProgress.hidden = !active;
+  uploadProgressText.textContent = message;
+}
+
+async function scanTaskFile(file) {
+  if (isProcessing || isReadingUpload || previewTasks.length > 0) return;
+  if (!window.TaskFileScanner) {
+    setStatus("File scanning could not start. Refresh the page and try again.", "error");
+    return;
+  }
+  isReadingUpload = true;
+  retryButton.hidden = true;
+  setProcessing(true);
+  setUploadProgress(`Opening ${file.name}…`, true);
+  setStatus("Reading your file locally…", "processing");
+  try {
+    const text = (await window.TaskFileScanner.extractText(file, (message) => {
+      setUploadProgress(`${file.name}: ${message}`, true);
+    })).replace(/\u0000/g, "").trim();
+    if (!text) throw new Error("No readable text was found. Try a clearer image or a document containing selectable text.");
+    if (text.length > 16000) throw new Error("This file contains too much readable text. Use a shorter document under 16,000 characters.");
+    setUploadProgress(`${file.name}: sending extracted text to AI…`, true);
+    isReadingUpload = false;
+    setProcessing(false);
+    await processInput(text, "upload");
+  } catch (error) {
+    setStatus(error.message || "The file could not be read. Try another file.", "error");
+  } finally {
+    isReadingUpload = false;
+    setProcessing(false);
+    setUploadProgress("", false);
+    taskFileInput.value = "";
   }
 }
 
@@ -1464,6 +1513,7 @@ function updateRecordingControls() {
   recordButton.setAttribute("aria-label", recording ? "Stop voice recording" : "Start voice recording");
   cancelRecordingButton.hidden = !recording;
   recordButton.disabled = isProcessing || reviewingPreview || recordingPhase === "starting" || recordingPhase === "stopping" || !navigator.mediaDevices?.getUserMedia;
+  uploadTaskButton.disabled = isProcessing || isReadingUpload || reviewingPreview || recordingPhase !== "idle";
   askButton.disabled = isProcessing || reviewingPreview || recordingPhase !== "idle";
 }
 
@@ -1610,6 +1660,15 @@ taskInput.addEventListener("keydown", (event) => {
 recordButton.addEventListener("click", () => {
   if (recordingPhase === "recording") stopRecording();
   else startRecording();
+});
+uploadTaskButton.addEventListener("click", () => {
+  if (isProcessing || isReadingUpload || previewTasks.length > 0) return;
+  taskFileInput.value = "";
+  taskFileInput.click();
+});
+taskFileInput.addEventListener("change", () => {
+  const [file] = taskFileInput.files || [];
+  if (file) scanTaskFile(file);
 });
 cancelRecordingButton.addEventListener("click", cancelRecording);
 

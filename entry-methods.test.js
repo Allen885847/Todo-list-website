@@ -8,6 +8,7 @@ const calendarScript = fs.readFileSync("calendar.js", "utf8");
 const voiceScript = fs.readFileSync("voice-input.js", "utf8");
 const serverScript = fs.readFileSync("server.js", "utf8");
 const styles = fs.readFileSync("style.css", "utf8");
+const fileScanner = fs.readFileSync("task-file-scanner.js", "utf8");
 
 assert.match(indexHtml, /id="task-ai-tab"/);
 assert.match(indexHtml, /id="task-manual-tab"/);
@@ -66,5 +67,15 @@ assert.match(serverScript, /preserve their wording in label/);
 assert.match(taskScript, /label: normalizeLabel\(task\.label\)/);
 assert.match(taskScript, /className = "task-label-badge"/);
 assert.match(taskScript, /if \(badges\.childElementCount\) content\.append\(badges\);\s*content\.append\(text\);/);
+assert.match(indexHtml, /id="upload-task-button"/);
+assert.match(indexHtml, /id="task-file-input"/);
+assert.match(indexHtml, /src="task-file-scanner\.js"/);
+assert.match(taskScript, /async function scanTaskFile\(file\)/);
+assert.match(taskScript, /inputMethod: source === "voice" \? "voice" : \(source === "upload" \? "upload" : "typed"\)/);
+assert.match(fileScanner, /application\/pdf/);
+assert.match(fileScanner, /\.docx/);
+assert.match(fileScanner, /eng\+chi_sim/);
+assert.match(serverScript, /MAX_UPLOAD_TEXT_LENGTH = 16_000/);
+assert.match(serverScript, /never invent a deadline, subject, or task description/i);
 
-console.log("Manual task, customizable labels, and calendar voice entry methods passed.");
+console.log("Manual task, file scanning, customizable labels, and calendar voice entry methods passed.");

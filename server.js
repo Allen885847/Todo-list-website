@@ -14,6 +14,7 @@ const MAX_BODY_SIZE = 30_000;
 const MAX_LOCAL_DATA_SIZE = 2 * 1024 * 1024;
 const MAX_AUDIO_SIZE = 15 * 1024 * 1024;
 const MAX_INPUT_LENGTH = 4_000;
+const MAX_UPLOAD_TEXT_LENGTH = 16_000;
 const LOCAL_DATA_DIR = process.env.TODO_DATA_DIR || path.resolve(ROOT, "..", "Todo-list-user-data");
 const LOCAL_DATA_FILE = path.join(LOCAL_DATA_DIR, "state.json");
 const LOCAL_DATA_BACKUP = path.join(LOCAL_DATA_DIR, "state.previous.json");
@@ -47,8 +48,16 @@ const STATIC_FILES = new Map([
   ["/data-migration.js", ["data-migration.js", "text/javascript; charset=utf-8"]],
   ["/persistent-storage.js", ["persistent-storage.js", "text/javascript; charset=utf-8"]],
   ["/task-rules.js", ["task-rules.js", "text/javascript; charset=utf-8"]],
+  ["/task-file-scanner.js", ["task-file-scanner.js", "text/javascript; charset=utf-8"]],
   ["/voice-input.js", ["voice-input.js", "text/javascript; charset=utf-8"]],
   ["/page-transition.js", ["page-transition.js", "text/javascript; charset=utf-8"]],
+]);
+const VENDOR_FILES = new Map([
+  ["/vendor/pdf.min.mjs", ["node_modules/pdfjs-dist/legacy/build/pdf.min.mjs", "text/javascript; charset=utf-8"]],
+  ["/vendor/pdf.worker.min.mjs", ["node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs", "text/javascript; charset=utf-8"]],
+  ["/vendor/mammoth.browser.min.js", ["node_modules/mammoth/mammoth.browser.min.js", "text/javascript; charset=utf-8"]],
+  ["/vendor/tesseract.min.js", ["node_modules/tesseract.js/dist/tesseract.min.js", "text/javascript; charset=utf-8"]],
+  ["/vendor/tesseract.worker.min.js", ["node_modules/tesseract.js/dist/worker.min.js", "text/javascript; charset=utf-8"]],
 ]);
 
 function sendJson(response, status, data) {
@@ -327,7 +336,7 @@ function isSingleEmoji(value) {
   return segments.length === 1 && segments[0].segment === trimmed;
 }
 
-function normalizeGeneratedTasks(payload) {
+function normalizeGeneratedTasks(payload, { allowIncomplete = false } = {}) {
   if (!payload || !Array.isArray(payload.tasks) || payload.tasks.length > 30) {
     throw new Error("DeepSeek did not return a valid task list.");
   }
@@ -340,10 +349,12 @@ function normalizeGeneratedTasks(payload) {
     const dateAmbiguous = item?.dateAmbiguous === true;
     const dateQuestion = typeof item?.dateQuestion === "string" ? item.dateQuestion.trim() : "";
 
-    if (!title || title.length > 200 || !subject || subject.length > 80 || label.length > 40 || !isSingleEmoji(emoji) || !isValidDate(item?.date)) {
+    const hasValidDate = isValidDate(item?.date);
+    if ((!allowIncomplete && (!title || !subject || !hasValidDate))
+      || title.length > 200 || subject.length > 80 || label.length > 40 || !isSingleEmoji(emoji)) {
       throw new Error("DeepSeek returned an invalid task.");
     }
-    if (dateAmbiguous && !dateQuestion) {
+    if ((dateAmbiguous || !hasValidDate) && !dateQuestion) {
       throw new Error("DeepSeek omitted an ambiguous-date question.");
     }
 
@@ -352,13 +363,13 @@ function normalizeGeneratedTasks(payload) {
       subject,
       label,
       emoji,
-      date: {
+      date: hasValidDate ? {
         day: item.date.day,
         month: item.date.month,
         year: item.date.year,
-      },
-      dateAmbiguous,
-      dateQuestion: dateAmbiguous ? dateQuestion.slice(0, 240) : "",
+      } : null,
+      dateAmbiguous: dateAmbiguous || !hasValidDate,
+      dateQuestion: (dateAmbiguous || !hasValidDate) ? dateQuestion.slice(0, 240) : "",
     };
   });
 }
@@ -413,7 +424,7 @@ function normalizeGeneratedEvent(payload) {
   };
 }
 
-async function parseTasks(input, timeZone) {
+async function parseTasks(input, timeZone, { fromUpload = false } = {}) {
   const { today, localTime } = getLocalContext(timeZone);
   const apiResponse = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
@@ -431,7 +442,7 @@ async function parseTasks(input, timeZone) {
       messages: [
         {
           role: "system",
-          content: `You turn Mandarin Chinese, English, or mixed-language plans into an editable todo-task preview.
+          content: `You turn Mandarin Chinese, English, or mixed-language ${fromUpload ? "text extracted from an uploaded image or document" : "plans"} into an editable todo-task preview.
 
 Current local context:
 - IANA time zone: ${timeZone}
@@ -453,7 +464,9 @@ Rules:
 9. Set label to "Extra" when the user says a task is optional, can be done if there is time, is a bonus, or has equivalent meaning. Example: "This task is due today, but I’ll only do it if I have time" must keep today's due date and use label "Extra".
 10. If the user explicitly supplies a custom task label, preserve their wording in label (including Chinese wording). Do not translate, normalize, or invent a custom label. Use an empty string when no optional meaning or custom label is stated. Labels are at most 40 characters.
 11. Interpret due dates task by task from sentence meaning and structure. A date applies to multiple tasks only when the wording clearly gives them a shared deadline. Different dates must stay with their correct tasks.
-12. If a task has no explicit or clearly shared deadline, use today (${today}) for that task, even when another task in the same input has a date.
+12. ${fromUpload
+  ? "For uploaded content, never invent a deadline, subject, or task description. If a due date is missing or unreadable, return date as null, set dateAmbiguous true, and explain what the user must enter in dateQuestion. If the subject or task description itself is missing or unreadable, use an empty string for that field so the user can complete it in the preview."
+  : `If a task has no explicit or clearly shared deadline, use today (${today}) for that task, even when another task in the same input has a date.`}
 13. Resolve relative dates such as today, tomorrow, this Friday, and next week using the local context above. Do not treat a date that merely describes a past event, meeting, trip, document, or other background information as a task deadline.
 14. If a date has two or more reasonable deadline interpretations, set dateAmbiguous to true, choose the most likely tentative date for the editable date field, and put a short English confirmation question in dateQuestion. This includes an unqualified weekday such as "Friday" when it could mean today/this week's occurrence or the following week's occurrence, and a numeric date whose month/day order is unclear. Otherwise use false and an empty string.
 15. day, month, and year must be integers. Return at most 30 tasks. If the input contains no actionable task, return {"tasks":[]}.`,
@@ -471,7 +484,7 @@ Rules:
 
   const content = payload?.choices?.[0]?.message?.content;
   if (typeof content !== "string") throw new Error("DeepSeek returned no task data.");
-  return normalizeGeneratedTasks(JSON.parse(content));
+  return normalizeGeneratedTasks(JSON.parse(content), { allowIncomplete: fromUpload });
 }
 
 async function parseEvent(input, timeZone) {
@@ -586,13 +599,17 @@ const server = http.createServer(async (request, response) => {
     try {
       const body = await readJson(request);
       const input = typeof body.input === "string" ? body.input.trim() : "";
-      if (!input || input.length > MAX_INPUT_LENGTH) {
-        sendJson(response, 400, { error: "Enter one or more tasks in 1–4,000 characters." });
+      const fromUpload = body.inputMethod === "upload";
+      const inputLimit = fromUpload ? MAX_UPLOAD_TEXT_LENGTH : MAX_INPUT_LENGTH;
+      if (!input || input.length > inputLimit) {
+        sendJson(response, 400, { error: fromUpload
+          ? "The readable file content must be between 1 and 16,000 characters. Try a shorter document."
+          : "Enter one or more tasks in 1–4,000 characters." });
         return;
       }
 
       const timeZone = resolveTimeZone(body.timeZone);
-      const tasks = await parseTasks(input, timeZone);
+      const tasks = await parseTasks(input, timeZone, { fromUpload });
       sendJson(response, 200, { tasks });
     } catch (error) {
       console.error("Task processing failed:", error.message);
@@ -636,6 +653,16 @@ const server = http.createServer(async (request, response) => {
     response.writeHead(200, {
       "Content-Type": contentType,
       "Cache-Control": "no-cache",
+    });
+    fs.createReadStream(path.join(ROOT, filename)).pipe(response);
+    return;
+  }
+
+  if (request.method === "GET" && VENDOR_FILES.has(url.pathname)) {
+    const [filename, contentType] = VENDOR_FILES.get(url.pathname);
+    response.writeHead(200, {
+      "Content-Type": contentType,
+      "Cache-Control": "public, max-age=86400",
     });
     fs.createReadStream(path.join(ROOT, filename)).pipe(response);
     return;

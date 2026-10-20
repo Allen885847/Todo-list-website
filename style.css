@@ -689,6 +689,68 @@ html[data-ui-transition="event-panel"]::view-transition-new(event-entry-content)
   transition: transform 150ms, color 150ms, background 150ms, box-shadow 150ms;
 }
 
+.upload-task-button {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  place-items: center;
+  color: var(--ink);
+  background: var(--field-background);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  transition: transform 150ms, border-color 150ms, background 150ms, box-shadow 150ms;
+}
+
+.upload-task-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+  box-shadow: 0 6px 16px rgba(234, 104, 71, 0.12);
+}
+
+.upload-task-button:active:not(:disabled) {
+  transform: translateY(0) scale(0.97);
+}
+
+.upload-task-button svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 2;
+}
+
+.upload-progress {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  color: var(--muted);
+  background: var(--field-background);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  font-size: 0.8rem;
+}
+
+.upload-progress[hidden] {
+  display: none;
+}
+
+.upload-spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: upload-spin 750ms linear infinite;
+}
+
+@keyframes upload-spin {
+  to { transform: rotate(360deg); }
+}
+
 .record-button:hover:not(:disabled) {
   transform: scale(1.05);
   box-shadow: 0 7px 18px rgba(35, 131, 108, 0.2);
