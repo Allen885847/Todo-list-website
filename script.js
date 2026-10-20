@@ -1,6 +1,5 @@
 const STORAGE_KEY = "todo-list-mvp";
 const APPEARANCE_KEY = "todo-appearance";
-const CELEBRATION_KEY = "todo-last-celebrated-list";
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const systemDarkMode = window.matchMedia("(prefers-color-scheme: dark)");
 
@@ -677,14 +676,6 @@ function showPageNotice(message, type = "success", duration = 2400) {
   }, duration);
 }
 
-function celebrationSignature() {
-  return JSON.stringify(state.tasks.map((task) => [
-    task.task,
-    task.subject,
-    task.date ? toIsoDate(task.date) : "",
-  ]));
-}
-
 function drawCelebrationStar(context, x, y, radius, rotation, points = 5) {
   context.beginPath();
   for (let point = 0; point < points * 2; point += 1) {
@@ -846,14 +837,6 @@ function launchCelebrationCanvas(variant, hero) {
 }
 
 function celebrateCompletion() {
-  const signature = celebrationSignature();
-  if (!signature) return;
-  try {
-    if (localStorage.getItem(CELEBRATION_KEY) === signature) return;
-    localStorage.setItem(CELEBRATION_KEY, signature);
-  } catch {
-    // The state transition still prevents duplicate celebrations during normal use.
-  }
   showPageNotice(
     prefersReducedMotion ? "All tasks completed. Nice work!" : "All tasks are done — nice work! 🎉",
     "completion",
