@@ -1,6 +1,6 @@
 # Cloudflare online setup
 
-The `Online-1.0` branch is deployed at `https://todo-list-online.allenwhy888.workers.dev`. Account creation stays disabled until a verified transactional-email sender is configured.
+The `Online-1.0` branch is deployed at `https://todolist.uno`. The original `https://todo-list-online.allenwhy888.workers.dev` hostname remains available as a recovery route.
 
 ## Architecture
 
@@ -18,7 +18,7 @@ The `Online-1.0` branch is deployed at `https://todo-list-online.allenwhy888.wor
 - D1 database: `todo-list-online`
 - Private R2 bucket: `todo-list-online-files`
 - Worker: `todo-list-online`
-- Turnstile widget: configured for the production `workers.dev` hostname
+- Turnstile widget: configured for `todolist.uno` and the recovery `workers.dev` hostname
 - DeepSeek and Doubao credentials: stored only as Cloudflare Worker secrets
 - Better Auth encryption secret: stored only as a Cloudflare Worker secret
 

@@ -2,8 +2,15 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "todo-list-online",
   "main": "src/cloudflare-worker.mjs",
+  "workers_dev": true,
   "compatibility_date": "2026-10-16",
   "compatibility_flags": ["nodejs_compat"],
+  "routes": [
+    {
+      "pattern": "todolist.uno",
+      "custom_domain": true
+    }
+  ],
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
@@ -26,10 +33,10 @@
   ],
   "vars": {
     "APP_ENV": "production",
-    "BETTER_AUTH_URL": "https://todo-list-online.allenwhy888.workers.dev",
-    "BETTER_AUTH_TRUSTED_ORIGINS": "https://todo-list-online.allenwhy888.workers.dev",
+    "BETTER_AUTH_URL": "https://todolist.uno",
+    "BETTER_AUTH_TRUSTED_ORIGINS": "https://todolist.uno,https://todo-list-online.allenwhy888.workers.dev",
     "TURNSTILE_SITE_KEY": "0x4AAAAAAFYikpnJBINL2qnU",
-    "TURNSTILE_HOSTNAMES": "todo-list-online.allenwhy888.workers.dev",
+    "TURNSTILE_HOSTNAMES": "todolist.uno,todo-list-online.allenwhy888.workers.dev",
     "QQ_SMTP_FROM_NAME": "Todo List"
   },
   "observability": {

@@ -27,6 +27,12 @@ assert.match(auth, /QQ SMTP OTP delivery completed/);
 assert.doesNotMatch(auth, /backgroundTasks/);
 assert.doesNotMatch(auth, /RESEND_API_KEY|api\.resend\.com/);
 assert.match(config, /"QQ_SMTP_FROM_NAME": "Todo List"/);
+assert.match(config, /"pattern": "todolist\.uno"/);
+assert.match(config, /"custom_domain": true/);
+assert.match(config, /"workers_dev": true/);
+assert.match(config, /"BETTER_AUTH_URL": "https:\/\/todolist\.uno"/);
+assert.match(config, /"BETTER_AUTH_TRUSTED_ORIGINS": "https:\/\/todolist\.uno,https:\/\/todo-list-online\.allenwhy888\.workers\.dev"/);
+assert.match(config, /"TURNSTILE_HOSTNAMES": "todolist\.uno,todo-list-online\.allenwhy888\.workers\.dev"/);
 assert.doesNotMatch(config, /EMAIL_FROM/);
 
 (async () => {
