@@ -545,7 +545,8 @@ html[data-ui-transition="event-panel"]::view-transition-new(event-entry-content)
   grid-column: 1 / -1;
 }
 
-.manual-task-fields input {
+.manual-task-fields input,
+.manual-task-fields select {
   width: 100%;
   margin-top: 6px;
   padding: 11px 12px;
@@ -557,9 +558,86 @@ html[data-ui-transition="event-panel"]::view-transition-new(event-entry-content)
   text-transform: none;
 }
 
-.manual-task-fields input:focus {
+.manual-task-fields select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%;
+  background-repeat: no-repeat;
+  background-size: 5px 5px, 5px 5px;
+}
+
+.manual-task-fields input:focus,
+.manual-task-fields select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(234, 104, 71, 0.12);
+}
+
+.manual-schedule-panel {
+  grid-column: 1 / -1;
+}
+
+.manual-schedule-panel[hidden] {
+  display: none;
+}
+
+.manual-range-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.manual-date-adder {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.manual-date-adder button {
+  min-height: 42px;
+  padding: 9px 14px;
+  color: var(--accent-dark);
+  background: var(--soft-accent);
+  border: 1px solid var(--soft-accent-border);
+  border-radius: 10px;
+  font-weight: 800;
+}
+
+.manual-date-adder button:hover {
+  color: var(--on-strong);
+  background: var(--accent);
+}
+
+.manual-selected-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 18px;
+  margin-top: 10px;
+}
+
+.manual-date-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  color: var(--ink);
+  background: var(--field-background);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.manual-date-chip button {
+  padding: 0;
+  color: var(--accent-dark);
+  background: transparent;
+  border: 0;
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .manual-task-actions {
@@ -1747,6 +1825,10 @@ html[data-theme="dark"] .task-label-badge {
 
   .manual-task-fields .manual-task-title {
     grid-column: auto;
+  }
+
+  .manual-range-fields {
+    grid-template-columns: 1fr;
   }
 
   .manual-task-actions {

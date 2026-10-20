@@ -32,6 +32,15 @@ const manualTaskTitle = document.querySelector("#manual-task-title");
 const manualTaskSubject = document.querySelector("#manual-task-subject");
 const manualTaskLabel = document.querySelector("#manual-task-label");
 const manualTaskDate = document.querySelector("#manual-task-date");
+const manualTaskScheduleMode = document.querySelector("#manual-task-schedule-mode");
+const manualSingleSchedule = document.querySelector("#manual-single-schedule");
+const manualRangeSchedule = document.querySelector("#manual-range-schedule");
+const manualMultipleSchedule = document.querySelector("#manual-multiple-schedule");
+const manualTaskRangeStart = document.querySelector("#manual-task-range-start");
+const manualTaskRangeEnd = document.querySelector("#manual-task-range-end");
+const manualTaskMultipleDate = document.querySelector("#manual-task-multiple-date");
+const addManualTaskDateButton = document.querySelector("#add-manual-task-date");
+const manualSelectedDates = document.querySelector("#manual-selected-dates");
 const manualTaskStatus = document.querySelector("#manual-task-status");
 const previewSection = document.querySelector("#preview-section");
 const previewList = document.querySelector("#preview-list");
@@ -79,6 +88,7 @@ let copyResetTimer;
 let dateRefreshTimer;
 let pointerDrag = null;
 let taskEntryMode = "ai";
+let selectedManualDates = [];
 let editingTaskIndex = null;
 let isRewritingTask = false;
 let taskEditDialogTimer;
@@ -1195,11 +1205,77 @@ function setTaskEntryMode(mode, { focus = true } = {}) {
   }
 }
 
+function expandDateRange(start, end, maximumDays = 366) {
+  if (!start || !end) return [];
+  const startDate = new Date(start.year, start.month - 1, start.day, 12);
+  const endDate = new Date(end.year, end.month - 1, end.day, 12);
+  if (endDate < startDate) return [];
+  const dates = [];
+  for (const cursor = new Date(startDate); cursor <= endDate; cursor.setDate(cursor.getDate() + 1)) {
+    if (dates.length >= maximumDays) throw new Error(`Choose a date range of ${maximumDays} days or fewer.`);
+    dates.push({ day: cursor.getDate(), month: cursor.getMonth() + 1, year: cursor.getFullYear() });
+  }
+  return dates;
+}
+
+function renderManualSelectedDates() {
+  manualSelectedDates.replaceChildren(...selectedManualDates.map((dateValue) => {
+    const chip = document.createElement("span");
+    chip.className = "manual-date-chip";
+    chip.textContent = formatDate(dateValue);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "×";
+    remove.setAttribute("aria-label", `Remove ${formatDate(dateValue)}`);
+    remove.addEventListener("click", () => {
+      selectedManualDates = selectedManualDates.filter((date) => toIsoDate(date) !== toIsoDate(dateValue));
+      renderManualSelectedDates();
+    });
+    chip.append(remove);
+    return chip;
+  }));
+  if (selectedManualDates.length === 0) {
+    const hint = document.createElement("span");
+    hint.className = "form-status";
+    hint.textContent = "No dates selected yet.";
+    manualSelectedDates.append(hint);
+  }
+}
+
+function updateManualScheduleMode() {
+  const mode = manualTaskScheduleMode.value;
+  manualSingleSchedule.hidden = mode !== "single";
+  manualRangeSchedule.hidden = mode !== "range";
+  manualMultipleSchedule.hidden = mode !== "multiple";
+}
+
+function addSelectedManualDate() {
+  const date = fromIsoDate(manualTaskMultipleDate.value);
+  if (!date) {
+    manualTaskStatus.textContent = "Choose a valid date, then select Add date.";
+    manualTaskStatus.className = "form-status error";
+    manualTaskMultipleDate.focus();
+    return;
+  }
+  if (selectedManualDates.length >= 366 && !selectedManualDates.some((item) => toIsoDate(item) === toIsoDate(date))) {
+    manualTaskStatus.textContent = "Choose no more than 366 dates for one task.";
+    manualTaskStatus.className = "form-status error";
+    return;
+  }
+  if (!selectedManualDates.some((item) => toIsoDate(item) === toIsoDate(date))) {
+    selectedManualDates = [...selectedManualDates, date].sort((first, second) => toIsoDate(first).localeCompare(toIsoDate(second)));
+  }
+  manualTaskMultipleDate.value = "";
+  renderManualSelectedDates();
+  manualTaskStatus.textContent = `${selectedManualDates.length} ${selectedManualDates.length === 1 ? "date" : "dates"} selected.`;
+  manualTaskStatus.className = "form-status success";
+}
+
 function saveManualTask() {
   const title = manualTaskTitle.value.trim();
   const subject = manualTaskSubject.value.trim();
   const label = normalizeLabel(manualTaskLabel.value);
-  const date = manualTaskDate.value ? fromIsoDate(manualTaskDate.value) : null;
+  const scheduleMode = manualTaskScheduleMode.value;
   if (!title) {
     manualTaskStatus.textContent = "Enter a task title.";
     manualTaskStatus.className = "form-status error";
@@ -1212,22 +1288,60 @@ function saveManualTask() {
     manualTaskSubject.focus();
     return;
   }
-  if (manualTaskDate.value && !date) {
-    manualTaskStatus.textContent = "Enter a valid due date.";
-    manualTaskStatus.className = "form-status error";
-    manualTaskDate.focus();
-    return;
+  let dates = [];
+  if (scheduleMode === "single") {
+    const date = manualTaskDate.value ? fromIsoDate(manualTaskDate.value) : null;
+    if (manualTaskDate.value && !date) {
+      manualTaskStatus.textContent = "Enter a valid due date.";
+      manualTaskStatus.className = "form-status error";
+      manualTaskDate.focus();
+      return;
+    }
+    dates = [date];
+  } else if (scheduleMode === "range") {
+    const start = fromIsoDate(manualTaskRangeStart.value);
+    const end = fromIsoDate(manualTaskRangeEnd.value);
+    if (!start || !end) {
+      manualTaskStatus.textContent = "Choose both a start date and an end date.";
+      manualTaskStatus.className = "form-status error";
+      (start ? manualTaskRangeEnd : manualTaskRangeStart).focus();
+      return;
+    }
+    try {
+      dates = expandDateRange(start, end);
+    } catch (error) {
+      manualTaskStatus.textContent = error.message;
+      manualTaskStatus.className = "form-status error";
+      return;
+    }
+    if (dates.length === 0) {
+      manualTaskStatus.textContent = "The end date must be on or after the start date.";
+      manualTaskStatus.className = "form-status error";
+      manualTaskRangeEnd.focus();
+      return;
+    }
+  } else {
+    dates = [...selectedManualDates];
+    if (dates.length === 0) {
+      manualTaskStatus.textContent = "Add at least one date for this task.";
+      manualTaskStatus.className = "form-status error";
+      manualTaskMultipleDate.focus();
+      return;
+    }
   }
 
-  const task = normalizeTask({ date, task: title, subject, label, completed: false, completedOn: null });
+  const tasks = dates.map((date) => normalizeTask({ date, task: title, subject, label, completed: false, completedOn: null }));
   const combinedTasks = state.orderMode === "manual"
-    ? [...state.tasks, task]
-    : sortByDueDate([...state.tasks, task]);
+    ? [...state.tasks, ...tasks]
+    : sortByDueDate([...state.tasks, ...tasks]);
   state.tasks = flattenGroups(combinedTasks);
   saveState();
   renderTasks();
   manualTaskForm.reset();
-  manualTaskStatus.textContent = "Task saved without AI.";
+  selectedManualDates = [];
+  updateManualScheduleMode();
+  renderManualSelectedDates();
+  manualTaskStatus.textContent = `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"} saved without AI.`;
   manualTaskStatus.className = "form-status success";
   setComposerOpen(false);
   toggleComposerButton.focus({ preventScroll: true });
@@ -1725,6 +1839,13 @@ manualTaskForm.addEventListener("submit", (event) => {
   event.preventDefault();
   saveManualTask();
 });
+manualTaskScheduleMode.addEventListener("change", updateManualScheduleMode);
+addManualTaskDateButton.addEventListener("click", addSelectedManualDate);
+manualTaskMultipleDate.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  addSelectedManualDate();
+});
 
 taskInput.addEventListener("compositionstart", () => {
   isTextComposing = true;
@@ -1938,5 +2059,7 @@ renderTasks();
 renderPreview();
 updateRecordingControls();
 setTaskEntryMode("ai", { focus: false });
+updateManualScheduleMode();
+renderManualSelectedDates();
 setComposerOpen(activeTasks().length === 0);
 resizeTaskInput();

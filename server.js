@@ -336,12 +336,26 @@ function isSingleEmoji(value) {
   return segments.length === 1 && segments[0].segment === trimmed;
 }
 
+function expandGeneratedDateRange(start, end, maximumDays = 366) {
+  if (!isValidDate(start) || !isValidDate(end)) throw new Error("DeepSeek returned an invalid task date range.");
+  const cursor = new Date(Date.UTC(start.year, start.month - 1, start.day));
+  const last = new Date(Date.UTC(end.year, end.month - 1, end.day));
+  if (last < cursor) throw new Error("DeepSeek returned a reversed task date range.");
+  const dates = [];
+  while (cursor <= last) {
+    if (dates.length >= maximumDays) throw new Error(`A repeating task cannot exceed ${maximumDays} days.`);
+    dates.push({ day: cursor.getUTCDate(), month: cursor.getUTCMonth() + 1, year: cursor.getUTCFullYear() });
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return dates;
+}
+
 function normalizeGeneratedTasks(payload, { allowIncomplete = false } = {}) {
   if (!payload || !Array.isArray(payload.tasks) || payload.tasks.length > 30) {
     throw new Error("DeepSeek did not return a valid task list.");
   }
 
-  return payload.tasks.map((item) => {
+  const normalized = payload.tasks.flatMap((item) => {
     const title = typeof item?.title === "string" ? item.title.trim() : "";
     const subject = typeof item?.subject === "string" ? item.subject.trim() : "";
     const label = typeof item?.label === "string" ? item.label.trim().replace(/\s+/g, " ") : "";
@@ -349,29 +363,42 @@ function normalizeGeneratedTasks(payload, { allowIncomplete = false } = {}) {
     const dateAmbiguous = item?.dateAmbiguous === true;
     const dateQuestion = typeof item?.dateQuestion === "string" ? item.dateQuestion.trim() : "";
 
-    const hasValidDate = isValidDate(item?.date);
-    if ((!allowIncomplete && (!title || !subject || !hasValidDate))
+    let dates;
+    if (item?.dailyRange) {
+      dates = expandGeneratedDateRange(item.dailyRange.start, item.dailyRange.end);
+    } else if (Array.isArray(item?.dates) && item.dates.length > 0) {
+      if (item.dates.length > 366 || item.dates.some((date) => !isValidDate(date))) {
+        throw new Error("DeepSeek returned invalid selected task dates.");
+      }
+      const unique = new Map(item.dates.map((date) => [
+        `${date.year}-${date.month}-${date.day}`,
+        { day: date.day, month: date.month, year: date.year },
+      ]));
+      dates = [...unique.values()].sort((first, second) => Date.UTC(first.year, first.month - 1, first.day) - Date.UTC(second.year, second.month - 1, second.day));
+    } else {
+      dates = isValidDate(item?.date) ? [{ day: item.date.day, month: item.date.month, year: item.date.year }] : [null];
+    }
+    const hasValidSchedule = dates.every(Boolean);
+    if ((!allowIncomplete && (!title || !subject || !hasValidSchedule))
       || title.length > 200 || subject.length > 80 || label.length > 40 || !isSingleEmoji(emoji)) {
       throw new Error("DeepSeek returned an invalid task.");
     }
-    if ((dateAmbiguous || !hasValidDate) && !dateQuestion) {
+    if ((dateAmbiguous || !hasValidSchedule) && !dateQuestion) {
       throw new Error("DeepSeek omitted an ambiguous-date question.");
     }
 
-    return {
+    return dates.map((date) => ({
       title,
       subject,
       label,
       emoji,
-      date: hasValidDate ? {
-        day: item.date.day,
-        month: item.date.month,
-        year: item.date.year,
-      } : null,
-      dateAmbiguous: dateAmbiguous || !hasValidDate,
-      dateQuestion: (dateAmbiguous || !hasValidDate) ? dateQuestion.slice(0, 240) : "",
-    };
+      date,
+      dateAmbiguous: dateAmbiguous || !hasValidSchedule,
+      dateQuestion: (dateAmbiguous || !hasValidSchedule) ? dateQuestion.slice(0, 240) : "",
+    }));
   });
+  if (normalized.length > 366) throw new Error("DeepSeek generated too many repeated task dates.");
+  return normalized;
 }
 
 function isValidIsoDate(value) {
@@ -450,7 +477,7 @@ Current local context:
 - Current local date and time: ${localTime}
 
 Return JSON only, in exactly this shape:
-{"tasks":[{"title":"Clear concise English task title","subject":"History","label":"Extra","emoji":"📚","date":{"day":9,"month":10,"year":2026},"dateAmbiguous":false,"dateQuestion":""}]}
+{"tasks":[{"title":"Clear concise English task title","subject":"History","label":"Extra","emoji":"📚","date":{"day":9,"month":10,"year":2026},"dates":[],"dailyRange":null,"dateAmbiguous":false,"dateQuestion":""}]}
 
 Rules:
 1. Create one item for every independently actionable task. Keep supporting details with their relevant task. Do not invent tasks, omit explicit actions, or turn background details into tasks.
@@ -468,8 +495,9 @@ Rules:
   ? "For uploaded content, never invent a deadline, subject, or task description. If a due date is missing or unreadable, return date as null, set dateAmbiguous true, and explain what the user must enter in dateQuestion. If the subject or task description itself is missing or unreadable, use an empty string for that field so the user can complete it in the preview."
   : `If a task has no explicit or clearly shared deadline, use today (${today}) for that task, even when another task in the same input has a date.`}
 13. Resolve relative dates such as today, tomorrow, this Friday, and next week using the local context above. Do not treat a date that merely describes a past event, meeting, trip, document, or other background information as a task deadline.
-14. If a date has two or more reasonable deadline interpretations, set dateAmbiguous to true, choose the most likely tentative date for the editable date field, and put a short English confirmation question in dateQuestion. This includes an unqualified weekday such as "Friday" when it could mean today/this week's occurrence or the following week's occurrence, and a numeric date whose month/day order is unclear. Otherwise use false and an empty string.
-15. day, month, and year must be integers. Return at most 30 tasks. If the input contains no actionable task, return {"tasks":[]}.`,
+14. Scheduling fields are mutually exclusive. For one due date, use date and leave dates empty and dailyRange null. If the user explicitly asks for the same task every day from one date through another, use dailyRange:{"start":{"day":1,"month":11,"year":2026},"end":{"day":5,"month":11,"year":2026}} and set date null. Both endpoints are inclusive. For several explicitly selected non-consecutive days, put each day in dates and set date null and dailyRange null. Do not create separate source task objects for each repeated day; the application expands them safely.
+15. If a date or range has two or more reasonable interpretations, set dateAmbiguous to true, choose the most likely tentative value, and put a short English confirmation question in dateQuestion. This includes an unqualified weekday such as "Friday" when it could mean today/this week's occurrence or the following week's occurrence, and a numeric date whose month/day order is unclear. Otherwise use false and an empty string.
+16. day, month, and year must be integers. A daily range may contain at most 366 days. Return at most 30 source task objects. If the input contains no actionable task, return {"tasks":[]}.`,
         },
         { role: "user", content: input },
       ],

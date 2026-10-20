@@ -164,7 +164,29 @@
                 <label class="manual-task-title">Task title<input id="manual-task-title" type="text" maxlength="220" required autocomplete="off" /></label>
                 <label>Subject<input id="manual-task-subject" type="text" maxlength="80" required autocomplete="off" /></label>
                 <label>Label <span class="optional-label">optional</span><input id="manual-task-label" type="text" maxlength="40" placeholder="Extra" autocomplete="off" /></label>
-                <label>Due date <span class="optional-label">optional</span><input id="manual-task-date" type="date" /></label>
+                <label class="manual-task-schedule-mode">Schedule
+                  <select id="manual-task-schedule-mode">
+                    <option value="single">One date</option>
+                    <option value="range">Every day in a range</option>
+                    <option value="multiple">Several selected dates</option>
+                  </select>
+                </label>
+                <div id="manual-single-schedule" class="manual-schedule-panel">
+                  <label>Due date <span class="optional-label">optional</span><input id="manual-task-date" type="date" /></label>
+                </div>
+                <div id="manual-range-schedule" class="manual-schedule-panel manual-range-fields" hidden>
+                  <label>Start date<input id="manual-task-range-start" type="date" /></label>
+                  <label>End date<input id="manual-task-range-end" type="date" /></label>
+                </div>
+                <div id="manual-multiple-schedule" class="manual-schedule-panel" hidden>
+                  <label>Choose a date
+                    <span class="manual-date-adder">
+                      <input id="manual-task-multiple-date" type="date" />
+                      <button id="add-manual-task-date" type="button">Add date</button>
+                    </span>
+                  </label>
+                  <div id="manual-selected-dates" class="manual-selected-dates" aria-live="polite"></div>
+                </div>
               </div>
               <div class="manual-task-actions">
                 <p id="manual-task-status" class="form-status" aria-live="polite">Enter task details and save without using AI.</p>
