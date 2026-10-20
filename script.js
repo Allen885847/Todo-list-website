@@ -1,5 +1,6 @@
 const STORAGE_KEY = "todo-list-mvp";
 const APPEARANCE_KEY = "todo-appearance";
+const CELEBRATION_KEY = "todo-last-celebrated-list";
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const systemDarkMode = window.matchMedia("(prefers-color-scheme: dark)");
 
@@ -426,15 +427,12 @@ function createTaskElement(todo, index) {
   });
 
   checkbox.addEventListener("change", () => {
-    const today = TodoTaskRules.localDateIso();
-    const hadIncompleteTaskToday = state.tasks.some((task) => (
-      TodoTaskRules.dueDateIso(task) === today && !task.completed
-    ));
+    const hadIncompleteTasks = state.tasks.some((task) => !task.completed);
     state.tasks[index] = TodoTaskRules.withCompletion(state.tasks[index], checkbox.checked);
-    const completedTodaysTasks = TodoTaskRules.areTodaysTasksComplete(state.tasks, today);
+    const completedAllTasks = state.tasks.length > 0 && state.tasks.every((task) => task.completed);
     saveState();
     renderTasks();
-    if (checkbox.checked && hadIncompleteTaskToday && completedTodaysTasks) celebrateCompletion();
+    if (checkbox.checked && hadIncompleteTasks && completedAllTasks) celebrateCompletion();
     else if (checkbox.checked) showPageNotice("Task completed. It remains in Calendar.", "success");
     else showPageNotice("Task marked incomplete.", "success");
   });
@@ -679,23 +677,39 @@ function showPageNotice(message, type = "success", duration = 2400) {
   }, duration);
 }
 
-function celebrateCompletion() {
-  showPageNotice(
-    prefersReducedMotion ? "Today's tasks completed. Nice work!" : "Today's tasks are done — nice work! 🎉",
-    "completion",
-    2300,
-  );
-  if (prefersReducedMotion) return;
+function celebrationSignature() {
+  return JSON.stringify(state.tasks.map((task) => [
+    task.task,
+    task.subject,
+    task.date ? toIsoDate(task.date) : "",
+  ]));
+}
 
+function drawCelebrationStar(context, x, y, radius, rotation, points = 5) {
+  context.beginPath();
+  for (let point = 0; point < points * 2; point += 1) {
+    const angle = rotation + point * Math.PI / points;
+    const distance = point % 2 === 0 ? radius : radius * 0.42;
+    const pointX = x + Math.cos(angle) * distance;
+    const pointY = y + Math.sin(angle) * distance;
+    if (point === 0) context.moveTo(pointX, pointY);
+    else context.lineTo(pointX, pointY);
+  }
+  context.closePath();
+  context.fill();
+}
+
+function launchCelebrationCanvas(variant, hero) {
   const layer = document.createElement("canvas");
-  layer.className = "confetti-layer";
+  layer.className = `confetti-layer celebration-canvas ${variant}`;
   layer.setAttribute("aria-hidden", "true");
   const context = layer.getContext("2d");
-  if (!context) return;
+  if (!context) {
+    window.setTimeout(() => hero.remove(), 3000);
+    return;
+  }
 
-  const colors = ["#ea6847", "#23836c", "#f4ba55", "#75a7e8", "#c276d8"];
-  document.body.append(layer);
-
+  const colors = ["#ff6b52", "#ffbd3f", "#39bca0", "#55a8ff", "#9e72e8", "#f45fb3"];
   let viewportWidth = window.innerWidth;
   let viewportHeight = window.innerHeight;
   let scale = Math.min(window.devicePixelRatio || 1, 2);
@@ -709,67 +723,152 @@ function celebrateCompletion() {
     layer.style.height = `${viewportHeight}px`;
   };
   resizeLayer();
+  document.body.append(layer);
   window.addEventListener("resize", resizeLayer);
 
-  const originY = Math.min(viewportHeight * 0.34, 290);
-  const particles = Array.from({ length: 82 }, (_, index) => {
-    const direction = index % 2 === 0 ? -1 : 1;
-    return {
-      x: viewportWidth / 2 + direction * (18 + Math.random() * 58),
-      y: originY + Math.random() * 22,
-      velocityX: direction * (1.4 + Math.random() * 4.8) + (Math.random() - 0.5) * 1.4,
-      velocityY: -(7.4 + Math.random() * 5.2),
-      gravity: 0.105 + Math.random() * 0.055,
-      drag: 0.986 + Math.random() * 0.008,
-      width: 6 + Math.random() * 7,
-      height: 10 + Math.random() * 10,
-      rotation: Math.random() * Math.PI * 2,
-      rotationSpeed: (Math.random() - 0.5) * 0.34,
-      flutterOffset: Math.random() * Math.PI * 2,
-      color: colors[index % colors.length],
-      opacity: 1,
-    };
-  });
+  const centerX = viewportWidth / 2;
+  const centerY = Math.min(viewportHeight * 0.42, 360);
+  const particles = [];
+  if (variant === "check-burst") {
+    for (let index = 0; index < 104; index += 1) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 3.8 + Math.random() * 7.2;
+      particles.push({
+        type: index % 7 === 0 ? "star" : (index % 5 === 0 ? "sparkle" : "confetti"),
+        x: centerX + (Math.random() - 0.5) * 34,
+        y: centerY + (Math.random() - 0.5) * 24,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 2.4,
+        gravity: 0.12 + Math.random() * 0.05,
+        size: 5 + Math.random() * 8,
+        rotation: Math.random() * Math.PI * 2,
+        spin: (Math.random() - 0.5) * 0.28,
+        color: colors[index % colors.length],
+      });
+    }
+  } else {
+    const bursts = [
+      [0.25, 0.3, 0], [0.72, 0.25, 180], [0.48, 0.2, 410], [0.82, 0.43, 650],
+    ];
+    bursts.forEach(([xRatio, yRatio, delay], burstIndex) => {
+      for (let index = 0; index < 22; index += 1) {
+        const angle = index / 22 * Math.PI * 2 + Math.random() * 0.08;
+        const speed = 2.2 + Math.random() * 3.4;
+        particles.push({
+          type: "firework", x: viewportWidth * xRatio, y: viewportHeight * yRatio,
+          vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+          gravity: 0.018, size: 2.2 + Math.random() * 2.2, delay,
+          color: colors[(index + burstIndex * 2) % colors.length], trail: [],
+        });
+      }
+    });
+    for (let index = 0; index < 24; index += 1) {
+      const startsLeft = Math.random() < 0.5;
+      particles.push({
+        type: "ribbon", x: startsLeft ? -15 : viewportWidth + 15,
+        y: viewportHeight * (0.14 + Math.random() * 0.46),
+        vx: (startsLeft ? 1 : -1) * (1.8 + Math.random() * 2.5),
+        vy: 0.8 + Math.random() * 1.6, gravity: 0.018,
+        size: 12 + Math.random() * 10, phase: Math.random() * Math.PI * 2,
+        color: colors[index % colors.length], delay: Math.random() * 420,
+      });
+    }
+  }
 
+  const duration = variant === "check-burst" ? 2850 : 3200;
   let previousTime = performance.now();
   const startTime = previousTime;
   const animate = (time) => {
-    const step = Math.min((time - previousTime) / 16.67, 2.2);
+    const elapsed = time - startTime;
+    const step = Math.min((time - previousTime) / 16.67, 2);
     previousTime = time;
     context.setTransform(scale, 0, 0, scale, 0, 0);
     context.clearRect(0, 0, viewportWidth, viewportHeight);
 
-    let visibleParticles = 0;
     particles.forEach((particle) => {
-      particle.velocityX *= particle.drag ** step;
-      particle.velocityY += particle.gravity * step;
-      particle.x += particle.velocityX * step;
-      particle.x += Math.sin(time * 0.006 + particle.flutterOffset) * 0.18 * step;
-      particle.y += particle.velocityY * step;
-      particle.rotation += particle.rotationSpeed * step;
-      particle.opacity = particle.y > viewportHeight * 0.82
-        ? Math.max(0, (viewportHeight + 40 - particle.y) / (viewportHeight * 0.18 + 40))
-        : 1;
-
-      if (particle.y < viewportHeight + 50 && particle.opacity > 0) visibleParticles += 1;
+      if (elapsed < (particle.delay || 0)) return;
+      const age = elapsed - (particle.delay || 0);
+      const opacity = Math.max(0, 1 - Math.max(0, age - duration * 0.62) / (duration * 0.38));
+      particle.vy += particle.gravity * step;
+      particle.x += particle.vx * step;
+      particle.y += particle.vy * step;
       context.save();
-      context.globalAlpha = particle.opacity;
-      context.translate(particle.x, particle.y);
-      context.rotate(particle.rotation);
-      context.scale(1, Math.cos(particle.rotation * 1.7));
+      context.globalAlpha = opacity;
       context.fillStyle = particle.color;
-      context.fillRect(-particle.width / 2, -particle.height / 2, particle.width, particle.height);
+      context.strokeStyle = particle.color;
+      if (particle.type === "star") {
+        particle.rotation += particle.spin * step;
+        drawCelebrationStar(context, particle.x, particle.y, particle.size, particle.rotation);
+      } else if (particle.type === "sparkle") {
+        context.lineWidth = 2.4;
+        context.beginPath();
+        context.moveTo(particle.x - particle.size, particle.y);
+        context.lineTo(particle.x + particle.size, particle.y);
+        context.moveTo(particle.x, particle.y - particle.size);
+        context.lineTo(particle.x, particle.y + particle.size);
+        context.stroke();
+      } else if (particle.type === "firework") {
+        particle.trail.push([particle.x, particle.y]);
+        if (particle.trail.length > 7) particle.trail.shift();
+        context.lineWidth = particle.size;
+        context.lineCap = "round";
+        context.beginPath();
+        particle.trail.forEach(([x, y], trailIndex) => {
+          if (trailIndex === 0) context.moveTo(x, y);
+          else context.lineTo(x, y);
+        });
+        context.stroke();
+      } else if (particle.type === "ribbon") {
+        const wave = Math.sin(age * 0.012 + particle.phase) * 18;
+        context.lineWidth = 5;
+        context.lineCap = "round";
+        context.beginPath();
+        context.moveTo(particle.x, particle.y);
+        context.quadraticCurveTo(particle.x + wave, particle.y + particle.size / 2, particle.x, particle.y + particle.size);
+        context.stroke();
+      } else {
+        particle.rotation += particle.spin * step;
+        context.translate(particle.x, particle.y);
+        context.rotate(particle.rotation);
+        context.fillRect(-particle.size / 2, -particle.size * 0.75, particle.size, particle.size * 1.5);
+      }
       context.restore();
     });
 
-    if (visibleParticles > 0 && time - startTime < 6000) {
-      requestAnimationFrame(animate);
-    } else {
+    if (elapsed < duration) requestAnimationFrame(animate);
+    else {
       window.removeEventListener("resize", resizeLayer);
       layer.remove();
+      hero.remove();
     }
   };
   requestAnimationFrame(animate);
+}
+
+function celebrateCompletion() {
+  const signature = celebrationSignature();
+  if (!signature) return;
+  try {
+    if (localStorage.getItem(CELEBRATION_KEY) === signature) return;
+    localStorage.setItem(CELEBRATION_KEY, signature);
+  } catch {
+    // The state transition still prevents duplicate celebrations during normal use.
+  }
+  showPageNotice(
+    prefersReducedMotion ? "All tasks completed. Nice work!" : "All tasks are done — nice work! 🎉",
+    "completion",
+    2300,
+  );
+  if (prefersReducedMotion) return;
+  const variant = Math.random() < 0.5 ? "check-burst" : "firework-ribbons";
+  const hero = document.createElement("div");
+  hero.className = `celebration-hero ${variant}`;
+  hero.setAttribute("aria-hidden", "true");
+  hero.innerHTML = variant === "check-burst"
+    ? '<span class="celebration-check"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="51"></circle><path d="m34 61 17 17 36-39"></path></svg></span>'
+    : '<span class="celebration-message"><strong>Brilliant work!</strong><small>Everything is complete</small></span>';
+  document.body.append(hero);
+  launchCelebrationCanvas(variant, hero);
 }
 
 function buildPlainTextList() {

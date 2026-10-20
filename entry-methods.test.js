@@ -77,5 +77,10 @@ assert.match(fileScanner, /\.docx/);
 assert.match(fileScanner, /eng\+chi_sim/);
 assert.match(serverScript, /MAX_UPLOAD_TEXT_LENGTH = 16_000/);
 assert.match(serverScript, /never invent a deadline, subject, or task description/i);
+assert.match(taskScript, /Math\.random\(\) < 0\.5 \? "check-burst" : "firework-ribbons"/);
+assert.match(taskScript, /localStorage\.getItem\(CELEBRATION_KEY\) === signature/);
+assert.match(taskScript, /if \(prefersReducedMotion\) return;/);
+assert.match(styles, /\.celebration-check/);
+assert.match(styles, /\.celebration-message/);
 
 console.log("Manual task, file scanning, customizable labels, and calendar voice entry methods passed.");
