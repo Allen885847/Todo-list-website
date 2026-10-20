@@ -15,6 +15,10 @@ const taskForm = document.querySelector("#task-form");
 const taskInput = document.querySelector("#task-input");
 const askButton = document.querySelector("#add-task-button");
 const recordButton = document.querySelector("#record-button");
+const uploadTaskButton = document.querySelector("#upload-task-button");
+const taskFileInput = document.querySelector("#task-file-input");
+const uploadProgress = document.querySelector("#upload-progress");
+const uploadProgressText = document.querySelector("#upload-progress-text");
 const cancelRecordingButton = document.querySelector("#cancel-recording");
 const recordingTimer = document.querySelector("#recording-timer");
 const waveform = document.querySelector("#voice-waveform");
@@ -28,6 +32,15 @@ const manualTaskTitle = document.querySelector("#manual-task-title");
 const manualTaskSubject = document.querySelector("#manual-task-subject");
 const manualTaskLabel = document.querySelector("#manual-task-label");
 const manualTaskDate = document.querySelector("#manual-task-date");
+const manualTaskScheduleMode = document.querySelector("#manual-task-schedule-mode");
+const manualSingleSchedule = document.querySelector("#manual-single-schedule");
+const manualRangeSchedule = document.querySelector("#manual-range-schedule");
+const manualMultipleSchedule = document.querySelector("#manual-multiple-schedule");
+const manualTaskRangeStart = document.querySelector("#manual-task-range-start");
+const manualTaskRangeEnd = document.querySelector("#manual-task-range-end");
+const manualTaskMultipleDate = document.querySelector("#manual-task-multiple-date");
+const addManualTaskDateButton = document.querySelector("#add-manual-task-date");
+const manualSelectedDates = document.querySelector("#manual-selected-dates");
 const manualTaskStatus = document.querySelector("#manual-task-status");
 const previewSection = document.querySelector("#preview-section");
 const previewList = document.querySelector("#preview-list");
@@ -66,6 +79,7 @@ let recordingStartedAt = 0;
 let recordingPhase = "idle";
 let cancelRequested = false;
 let isProcessing = false;
+let isReadingUpload = false;
 let isTextComposing = false;
 let isExporting = false;
 let noticeTimer;
@@ -74,6 +88,7 @@ let copyResetTimer;
 let dateRefreshTimer;
 let pointerDrag = null;
 let taskEntryMode = "ai";
+let selectedManualDates = [];
 let editingTaskIndex = null;
 let isRewritingTask = false;
 let taskEditDialogTimer;
@@ -421,15 +436,12 @@ function createTaskElement(todo, index) {
   });
 
   checkbox.addEventListener("change", () => {
-    const today = TodoTaskRules.localDateIso();
-    const hadIncompleteTaskToday = state.tasks.some((task) => (
-      TodoTaskRules.dueDateIso(task) === today && !task.completed
-    ));
+    const hadIncompleteTasks = state.tasks.some((task) => !task.completed);
     state.tasks[index] = TodoTaskRules.withCompletion(state.tasks[index], checkbox.checked);
-    const completedTodaysTasks = TodoTaskRules.areTodaysTasksComplete(state.tasks, today);
+    const completedAllTasks = state.tasks.length > 0 && state.tasks.every((task) => task.completed);
     saveState();
     renderTasks();
-    if (checkbox.checked && hadIncompleteTaskToday && completedTodaysTasks) celebrateCompletion();
+    if (checkbox.checked && hadIncompleteTasks && completedAllTasks) celebrateCompletion();
     else if (checkbox.checked) showPageNotice("Task completed. It remains in Calendar.", "success");
     else showPageNotice("Task marked incomplete.", "success");
   });
@@ -674,23 +686,31 @@ function showPageNotice(message, type = "success", duration = 2400) {
   }, duration);
 }
 
-function celebrateCompletion() {
-  showPageNotice(
-    prefersReducedMotion ? "Today's tasks completed. Nice work!" : "Today's tasks are done — nice work! 🎉",
-    "completion",
-    2300,
-  );
-  if (prefersReducedMotion) return;
+function drawCelebrationStar(context, x, y, radius, rotation, points = 5) {
+  context.beginPath();
+  for (let point = 0; point < points * 2; point += 1) {
+    const angle = rotation + point * Math.PI / points;
+    const distance = point % 2 === 0 ? radius : radius * 0.42;
+    const pointX = x + Math.cos(angle) * distance;
+    const pointY = y + Math.sin(angle) * distance;
+    if (point === 0) context.moveTo(pointX, pointY);
+    else context.lineTo(pointX, pointY);
+  }
+  context.closePath();
+  context.fill();
+}
 
+function launchCelebrationCanvas(variant, hero) {
   const layer = document.createElement("canvas");
-  layer.className = "confetti-layer";
+  layer.className = `confetti-layer celebration-canvas ${variant}`;
   layer.setAttribute("aria-hidden", "true");
   const context = layer.getContext("2d");
-  if (!context) return;
+  if (!context) {
+    window.setTimeout(() => hero.remove(), 3000);
+    return;
+  }
 
-  const colors = ["#ea6847", "#23836c", "#f4ba55", "#75a7e8", "#c276d8"];
-  document.body.append(layer);
-
+  const colors = ["#ff6b52", "#ffbd3f", "#39bca0", "#55a8ff", "#9e72e8", "#f45fb3"];
   let viewportWidth = window.innerWidth;
   let viewportHeight = window.innerHeight;
   let scale = Math.min(window.devicePixelRatio || 1, 2);
@@ -704,67 +724,144 @@ function celebrateCompletion() {
     layer.style.height = `${viewportHeight}px`;
   };
   resizeLayer();
+  document.body.append(layer);
   window.addEventListener("resize", resizeLayer);
 
-  const originY = Math.min(viewportHeight * 0.34, 290);
-  const particles = Array.from({ length: 82 }, (_, index) => {
-    const direction = index % 2 === 0 ? -1 : 1;
-    return {
-      x: viewportWidth / 2 + direction * (18 + Math.random() * 58),
-      y: originY + Math.random() * 22,
-      velocityX: direction * (1.4 + Math.random() * 4.8) + (Math.random() - 0.5) * 1.4,
-      velocityY: -(7.4 + Math.random() * 5.2),
-      gravity: 0.105 + Math.random() * 0.055,
-      drag: 0.986 + Math.random() * 0.008,
-      width: 6 + Math.random() * 7,
-      height: 10 + Math.random() * 10,
-      rotation: Math.random() * Math.PI * 2,
-      rotationSpeed: (Math.random() - 0.5) * 0.34,
-      flutterOffset: Math.random() * Math.PI * 2,
-      color: colors[index % colors.length],
-      opacity: 1,
-    };
-  });
+  const centerX = viewportWidth / 2;
+  const centerY = Math.min(viewportHeight * 0.42, 360);
+  const particles = [];
+  if (variant === "check-burst") {
+    for (let index = 0; index < 104; index += 1) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 3.8 + Math.random() * 7.2;
+      particles.push({
+        type: index % 7 === 0 ? "star" : (index % 5 === 0 ? "sparkle" : "confetti"),
+        x: centerX + (Math.random() - 0.5) * 34,
+        y: centerY + (Math.random() - 0.5) * 24,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 2.4,
+        gravity: 0.12 + Math.random() * 0.05,
+        size: 5 + Math.random() * 8,
+        rotation: Math.random() * Math.PI * 2,
+        spin: (Math.random() - 0.5) * 0.28,
+        color: colors[index % colors.length],
+      });
+    }
+  } else {
+    const bursts = [
+      [0.25, 0.3, 0], [0.72, 0.25, 180], [0.48, 0.2, 410], [0.82, 0.43, 650],
+    ];
+    bursts.forEach(([xRatio, yRatio, delay], burstIndex) => {
+      for (let index = 0; index < 22; index += 1) {
+        const angle = index / 22 * Math.PI * 2 + Math.random() * 0.08;
+        const speed = 2.2 + Math.random() * 3.4;
+        particles.push({
+          type: "firework", x: viewportWidth * xRatio, y: viewportHeight * yRatio,
+          vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+          gravity: 0.018, size: 2.2 + Math.random() * 2.2, delay,
+          color: colors[(index + burstIndex * 2) % colors.length], trail: [],
+        });
+      }
+    });
+    for (let index = 0; index < 24; index += 1) {
+      const startsLeft = Math.random() < 0.5;
+      particles.push({
+        type: "ribbon", x: startsLeft ? -15 : viewportWidth + 15,
+        y: viewportHeight * (0.14 + Math.random() * 0.46),
+        vx: (startsLeft ? 1 : -1) * (1.8 + Math.random() * 2.5),
+        vy: 0.8 + Math.random() * 1.6, gravity: 0.018,
+        size: 12 + Math.random() * 10, phase: Math.random() * Math.PI * 2,
+        color: colors[index % colors.length], delay: Math.random() * 420,
+      });
+    }
+  }
 
+  const duration = variant === "check-burst" ? 2850 : 3200;
   let previousTime = performance.now();
   const startTime = previousTime;
   const animate = (time) => {
-    const step = Math.min((time - previousTime) / 16.67, 2.2);
+    const elapsed = time - startTime;
+    const step = Math.min((time - previousTime) / 16.67, 2);
     previousTime = time;
     context.setTransform(scale, 0, 0, scale, 0, 0);
     context.clearRect(0, 0, viewportWidth, viewportHeight);
 
-    let visibleParticles = 0;
     particles.forEach((particle) => {
-      particle.velocityX *= particle.drag ** step;
-      particle.velocityY += particle.gravity * step;
-      particle.x += particle.velocityX * step;
-      particle.x += Math.sin(time * 0.006 + particle.flutterOffset) * 0.18 * step;
-      particle.y += particle.velocityY * step;
-      particle.rotation += particle.rotationSpeed * step;
-      particle.opacity = particle.y > viewportHeight * 0.82
-        ? Math.max(0, (viewportHeight + 40 - particle.y) / (viewportHeight * 0.18 + 40))
-        : 1;
-
-      if (particle.y < viewportHeight + 50 && particle.opacity > 0) visibleParticles += 1;
+      if (elapsed < (particle.delay || 0)) return;
+      const age = elapsed - (particle.delay || 0);
+      const opacity = Math.max(0, 1 - Math.max(0, age - duration * 0.62) / (duration * 0.38));
+      particle.vy += particle.gravity * step;
+      particle.x += particle.vx * step;
+      particle.y += particle.vy * step;
       context.save();
-      context.globalAlpha = particle.opacity;
-      context.translate(particle.x, particle.y);
-      context.rotate(particle.rotation);
-      context.scale(1, Math.cos(particle.rotation * 1.7));
+      context.globalAlpha = opacity;
       context.fillStyle = particle.color;
-      context.fillRect(-particle.width / 2, -particle.height / 2, particle.width, particle.height);
+      context.strokeStyle = particle.color;
+      if (particle.type === "star") {
+        particle.rotation += particle.spin * step;
+        drawCelebrationStar(context, particle.x, particle.y, particle.size, particle.rotation);
+      } else if (particle.type === "sparkle") {
+        context.lineWidth = 2.4;
+        context.beginPath();
+        context.moveTo(particle.x - particle.size, particle.y);
+        context.lineTo(particle.x + particle.size, particle.y);
+        context.moveTo(particle.x, particle.y - particle.size);
+        context.lineTo(particle.x, particle.y + particle.size);
+        context.stroke();
+      } else if (particle.type === "firework") {
+        particle.trail.push([particle.x, particle.y]);
+        if (particle.trail.length > 7) particle.trail.shift();
+        context.lineWidth = particle.size;
+        context.lineCap = "round";
+        context.beginPath();
+        particle.trail.forEach(([x, y], trailIndex) => {
+          if (trailIndex === 0) context.moveTo(x, y);
+          else context.lineTo(x, y);
+        });
+        context.stroke();
+      } else if (particle.type === "ribbon") {
+        const wave = Math.sin(age * 0.012 + particle.phase) * 18;
+        context.lineWidth = 5;
+        context.lineCap = "round";
+        context.beginPath();
+        context.moveTo(particle.x, particle.y);
+        context.quadraticCurveTo(particle.x + wave, particle.y + particle.size / 2, particle.x, particle.y + particle.size);
+        context.stroke();
+      } else {
+        particle.rotation += particle.spin * step;
+        context.translate(particle.x, particle.y);
+        context.rotate(particle.rotation);
+        context.fillRect(-particle.size / 2, -particle.size * 0.75, particle.size, particle.size * 1.5);
+      }
       context.restore();
     });
 
-    if (visibleParticles > 0 && time - startTime < 6000) {
-      requestAnimationFrame(animate);
-    } else {
+    if (elapsed < duration) requestAnimationFrame(animate);
+    else {
       window.removeEventListener("resize", resizeLayer);
       layer.remove();
+      hero.remove();
     }
   };
   requestAnimationFrame(animate);
+}
+
+function celebrateCompletion() {
+  showPageNotice(
+    prefersReducedMotion ? "All tasks completed. Nice work!" : "All tasks are done — nice work! 🎉",
+    "completion",
+    2300,
+  );
+  if (prefersReducedMotion) return;
+  const variant = Math.random() < 0.5 ? "check-burst" : "firework-ribbons";
+  const hero = document.createElement("div");
+  hero.className = `celebration-hero ${variant}`;
+  hero.setAttribute("aria-hidden", "true");
+  hero.innerHTML = variant === "check-burst"
+    ? '<span class="celebration-check"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="51"></circle><path d="m34 61 17 17 36-39"></path></svg></span>'
+    : '<span class="celebration-message"><strong>Brilliant work!</strong><small>Everything is complete</small></span>';
+  document.body.append(hero);
+  launchCelebrationCanvas(variant, hero);
 }
 
 function buildPlainTextList() {
@@ -1108,11 +1205,77 @@ function setTaskEntryMode(mode, { focus = true } = {}) {
   }
 }
 
+function expandDateRange(start, end, maximumDays = 366) {
+  if (!start || !end) return [];
+  const startDate = new Date(start.year, start.month - 1, start.day, 12);
+  const endDate = new Date(end.year, end.month - 1, end.day, 12);
+  if (endDate < startDate) return [];
+  const dates = [];
+  for (const cursor = new Date(startDate); cursor <= endDate; cursor.setDate(cursor.getDate() + 1)) {
+    if (dates.length >= maximumDays) throw new Error(`Choose a date range of ${maximumDays} days or fewer.`);
+    dates.push({ day: cursor.getDate(), month: cursor.getMonth() + 1, year: cursor.getFullYear() });
+  }
+  return dates;
+}
+
+function renderManualSelectedDates() {
+  manualSelectedDates.replaceChildren(...selectedManualDates.map((dateValue) => {
+    const chip = document.createElement("span");
+    chip.className = "manual-date-chip";
+    chip.textContent = formatDate(dateValue);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "×";
+    remove.setAttribute("aria-label", `Remove ${formatDate(dateValue)}`);
+    remove.addEventListener("click", () => {
+      selectedManualDates = selectedManualDates.filter((date) => toIsoDate(date) !== toIsoDate(dateValue));
+      renderManualSelectedDates();
+    });
+    chip.append(remove);
+    return chip;
+  }));
+  if (selectedManualDates.length === 0) {
+    const hint = document.createElement("span");
+    hint.className = "form-status";
+    hint.textContent = "No dates selected yet.";
+    manualSelectedDates.append(hint);
+  }
+}
+
+function updateManualScheduleMode() {
+  const mode = manualTaskScheduleMode.value;
+  manualSingleSchedule.hidden = mode !== "single";
+  manualRangeSchedule.hidden = mode !== "range";
+  manualMultipleSchedule.hidden = mode !== "multiple";
+}
+
+function addSelectedManualDate() {
+  const date = fromIsoDate(manualTaskMultipleDate.value);
+  if (!date) {
+    manualTaskStatus.textContent = "Choose a valid date, then select Add date.";
+    manualTaskStatus.className = "form-status error";
+    manualTaskMultipleDate.focus();
+    return;
+  }
+  if (selectedManualDates.length >= 366 && !selectedManualDates.some((item) => toIsoDate(item) === toIsoDate(date))) {
+    manualTaskStatus.textContent = "Choose no more than 366 dates for one task.";
+    manualTaskStatus.className = "form-status error";
+    return;
+  }
+  if (!selectedManualDates.some((item) => toIsoDate(item) === toIsoDate(date))) {
+    selectedManualDates = [...selectedManualDates, date].sort((first, second) => toIsoDate(first).localeCompare(toIsoDate(second)));
+  }
+  manualTaskMultipleDate.value = "";
+  renderManualSelectedDates();
+  manualTaskStatus.textContent = `${selectedManualDates.length} ${selectedManualDates.length === 1 ? "date" : "dates"} selected.`;
+  manualTaskStatus.className = "form-status success";
+}
+
 function saveManualTask() {
   const title = manualTaskTitle.value.trim();
   const subject = manualTaskSubject.value.trim();
   const label = normalizeLabel(manualTaskLabel.value);
-  const date = manualTaskDate.value ? fromIsoDate(manualTaskDate.value) : null;
+  const scheduleMode = manualTaskScheduleMode.value;
   if (!title) {
     manualTaskStatus.textContent = "Enter a task title.";
     manualTaskStatus.className = "form-status error";
@@ -1125,22 +1288,60 @@ function saveManualTask() {
     manualTaskSubject.focus();
     return;
   }
-  if (manualTaskDate.value && !date) {
-    manualTaskStatus.textContent = "Enter a valid due date.";
-    manualTaskStatus.className = "form-status error";
-    manualTaskDate.focus();
-    return;
+  let dates = [];
+  if (scheduleMode === "single") {
+    const date = manualTaskDate.value ? fromIsoDate(manualTaskDate.value) : null;
+    if (manualTaskDate.value && !date) {
+      manualTaskStatus.textContent = "Enter a valid due date.";
+      manualTaskStatus.className = "form-status error";
+      manualTaskDate.focus();
+      return;
+    }
+    dates = [date];
+  } else if (scheduleMode === "range") {
+    const start = fromIsoDate(manualTaskRangeStart.value);
+    const end = fromIsoDate(manualTaskRangeEnd.value);
+    if (!start || !end) {
+      manualTaskStatus.textContent = "Choose both a start date and an end date.";
+      manualTaskStatus.className = "form-status error";
+      (start ? manualTaskRangeEnd : manualTaskRangeStart).focus();
+      return;
+    }
+    try {
+      dates = expandDateRange(start, end);
+    } catch (error) {
+      manualTaskStatus.textContent = error.message;
+      manualTaskStatus.className = "form-status error";
+      return;
+    }
+    if (dates.length === 0) {
+      manualTaskStatus.textContent = "The end date must be on or after the start date.";
+      manualTaskStatus.className = "form-status error";
+      manualTaskRangeEnd.focus();
+      return;
+    }
+  } else {
+    dates = [...selectedManualDates];
+    if (dates.length === 0) {
+      manualTaskStatus.textContent = "Add at least one date for this task.";
+      manualTaskStatus.className = "form-status error";
+      manualTaskMultipleDate.focus();
+      return;
+    }
   }
 
-  const task = normalizeTask({ date, task: title, subject, label, completed: false, completedOn: null });
+  const tasks = dates.map((date) => normalizeTask({ date, task: title, subject, label, completed: false, completedOn: null }));
   const combinedTasks = state.orderMode === "manual"
-    ? [...state.tasks, task]
-    : sortByDueDate([...state.tasks, task]);
+    ? [...state.tasks, ...tasks]
+    : sortByDueDate([...state.tasks, ...tasks]);
   state.tasks = flattenGroups(combinedTasks);
   saveState();
   renderTasks();
   manualTaskForm.reset();
-  manualTaskStatus.textContent = "Task saved without AI.";
+  selectedManualDates = [];
+  updateManualScheduleMode();
+  renderManualSelectedDates();
+  manualTaskStatus.textContent = `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"} saved without AI.`;
   manualTaskStatus.className = "form-status success";
   setComposerOpen(false);
   toggleComposerButton.focus({ preventScroll: true });
@@ -1157,6 +1358,7 @@ function setProcessing(active) {
   const reviewingPreview = previewTasks.length > 0;
   askButton.disabled = active || reviewingPreview || recordingPhase !== "idle";
   recordButton.disabled = active || reviewingPreview || recordingPhase === "starting" || recordingPhase === "stopping" || !navigator.mediaDevices?.getUserMedia;
+  uploadTaskButton.disabled = active || reviewingPreview || recordingPhase !== "idle";
   taskInput.disabled = active;
   taskAiTab.disabled = active;
   taskManualTab.disabled = active || reviewingPreview;
@@ -1195,6 +1397,7 @@ function createPreviewElement(item, index) {
   const title = document.createElement("input");
   title.type = "text";
   title.maxLength = 200;
+  title.placeholder = "Enter task title";
   title.value = item.title;
   title.addEventListener("input", () => { previewTasks[index].title = title.value; });
   titleLabel.append(title);
@@ -1205,6 +1408,7 @@ function createPreviewElement(item, index) {
   const subject = document.createElement("input");
   subject.type = "text";
   subject.maxLength = 80;
+  subject.placeholder = "Enter subject";
   subject.value = item.subject;
   subject.addEventListener("input", () => { previewTasks[index].subject = subject.value; });
   subjectLabel.append(subject);
@@ -1276,7 +1480,7 @@ function renderPreview() {
   const unresolved = previewTasks.filter((item) => item.dateAmbiguous).length;
   savePreviewButton.disabled = previewTasks.length === 0 || unresolved > 0;
   savePreviewButton.textContent = unresolved
-    ? `Confirm ${unresolved} ambiguous ${unresolved === 1 ? "date" : "dates"} to save`
+    ? `Confirm ${unresolved} ${unresolved === 1 ? "date" : "dates"} to save`
     : `Save ${previewTasks.length} ${previewTasks.length === 1 ? "task" : "tasks"}`;
   taskAiTab.disabled = isProcessing;
   taskManualTab.disabled = isProcessing || previewTasks.length > 0;
@@ -1295,15 +1499,20 @@ async function processInput(input, source) {
     setStatus(source === "voice" ? "No speech was detected. Please try recording again." : "Enter at least one task.", "error");
     return;
   }
-  if (cleanInput.length > 4000) {
-    setStatus("Keep your request under 4,000 characters.", "error");
+  const inputLimit = source === "upload" ? 16000 : 4000;
+  if (cleanInput.length > inputLimit) {
+    setStatus(source === "upload"
+      ? "This file contains too much readable text. Use a shorter document under 16,000 characters."
+      : "Keep your request under 4,000 characters.", "error");
     return;
   }
 
   pendingProcessing = { input: cleanInput, source };
   retryButton.hidden = true;
   setProcessing(true);
-  setStatus(source === "voice" ? "Transcription complete. DeepSeek is generating your tasks…" : "DeepSeek is generating your tasks…", "processing");
+  setStatus(source === "voice"
+    ? "Transcription complete. DeepSeek is generating your tasks…"
+    : (source === "upload" ? "File text extracted. DeepSeek is identifying tasks…" : "DeepSeek is generating your tasks…"), "processing");
 
   try {
     const response = await fetch("/api/parse-tasks", {
@@ -1311,7 +1520,7 @@ async function processInput(input, source) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         input: cleanInput,
-        inputMethod: source === "voice" ? "voice" : "typed",
+        inputMethod: source === "voice" ? "voice" : (source === "upload" ? "upload" : "typed"),
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
       }),
     });
@@ -1322,7 +1531,7 @@ async function processInput(input, source) {
     }
     previewTasks = sortByDueDate(result.tasks.map((item) => ({
       title: item.title,
-      subject: normalizeSubject(item.subject, item.title),
+      subject: source === "upload" ? String(item.subject || "").trim() : normalizeSubject(item.subject, item.title),
       label: normalizeLabel(item.label),
       emoji: item.emoji,
       date: item.date,
@@ -1333,7 +1542,7 @@ async function processInput(input, source) {
     const ambiguousCount = previewTasks.filter((item) => item.dateAmbiguous).length;
     setStatus(
       ambiguousCount
-        ? `Review ${previewTasks.length} generated tasks and confirm ${ambiguousCount} ambiguous ${ambiguousCount === 1 ? "date" : "dates"}.`
+        ? `Review ${previewTasks.length} generated tasks and complete ${ambiguousCount} unresolved ${ambiguousCount === 1 ? "date" : "dates"}.`
         : `Review ${previewTasks.length} generated ${previewTasks.length === 1 ? "task" : "tasks"} before saving.`,
       ambiguousCount ? "warning" : "success",
     );
@@ -1343,6 +1552,42 @@ async function processInput(input, source) {
     retryButton.hidden = false;
   } finally {
     setProcessing(false);
+  }
+}
+
+function setUploadProgress(message = "", active = false) {
+  uploadProgress.hidden = !active;
+  uploadProgressText.textContent = message;
+}
+
+async function scanTaskFile(file) {
+  if (isProcessing || isReadingUpload || previewTasks.length > 0) return;
+  if (!window.TaskFileScanner) {
+    setStatus("File scanning could not start. Refresh the page and try again.", "error");
+    return;
+  }
+  isReadingUpload = true;
+  retryButton.hidden = true;
+  setProcessing(true);
+  setUploadProgress(`Opening ${file.name}…`, true);
+  setStatus("Reading your file locally…", "processing");
+  try {
+    const text = (await window.TaskFileScanner.extractText(file, (message) => {
+      setUploadProgress(`${file.name}: ${message}`, true);
+    })).replace(/\u0000/g, "").trim();
+    if (!text) throw new Error("No readable text was found. Try a clearer image or a document containing selectable text.");
+    if (text.length > 16000) throw new Error("This file contains too much readable text. Use a shorter document under 16,000 characters.");
+    setUploadProgress(`${file.name}: sending extracted text to AI…`, true);
+    isReadingUpload = false;
+    setProcessing(false);
+    await processInput(text, "upload");
+  } catch (error) {
+    setStatus(error.message || "The file could not be read. Try another file.", "error");
+  } finally {
+    isReadingUpload = false;
+    setProcessing(false);
+    setUploadProgress("", false);
+    taskFileInput.value = "";
   }
 }
 
@@ -1464,6 +1709,7 @@ function updateRecordingControls() {
   recordButton.setAttribute("aria-label", recording ? "Stop voice recording" : "Start voice recording");
   cancelRecordingButton.hidden = !recording;
   recordButton.disabled = isProcessing || reviewingPreview || recordingPhase === "starting" || recordingPhase === "stopping" || !navigator.mediaDevices?.getUserMedia;
+  uploadTaskButton.disabled = isProcessing || isReadingUpload || reviewingPreview || recordingPhase !== "idle";
   askButton.disabled = isProcessing || reviewingPreview || recordingPhase !== "idle";
 }
 
@@ -1593,6 +1839,13 @@ manualTaskForm.addEventListener("submit", (event) => {
   event.preventDefault();
   saveManualTask();
 });
+manualTaskScheduleMode.addEventListener("change", updateManualScheduleMode);
+addManualTaskDateButton.addEventListener("click", addSelectedManualDate);
+manualTaskMultipleDate.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  addSelectedManualDate();
+});
 
 taskInput.addEventListener("compositionstart", () => {
   isTextComposing = true;
@@ -1610,6 +1863,15 @@ taskInput.addEventListener("keydown", (event) => {
 recordButton.addEventListener("click", () => {
   if (recordingPhase === "recording") stopRecording();
   else startRecording();
+});
+uploadTaskButton.addEventListener("click", () => {
+  if (isProcessing || isReadingUpload || previewTasks.length > 0) return;
+  taskFileInput.value = "";
+  taskFileInput.click();
+});
+taskFileInput.addEventListener("change", () => {
+  const [file] = taskFileInput.files || [];
+  if (file) scanTaskFile(file);
 });
 cancelRecordingButton.addEventListener("click", cancelRecording);
 
@@ -1782,6 +2044,11 @@ window.addEventListener("storage", (event) => {
   state = loadState();
   renderTasks();
 });
+window.addEventListener("message", (event) => {
+  if (event.origin !== location.origin || event.data?.type !== "todo-view-activated") return;
+  state = loadState();
+  renderTasks();
+});
 
 if (!navigator.mediaDevices?.getUserMedia) {
   recordButton.disabled = true;
@@ -1792,5 +2059,7 @@ renderTasks();
 renderPreview();
 updateRecordingControls();
 setTaskEntryMode("ai", { focus: false });
+updateManualScheduleMode();
+renderManualSelectedDates();
 setComposerOpen(activeTasks().length === 0);
 resizeTaskInput();

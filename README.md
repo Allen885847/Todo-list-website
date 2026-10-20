@@ -12,6 +12,7 @@ V3.0 brings a major voice input upgrade, accurately recognizing English, Chinese
 
 - Renameable list title
 - Add one or many tasks using typed English, Mandarin Chinese, or mixed-language natural language
+- Schedule the same task on one date, every day in an inclusive date range, or several individually selected dates through AI or manual entry
 - Record tasks with the browser microphone and automatically transcribe them without showing live text
 - Voice recordings are converted to 16 kHz mono WAV in the browser and transcribed by Doubao Streaming Speech Recognition 2.0 through the local backend; DeepSeek does not transcribe audio
 - A reactive waveform, recording timer, stop control, and cancel control make recording state clear

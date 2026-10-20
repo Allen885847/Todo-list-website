@@ -11,7 +11,7 @@
   --green: #23836c;
   --warning: #a35b00;
   --shadow: 0 24px 70px rgba(45, 66, 57, 0.14);
-  --page-background: radial-gradient(circle at 15% 15%, rgba(255, 255, 255, 0.8), transparent 24rem), linear-gradient(135deg, #d9eee0, #f0e8d4 55%, #efd4c5);
+  --page-background: linear-gradient(135deg, #d9eee0, #f0e8d4 55%, #efd4c5);
   --paper-border: rgba(255, 255, 255, 0.75);
   --soft-accent: #f9e7e1;
   --soft-accent-border: rgba(234, 104, 71, 0.24);
@@ -41,6 +41,9 @@
   --primary-button-hover: #c7482b;
   --primary-button-active: #a43a23;
   --primary-button-disabled: #697477;
+  --notice-background: #172126;
+  --notice-text: #ffffff;
+  --notice-border: transparent;
 }
 
 html[data-theme="dark"] {
@@ -56,7 +59,7 @@ html[data-theme="dark"] {
   --green: #8ad0bc;
   --warning: #ffc276;
   --shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
-  --page-background: radial-gradient(circle at 15% 15%, rgba(255, 128, 96, 0.09), transparent 25rem), linear-gradient(135deg, #101114, #17181b 55%, #211b1a);
+  --page-background: linear-gradient(135deg, #101114, #17181b 55%, #211b1a);
   --paper-border: rgba(255, 255, 255, 0.08);
   --soft-accent: #382724;
   --soft-accent-border: rgba(255, 128, 96, 0.34);
@@ -86,6 +89,9 @@ html[data-theme="dark"] {
   --primary-button-hover: #ff9a7d;
   --primary-button-active: #e7684a;
   --primary-button-disabled: #70453d;
+  --notice-background: #292b30;
+  --notice-text: #f3f1ed;
+  --notice-border: rgba(138, 208, 188, 0.38);
 }
 
 * {
@@ -539,7 +545,8 @@ html[data-ui-transition="event-panel"]::view-transition-new(event-entry-content)
   grid-column: 1 / -1;
 }
 
-.manual-task-fields input {
+.manual-task-fields input,
+.manual-task-fields select {
   width: 100%;
   margin-top: 6px;
   padding: 11px 12px;
@@ -551,9 +558,86 @@ html[data-ui-transition="event-panel"]::view-transition-new(event-entry-content)
   text-transform: none;
 }
 
-.manual-task-fields input:focus {
+.manual-task-fields select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%;
+  background-repeat: no-repeat;
+  background-size: 5px 5px, 5px 5px;
+}
+
+.manual-task-fields input:focus,
+.manual-task-fields select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(234, 104, 71, 0.12);
+}
+
+.manual-schedule-panel {
+  grid-column: 1 / -1;
+}
+
+.manual-schedule-panel[hidden] {
+  display: none;
+}
+
+.manual-range-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.manual-date-adder {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.manual-date-adder button {
+  min-height: 42px;
+  padding: 9px 14px;
+  color: var(--accent-dark);
+  background: var(--soft-accent);
+  border: 1px solid var(--soft-accent-border);
+  border-radius: 10px;
+  font-weight: 800;
+}
+
+.manual-date-adder button:hover {
+  color: var(--on-strong);
+  background: var(--accent);
+}
+
+.manual-selected-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 18px;
+  margin-top: 10px;
+}
+
+.manual-date-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  color: var(--ink);
+  background: var(--field-background);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.manual-date-chip button {
+  padding: 0;
+  color: var(--accent-dark);
+  background: transparent;
+  border: 0;
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .manual-task-actions {
@@ -681,6 +765,68 @@ html[data-ui-transition="event-panel"]::view-transition-new(event-entry-content)
   border: 0;
   border-radius: 50%;
   transition: transform 150ms, color 150ms, background 150ms, box-shadow 150ms;
+}
+
+.upload-task-button {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  place-items: center;
+  color: var(--ink);
+  background: var(--field-background);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  transition: transform 150ms, border-color 150ms, background 150ms, box-shadow 150ms;
+}
+
+.upload-task-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+  box-shadow: 0 6px 16px rgba(234, 104, 71, 0.12);
+}
+
+.upload-task-button:active:not(:disabled) {
+  transform: translateY(0) scale(0.97);
+}
+
+.upload-task-button svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 2;
+}
+
+.upload-progress {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  color: var(--muted);
+  background: var(--field-background);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  font-size: 0.8rem;
+}
+
+.upload-progress[hidden] {
+  display: none;
+}
+
+.upload-spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: upload-spin 750ms linear infinite;
+}
+
+@keyframes upload-spin {
+  to { transform: rotate(360deg); }
 }
 
 .record-button:hover:not(:disabled) {
@@ -1287,8 +1433,9 @@ html[data-theme="dark"] .task-label-badge {
   max-width: min(90vw, 520px);
   margin: 0;
   padding: 11px 17px;
-  color: var(--on-strong);
-  background: var(--ink);
+  color: var(--notice-text);
+  background: var(--notice-background);
+  border: 1px solid var(--notice-border);
   border-radius: 999px;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
   font-size: 0.86rem;
@@ -1319,6 +1466,91 @@ html[data-theme="dark"] .task-label-badge {
   inset: 0;
   display: block;
   pointer-events: none;
+}
+
+.celebration-hero {
+  position: fixed;
+  z-index: 1150;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.celebration-check {
+  display: grid;
+  width: clamp(112px, 16vw, 164px);
+  height: clamp(112px, 16vw, 164px);
+  place-items: center;
+  filter: drop-shadow(0 18px 28px rgba(24, 45, 50, 0.25));
+  animation: celebration-check-pop 2.55s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+
+.celebration-check svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.celebration-check circle {
+  fill: #28a985;
+  stroke: rgba(255, 255, 255, 0.92);
+  stroke-width: 5;
+}
+
+.celebration-check path {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 10;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 80;
+  stroke-dashoffset: 80;
+  animation: celebration-check-draw 620ms 280ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.celebration-message {
+  display: grid;
+  min-width: min(78vw, 310px);
+  padding: 20px 28px;
+  color: #172126;
+  background: rgba(255, 253, 247, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 22px;
+  box-shadow: 0 22px 54px rgba(13, 27, 43, 0.25);
+  text-align: center;
+  backdrop-filter: blur(10px);
+  animation: celebration-message-in 2.9s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+
+.celebration-message strong {
+  font-family: "Fraunces", serif;
+  font-size: clamp(1.65rem, 4vw, 2.35rem);
+}
+
+.celebration-message small {
+  margin-top: 5px;
+  color: #5f6b70;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+@keyframes celebration-check-pop {
+  0% { opacity: 0; transform: scale(0.45) rotate(-10deg); }
+  18% { opacity: 1; transform: scale(1.1) rotate(2deg); }
+  28%, 74% { opacity: 1; transform: scale(1) rotate(0); }
+  100% { opacity: 0; transform: scale(0.88); }
+}
+
+@keyframes celebration-check-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes celebration-message-in {
+  0% { opacity: 0; transform: translate3d(0, 20px, 0) scale(0.9); }
+  16% { opacity: 1; transform: translate3d(0, 0, 0) scale(1.035); }
+  25%, 76% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  100% { opacity: 0; transform: translate3d(0, -10px, 0) scale(0.97); }
 }
 
 .task-edit-dialog {
@@ -1593,6 +1825,10 @@ html[data-theme="dark"] .task-label-badge {
 
   .manual-task-fields .manual-task-title {
     grid-column: auto;
+  }
+
+  .manual-range-fields {
+    grid-template-columns: 1fr;
   }
 
   .manual-task-actions {

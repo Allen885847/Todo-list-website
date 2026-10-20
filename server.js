@@ -14,6 +14,7 @@ const MAX_BODY_SIZE = 30_000;
 const MAX_LOCAL_DATA_SIZE = 2 * 1024 * 1024;
 const MAX_AUDIO_SIZE = 15 * 1024 * 1024;
 const MAX_INPUT_LENGTH = 4_000;
+const MAX_UPLOAD_TEXT_LENGTH = 16_000;
 const LOCAL_DATA_DIR = process.env.TODO_DATA_DIR || path.resolve(ROOT, "..", "Todo-list-user-data");
 const LOCAL_DATA_FILE = path.join(LOCAL_DATA_DIR, "state.json");
 const LOCAL_DATA_BACKUP = path.join(LOCAL_DATA_DIR, "state.previous.json");
@@ -47,8 +48,16 @@ const STATIC_FILES = new Map([
   ["/data-migration.js", ["data-migration.js", "text/javascript; charset=utf-8"]],
   ["/persistent-storage.js", ["persistent-storage.js", "text/javascript; charset=utf-8"]],
   ["/task-rules.js", ["task-rules.js", "text/javascript; charset=utf-8"]],
+  ["/task-file-scanner.js", ["task-file-scanner.js", "text/javascript; charset=utf-8"]],
   ["/voice-input.js", ["voice-input.js", "text/javascript; charset=utf-8"]],
   ["/page-transition.js", ["page-transition.js", "text/javascript; charset=utf-8"]],
+]);
+const VENDOR_FILES = new Map([
+  ["/vendor/pdf.min.mjs", ["node_modules/pdfjs-dist/legacy/build/pdf.min.mjs", "text/javascript; charset=utf-8"]],
+  ["/vendor/pdf.worker.min.mjs", ["node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs", "text/javascript; charset=utf-8"]],
+  ["/vendor/mammoth.browser.min.js", ["node_modules/mammoth/mammoth.browser.min.js", "text/javascript; charset=utf-8"]],
+  ["/vendor/tesseract.min.js", ["node_modules/tesseract.js/dist/tesseract.min.js", "text/javascript; charset=utf-8"]],
+  ["/vendor/tesseract.worker.min.js", ["node_modules/tesseract.js/dist/worker.min.js", "text/javascript; charset=utf-8"]],
 ]);
 
 function sendJson(response, status, data) {
@@ -327,12 +336,26 @@ function isSingleEmoji(value) {
   return segments.length === 1 && segments[0].segment === trimmed;
 }
 
-function normalizeGeneratedTasks(payload) {
+function expandGeneratedDateRange(start, end, maximumDays = 366) {
+  if (!isValidDate(start) || !isValidDate(end)) throw new Error("DeepSeek returned an invalid task date range.");
+  const cursor = new Date(Date.UTC(start.year, start.month - 1, start.day));
+  const last = new Date(Date.UTC(end.year, end.month - 1, end.day));
+  if (last < cursor) throw new Error("DeepSeek returned a reversed task date range.");
+  const dates = [];
+  while (cursor <= last) {
+    if (dates.length >= maximumDays) throw new Error(`A repeating task cannot exceed ${maximumDays} days.`);
+    dates.push({ day: cursor.getUTCDate(), month: cursor.getUTCMonth() + 1, year: cursor.getUTCFullYear() });
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return dates;
+}
+
+function normalizeGeneratedTasks(payload, { allowIncomplete = false } = {}) {
   if (!payload || !Array.isArray(payload.tasks) || payload.tasks.length > 30) {
     throw new Error("DeepSeek did not return a valid task list.");
   }
 
-  return payload.tasks.map((item) => {
+  const normalized = payload.tasks.flatMap((item) => {
     const title = typeof item?.title === "string" ? item.title.trim() : "";
     const subject = typeof item?.subject === "string" ? item.subject.trim() : "";
     const label = typeof item?.label === "string" ? item.label.trim().replace(/\s+/g, " ") : "";
@@ -340,27 +363,42 @@ function normalizeGeneratedTasks(payload) {
     const dateAmbiguous = item?.dateAmbiguous === true;
     const dateQuestion = typeof item?.dateQuestion === "string" ? item.dateQuestion.trim() : "";
 
-    if (!title || title.length > 200 || !subject || subject.length > 80 || label.length > 40 || !isSingleEmoji(emoji) || !isValidDate(item?.date)) {
+    let dates;
+    if (item?.dailyRange) {
+      dates = expandGeneratedDateRange(item.dailyRange.start, item.dailyRange.end);
+    } else if (Array.isArray(item?.dates) && item.dates.length > 0) {
+      if (item.dates.length > 366 || item.dates.some((date) => !isValidDate(date))) {
+        throw new Error("DeepSeek returned invalid selected task dates.");
+      }
+      const unique = new Map(item.dates.map((date) => [
+        `${date.year}-${date.month}-${date.day}`,
+        { day: date.day, month: date.month, year: date.year },
+      ]));
+      dates = [...unique.values()].sort((first, second) => Date.UTC(first.year, first.month - 1, first.day) - Date.UTC(second.year, second.month - 1, second.day));
+    } else {
+      dates = isValidDate(item?.date) ? [{ day: item.date.day, month: item.date.month, year: item.date.year }] : [null];
+    }
+    const hasValidSchedule = dates.every(Boolean);
+    if ((!allowIncomplete && (!title || !subject || !hasValidSchedule))
+      || title.length > 200 || subject.length > 80 || label.length > 40 || !isSingleEmoji(emoji)) {
       throw new Error("DeepSeek returned an invalid task.");
     }
-    if (dateAmbiguous && !dateQuestion) {
+    if ((dateAmbiguous || !hasValidSchedule) && !dateQuestion) {
       throw new Error("DeepSeek omitted an ambiguous-date question.");
     }
 
-    return {
+    return dates.map((date) => ({
       title,
       subject,
       label,
       emoji,
-      date: {
-        day: item.date.day,
-        month: item.date.month,
-        year: item.date.year,
-      },
-      dateAmbiguous,
-      dateQuestion: dateAmbiguous ? dateQuestion.slice(0, 240) : "",
-    };
+      date,
+      dateAmbiguous: dateAmbiguous || !hasValidSchedule,
+      dateQuestion: (dateAmbiguous || !hasValidSchedule) ? dateQuestion.slice(0, 240) : "",
+    }));
   });
+  if (normalized.length > 366) throw new Error("DeepSeek generated too many repeated task dates.");
+  return normalized;
 }
 
 function isValidIsoDate(value) {
@@ -413,7 +451,7 @@ function normalizeGeneratedEvent(payload) {
   };
 }
 
-async function parseTasks(input, timeZone) {
+async function parseTasks(input, timeZone, { fromUpload = false } = {}) {
   const { today, localTime } = getLocalContext(timeZone);
   const apiResponse = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
@@ -431,7 +469,7 @@ async function parseTasks(input, timeZone) {
       messages: [
         {
           role: "system",
-          content: `You turn Mandarin Chinese, English, or mixed-language plans into an editable todo-task preview.
+          content: `You turn Mandarin Chinese, English, or mixed-language ${fromUpload ? "text extracted from an uploaded image or document" : "plans"} into an editable todo-task preview.
 
 Current local context:
 - IANA time zone: ${timeZone}
@@ -439,7 +477,7 @@ Current local context:
 - Current local date and time: ${localTime}
 
 Return JSON only, in exactly this shape:
-{"tasks":[{"title":"Clear concise English task title","subject":"History","label":"Extra","emoji":"📚","date":{"day":9,"month":10,"year":2026},"dateAmbiguous":false,"dateQuestion":""}]}
+{"tasks":[{"title":"Clear concise English task title","subject":"History","label":"Extra","emoji":"📚","date":{"day":9,"month":10,"year":2026},"dates":[],"dailyRange":null,"dateAmbiguous":false,"dateQuestion":""}]}
 
 Rules:
 1. Create one item for every independently actionable task. Keep supporting details with their relevant task. Do not invent tasks, omit explicit actions, or turn background details into tasks.
@@ -453,10 +491,13 @@ Rules:
 9. Set label to "Extra" when the user says a task is optional, can be done if there is time, is a bonus, or has equivalent meaning. Example: "This task is due today, but I’ll only do it if I have time" must keep today's due date and use label "Extra".
 10. If the user explicitly supplies a custom task label, preserve their wording in label (including Chinese wording). Do not translate, normalize, or invent a custom label. Use an empty string when no optional meaning or custom label is stated. Labels are at most 40 characters.
 11. Interpret due dates task by task from sentence meaning and structure. A date applies to multiple tasks only when the wording clearly gives them a shared deadline. Different dates must stay with their correct tasks.
-12. If a task has no explicit or clearly shared deadline, use today (${today}) for that task, even when another task in the same input has a date.
+12. ${fromUpload
+  ? "For uploaded content, never invent a deadline, subject, or task description. If a due date is missing or unreadable, return date as null, set dateAmbiguous true, and explain what the user must enter in dateQuestion. If the subject or task description itself is missing or unreadable, use an empty string for that field so the user can complete it in the preview."
+  : `If a task has no explicit or clearly shared deadline, use today (${today}) for that task, even when another task in the same input has a date.`}
 13. Resolve relative dates such as today, tomorrow, this Friday, and next week using the local context above. Do not treat a date that merely describes a past event, meeting, trip, document, or other background information as a task deadline.
-14. If a date has two or more reasonable deadline interpretations, set dateAmbiguous to true, choose the most likely tentative date for the editable date field, and put a short English confirmation question in dateQuestion. This includes an unqualified weekday such as "Friday" when it could mean today/this week's occurrence or the following week's occurrence, and a numeric date whose month/day order is unclear. Otherwise use false and an empty string.
-15. day, month, and year must be integers. Return at most 30 tasks. If the input contains no actionable task, return {"tasks":[]}.`,
+14. Scheduling fields are mutually exclusive. For one due date, use date and leave dates empty and dailyRange null. If the user explicitly asks for the same task every day from one date through another, use dailyRange:{"start":{"day":1,"month":11,"year":2026},"end":{"day":5,"month":11,"year":2026}} and set date null. Both endpoints are inclusive. For several explicitly selected non-consecutive days, put each day in dates and set date null and dailyRange null. Do not create separate source task objects for each repeated day; the application expands them safely.
+15. If a date or range has two or more reasonable interpretations, set dateAmbiguous to true, choose the most likely tentative value, and put a short English confirmation question in dateQuestion. This includes an unqualified weekday such as "Friday" when it could mean today/this week's occurrence or the following week's occurrence, and a numeric date whose month/day order is unclear. Otherwise use false and an empty string.
+16. day, month, and year must be integers. A daily range may contain at most 366 days. Return at most 30 source task objects. If the input contains no actionable task, return {"tasks":[]}.`,
         },
         { role: "user", content: input },
       ],
@@ -471,7 +512,7 @@ Rules:
 
   const content = payload?.choices?.[0]?.message?.content;
   if (typeof content !== "string") throw new Error("DeepSeek returned no task data.");
-  return normalizeGeneratedTasks(JSON.parse(content));
+  return normalizeGeneratedTasks(JSON.parse(content), { allowIncomplete: fromUpload });
 }
 
 async function parseEvent(input, timeZone) {
@@ -586,13 +627,17 @@ const server = http.createServer(async (request, response) => {
     try {
       const body = await readJson(request);
       const input = typeof body.input === "string" ? body.input.trim() : "";
-      if (!input || input.length > MAX_INPUT_LENGTH) {
-        sendJson(response, 400, { error: "Enter one or more tasks in 1–4,000 characters." });
+      const fromUpload = body.inputMethod === "upload";
+      const inputLimit = fromUpload ? MAX_UPLOAD_TEXT_LENGTH : MAX_INPUT_LENGTH;
+      if (!input || input.length > inputLimit) {
+        sendJson(response, 400, { error: fromUpload
+          ? "The readable file content must be between 1 and 16,000 characters. Try a shorter document."
+          : "Enter one or more tasks in 1–4,000 characters." });
         return;
       }
 
       const timeZone = resolveTimeZone(body.timeZone);
-      const tasks = await parseTasks(input, timeZone);
+      const tasks = await parseTasks(input, timeZone, { fromUpload });
       sendJson(response, 200, { tasks });
     } catch (error) {
       console.error("Task processing failed:", error.message);
@@ -636,6 +681,16 @@ const server = http.createServer(async (request, response) => {
     response.writeHead(200, {
       "Content-Type": contentType,
       "Cache-Control": "no-cache",
+    });
+    fs.createReadStream(path.join(ROOT, filename)).pipe(response);
+    return;
+  }
+
+  if (request.method === "GET" && VENDOR_FILES.has(url.pathname)) {
+    const [filename, contentType] = VENDOR_FILES.get(url.pathname);
+    response.writeHead(200, {
+      "Content-Type": contentType,
+      "Cache-Control": "public, max-age=86400",
     });
     fs.createReadStream(path.join(ROOT, filename)).pipe(response);
     return;
