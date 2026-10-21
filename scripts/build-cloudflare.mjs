@@ -1,4 +1,4 @@
-import { cp, mkdir, rm } from "node:fs/promises";
+import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
@@ -29,6 +29,18 @@ const assets = [
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 await Promise.all(assets.map((file) => cp(resolve(root, file), resolve(output, file))));
+
+const packageConfig = JSON.parse(await readFile(resolve(root, "package.json"), "utf8"));
+if (typeof packageConfig.version !== "string" || !packageConfig.version.trim()) {
+  throw new Error("package.json must provide a non-empty version.");
+}
+const builtIndexPath = resolve(output, "index.html");
+const builtIndex = await readFile(builtIndexPath, "utf8");
+if (!builtIndex.includes("__APP_VERSION__")) {
+  throw new Error("index.html is missing the app version placeholder.");
+}
+await writeFile(builtIndexPath, builtIndex.replaceAll("__APP_VERSION__", packageConfig.version.trim()));
+
 const vendorAssets = [
   ["node_modules/pdfjs-dist/legacy/build/pdf.min.mjs", "vendor/pdf.min.mjs"],
   ["node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs", "vendor/pdf.worker.min.mjs"],

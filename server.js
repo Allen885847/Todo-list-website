@@ -10,6 +10,10 @@ const API_KEY = process.env.DEEPSEEK_API_KEY;
 const DOUBAO_SPEECH_API_KEY = process.env.DOUBAO_SPEECH_API_KEY;
 const DOUBAO_SPEECH_RESOURCE_ID = process.env.DOUBAO_SPEECH_RESOURCE_ID || "volc.seedasr.sauc.duration";
 const ROOT = __dirname;
+const PACKAGE_CONFIG = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
+const APP_VERSION = typeof PACKAGE_CONFIG.version === "string" && PACKAGE_CONFIG.version.trim()
+  ? PACKAGE_CONFIG.version.trim()
+  : "unknown";
 const MAX_BODY_SIZE = 30_000;
 const MAX_LOCAL_DATA_SIZE = 2 * 1024 * 1024;
 const MAX_AUDIO_SIZE = 15 * 1024 * 1024;
@@ -682,6 +686,11 @@ const server = http.createServer(async (request, response) => {
       "Content-Type": contentType,
       "Cache-Control": "no-cache",
     });
+    if (filename === "index.html") {
+      const html = fs.readFileSync(path.join(ROOT, filename), "utf8");
+      response.end(html.replaceAll("__APP_VERSION__", APP_VERSION));
+      return;
+    }
     fs.createReadStream(path.join(ROOT, filename)).pipe(response);
     return;
   }
