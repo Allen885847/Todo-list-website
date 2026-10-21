@@ -34,8 +34,20 @@
   const resetPassword = $("#reset-password");
   const resetPasswordConfirm = $("#reset-password-confirm");
   const resetStatus = $("#reset-status");
-  const accountEmail = $("#account-email");
+  const accountMenuButton = $("#account-menu-button");
+  const accountDisplayName = $("#account-display-name");
+  const accountMenu = $("#account-menu");
+  const accountMenuEmail = $("#account-menu-email");
+  const editProfileButton = $("#edit-profile-button");
   const logoutButton = $("#logout-button");
+  const profileDialog = $("#profile-dialog");
+  const profileForm = $("#profile-form");
+  const profileDisplayName = $("#profile-display-name");
+  const profileEmail = $("#profile-email");
+  const profileStatus = $("#profile-status");
+  const closeProfileButton = $("#close-profile");
+  const cancelProfileButton = $("#cancel-profile");
+  const saveProfileButton = $("#save-profile");
   const turnstileContainer = $("#turnstile-widget");
   let mode = "login";
   let awaitingVerification = false;
@@ -44,6 +56,8 @@
   let turnstileWidgetId = null;
   let turnstileToken = "";
   let appStarted = false;
+  let currentUser = null;
+  let profileBusy = false;
 
   function setStatus(element, message, type = "notice") {
     element.textContent = message;
@@ -117,11 +131,33 @@
     resetTurnstile();
   }
 
+  function displayNameFor(user) {
+    return String(user?.name || "").trim() || String(user?.email || "").trim() || "Account";
+  }
+
+  function renderAccount(user) {
+    currentUser = user ? { ...user } : null;
+    accountDisplayName.textContent = displayNameFor(currentUser);
+    accountMenuEmail.textContent = currentUser?.email || "";
+    profileDisplayName.value = String(currentUser?.name || "").trim();
+    profileEmail.value = currentUser?.email || "";
+  }
+
+  function setAccountMenu(open) {
+    accountMenu.hidden = !open;
+    accountMenuButton.setAttribute("aria-expanded", String(open));
+  }
+
+  function closeProfile() {
+    if (profileBusy) return;
+    profileDialog.close();
+  }
+
   function startApplication(user) {
     authStage.hidden = true;
     resetStage.hidden = true;
     appStage.hidden = false;
-    accountEmail.textContent = user?.email || "Signed in";
+    renderAccount(user);
     if (appStarted) return;
     appStarted = true;
     const script = document.createElement("script");
@@ -349,8 +385,59 @@
     }
   });
 
+  accountMenuButton.addEventListener("click", () => setAccountMenu(accountMenu.hidden));
+  editProfileButton.addEventListener("click", () => {
+    setAccountMenu(false);
+    renderAccount(currentUser);
+    setStatus(profileStatus, "Your email remains your sign-in address.");
+    profileDialog.showModal();
+    requestAnimationFrame(() => profileDisplayName.focus());
+  });
+  profileForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (profileBusy) return;
+    const name = profileDisplayName.value.trim().replace(/\s+/g, " ");
+    if (!name) {
+      setStatus(profileStatus, "Enter a display name.", "error");
+      profileDisplayName.focus();
+      return;
+    }
+    profileBusy = true;
+    saveProfileButton.disabled = true;
+    closeProfileButton.disabled = true;
+    cancelProfileButton.disabled = true;
+    setStatus(profileStatus, "Saving your display name…");
+    try {
+      await api("/api/auth/update-user", { method: "POST", body: JSON.stringify({ name }) });
+      const session = await api("/api/auth/get-session", { method: "GET" });
+      renderAccount(session?.user || { ...currentUser, name });
+      setStatus(profileStatus, "Profile saved.");
+      window.setTimeout(() => profileDialog.open && profileDialog.close(), 320);
+    } catch (error) {
+      setStatus(profileStatus, error.message, "error");
+    } finally {
+      profileBusy = false;
+      saveProfileButton.disabled = false;
+      closeProfileButton.disabled = false;
+      cancelProfileButton.disabled = false;
+    }
+  });
+  closeProfileButton.addEventListener("click", closeProfile);
+  cancelProfileButton.addEventListener("click", closeProfile);
+  profileDialog.addEventListener("cancel", (event) => {
+    if (profileBusy) event.preventDefault();
+  });
+  document.addEventListener("click", (event) => {
+    if (accountMenu.hidden || event.target.closest(".account-bar")) return;
+    setAccountMenu(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !accountMenu.hidden) setAccountMenu(false);
+  });
+
   logoutButton.addEventListener("click", async () => {
     logoutButton.disabled = true;
+    setAccountMenu(false);
     try { await api("/api/auth/sign-out", { method: "POST", body: "{}" }); } finally { location.href = "/app.html"; }
   });
   loginTab.addEventListener("click", () => setMode("login"));

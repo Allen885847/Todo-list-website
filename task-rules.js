@@ -31,22 +31,37 @@
 
   function isVisibleInActiveList(task, today = localDateIso()) {
     if (!task?.completed) return true;
+    const dueDate = dueDateIso(task);
+    if (dueDate && dueDate < today) return false;
     return normalizeCompletedOn(task.completedOn) === today;
   }
 
-  function areTodaysTasksComplete(tasks, today = localDateIso()) {
-    const todaysTasks = (Array.isArray(tasks) ? tasks : [])
-      .filter((task) => dueDateIso(task) === today);
-    return todaysTasks.length > 0 && todaysTasks.every((task) => task.completed);
+  function areCurrentTasksComplete(tasks, today = localDateIso()) {
+    const currentTasks = (Array.isArray(tasks) ? tasks : [])
+      .filter((task) => dueDateIso(task) && dueDateIso(task) <= today);
+    const hasTaskDueToday = currentTasks.some((task) => dueDateIso(task) === today);
+    return hasTaskDueToday && currentTasks.every((task) => task.completed);
+  }
+
+  function shouldCelebrateCurrentTasks(tasks, completedTask, wereCurrentTasksComplete, today = localDateIso()) {
+    const completedDueDate = dueDateIso(completedTask);
+    return Boolean(
+      completedTask?.completed
+      && completedDueDate
+      && completedDueDate <= today
+      && !wereCurrentTasksComplete
+      && areCurrentTasksComplete(tasks, today)
+    );
   }
 
   const rules = {
-    areTodaysTasksComplete,
+    areCurrentTasksComplete,
     compareByDueDate,
     dueDateIso,
     isVisibleInActiveList,
     localDateIso,
     normalizeCompletedOn,
+    shouldCelebrateCurrentTasks,
     withCompletion,
   };
 

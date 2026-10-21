@@ -1,8 +1,9 @@
 const assert = require("node:assert/strict");
 const {
-  areTodaysTasksComplete,
+  areCurrentTasksComplete,
   compareByDueDate,
   isVisibleInActiveList,
+  shouldCelebrateCurrentTasks,
   withCompletion,
 } = require("./task-rules.js");
 
@@ -11,7 +12,7 @@ const date = (year, month, day) => ({ year, month, day });
 assert.equal(isVisibleInActiveList({ date: date(2026, 10, 12), completed: false }, "2026-10-13"), true);
 assert.equal(isVisibleInActiveList({ date: date(2026, 10, 13), completed: true, completedOn: "2026-10-13" }, "2026-10-13"), true);
 assert.equal(isVisibleInActiveList({ date: date(2026, 10, 13), completed: true, completedOn: "2026-10-13" }, "2026-10-14"), false);
-assert.equal(isVisibleInActiveList({ date: date(2026, 10, 12), completed: true, completedOn: "2026-10-13" }, "2026-10-13"), true);
+assert.equal(isVisibleInActiveList({ date: date(2026, 10, 12), completed: true, completedOn: "2026-10-13" }, "2026-10-13"), false);
 assert.equal(isVisibleInActiveList({ date: date(2026, 10, 14), completed: true, completedOn: "2026-10-13" }, "2026-10-13"), true);
 assert.equal(isVisibleInActiveList({ date: null, completed: true, completedOn: "2026-10-13" }, "2026-10-13"), true);
 assert.equal(isVisibleInActiveList({ date: date(2026, 10, 12), completed: true, completedOn: "2026-10-12" }, "2026-10-13"), false);
@@ -21,17 +22,44 @@ assert.equal(completed.completed, true);
 assert.equal(completed.completedOn, "2026-10-13");
 assert.equal(withCompletion(completed, false, "2026-10-13").completedOn, null);
 
-assert.equal(areTodaysTasksComplete([
+assert.equal(areCurrentTasksComplete([
   { date: date(2026, 10, 13), completed: true },
   { date: date(2026, 10, 14), completed: false },
 ], "2026-10-13"), true);
-assert.equal(areTodaysTasksComplete([
+assert.equal(areCurrentTasksComplete([
   { date: date(2026, 10, 13), completed: true },
   { date: date(2026, 10, 13), completed: false },
 ], "2026-10-13"), false);
-assert.equal(areTodaysTasksComplete([
+assert.equal(areCurrentTasksComplete([
   { date: date(2026, 10, 14), completed: true },
 ], "2026-10-13"), false);
+assert.equal(areCurrentTasksComplete([
+  { date: date(2026, 10, 12), completed: false },
+  { date: date(2026, 10, 13), completed: true },
+], "2026-10-13"), false);
+
+const currentCompletedTasks = [
+  { date: date(2026, 10, 13), completed: true, label: "Extra" },
+  { date: date(2026, 10, 13), completed: true },
+  { date: date(2026, 10, 12), completed: true },
+  { date: date(2026, 10, 14), completed: false },
+];
+assert.equal(shouldCelebrateCurrentTasks(currentCompletedTasks, currentCompletedTasks[1], false, "2026-10-13"), true);
+assert.equal(shouldCelebrateCurrentTasks(currentCompletedTasks, currentCompletedTasks[1], true, "2026-10-13"), false);
+assert.equal(shouldCelebrateCurrentTasks(currentCompletedTasks, currentCompletedTasks[2], false, "2026-10-13"), true);
+assert.equal(shouldCelebrateCurrentTasks(currentCompletedTasks, currentCompletedTasks[3], false, "2026-10-13"), false);
+assert.equal(shouldCelebrateCurrentTasks([
+  { date: date(2026, 10, 12), completed: true },
+  { date: date(2026, 10, 14), completed: true },
+], { date: date(2026, 10, 12), completed: true }, false, "2026-10-13"), false);
+assert.equal(shouldCelebrateCurrentTasks([
+  { date: date(2026, 10, 13), completed: true },
+  { date: date(2026, 10, 13), completed: false, label: "Extra" },
+], { date: date(2026, 10, 13), completed: true }, false, "2026-10-13"), false);
+assert.equal(shouldCelebrateCurrentTasks([
+  { date: date(2026, 10, 12), completed: false },
+  { date: date(2026, 10, 13), completed: true },
+], { date: date(2026, 10, 13), completed: true }, false, "2026-10-13"), false);
 
 const orderedDates = [
   { date: date(2026, 10, 30) },

@@ -81,14 +81,40 @@
     </main>
     <main id="app-stage" class="app-stage" aria-label="Todo List application" hidden>
       <div class="account-bar">
-        <span id="account-email"></span>
-        <button id="logout-button" type="button">Log out</button>
+        <button id="account-menu-button" class="account-menu-button" type="button" aria-haspopup="menu" aria-expanded="false">
+          <span id="account-display-name">Account</span>
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"></path></svg>
+        </button>
+        <div id="account-menu" class="account-menu" role="menu" hidden>
+          <p id="account-menu-email"></p>
+          <button id="edit-profile-button" type="button" role="menuitem">Edit Profile</button>
+          <button id="logout-button" class="logout-button" type="button" role="menuitem">Log out</button>
+        </div>
       </div>
       <div id="app-loading" class="app-loading" role="status" aria-live="polite">
         <span aria-hidden="true"></span>
         <p>Opening your list…</p>
       </div>
     </main>
+    <dialog id="profile-dialog" class="profile-dialog" aria-labelledby="profile-dialog-title">
+      <form id="profile-form" class="profile-card">
+        <div class="profile-heading">
+          <div>
+            <p class="auth-eyebrow">ACCOUNT SETTINGS</p>
+            <h2 id="profile-dialog-title">Edit Profile</h2>
+          </div>
+          <button id="close-profile" class="profile-close" type="button" aria-label="Close profile settings">&times;</button>
+        </div>
+        <label>Display name<input id="profile-display-name" type="text" maxlength="60" autocomplete="name" required /></label>
+        <label>Email address<input id="profile-email" type="email" readonly aria-readonly="true" /></label>
+        <p class="profile-help">Your display name changes how your account appears here. It does not change your email or sign-in details.</p>
+        <p id="profile-status" class="auth-status" role="status" aria-live="polite"></p>
+        <div class="profile-actions">
+          <button id="cancel-profile" class="profile-secondary" type="button">Cancel</button>
+          <button id="save-profile" class="profile-primary" type="submit">Save profile</button>
+        </div>
+      </form>
+    </dialog>
     <script src="login-ui.js"></script>
   </body>
 </html>

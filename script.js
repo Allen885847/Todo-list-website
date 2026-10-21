@@ -436,12 +436,18 @@ function createTaskElement(todo, index) {
   });
 
   checkbox.addEventListener("change", () => {
-    const hadIncompleteTasks = state.tasks.some((task) => !task.completed);
-    state.tasks[index] = TodoTaskRules.withCompletion(state.tasks[index], checkbox.checked);
-    const completedAllTasks = state.tasks.length > 0 && state.tasks.every((task) => task.completed);
+    const today = TodoTaskRules.localDateIso();
+    const wereCurrentTasksComplete = TodoTaskRules.areCurrentTasksComplete(state.tasks, today);
+    state.tasks[index] = TodoTaskRules.withCompletion(state.tasks[index], checkbox.checked, today);
+    const shouldCelebrate = checkbox.checked && TodoTaskRules.shouldCelebrateCurrentTasks(
+      state.tasks,
+      state.tasks[index],
+      wereCurrentTasksComplete,
+      today,
+    );
     saveState();
     renderTasks();
-    if (checkbox.checked && hadIncompleteTasks && completedAllTasks) celebrateCompletion();
+    if (shouldCelebrate) celebrateCompletion();
     else if (checkbox.checked) showPageNotice("Task completed. It remains in Calendar.", "success");
     else showPageNotice("Task marked incomplete.", "success");
   });

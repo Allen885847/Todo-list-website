@@ -17,6 +17,10 @@ assert.match(appHtml, /id="verification-code"/);
 assert.match(appHtml, /id="send-recovery-code"/);
 assert.match(appHtml, /id="auth-password"[^>]*minlength="8"/);
 assert.match(appHtml, /id="app-stage"/);
+assert.match(appHtml, /id="account-menu-button"/);
+assert.match(appHtml, /id="edit-profile-button"/);
+assert.match(appHtml, /id="profile-display-name"[^>]*maxlength="60"/);
+assert.match(appHtml, /id="profile-email"[^>]*readonly/);
 assert.match(appHtml, /<script src="login-ui\.js"><\/script>/);
 assert.doesNotMatch(appHtml, /cloud|supabase/i);
 
@@ -31,9 +35,16 @@ assert.match(loginScript, /\/api\/auth\/email-otp\/request-password-reset/);
 assert.match(loginScript, /\/api\/auth\/email-otp\/reset-password/);
 assert.match(loginScript, /Set or reset an existing account password/);
 assert.match(loginScript, /\/api\/auth\/sign-out/);
+assert.match(loginScript, /\/api\/auth\/update-user/);
+assert.match(loginScript, /JSON\.stringify\(\{ name \}\)/);
+assert.match(loginScript, /renderAccount\(session\?\.user/);
+assert.match(loginScript, /accountMenuEmail\.textContent = currentUser\?\.email/);
+assert.match(loginScript, /accountDisplayName\.textContent = displayNameFor\(currentUser\)/);
 
 assert.match(loginStyles, /\.auth-tabs/);
 assert.match(loginStyles, /\.verification-fields/);
+assert.match(loginStyles, /\.account-menu/);
+assert.match(loginStyles, /\.profile-dialog/);
 assert.match(loginStyles, /:root\[data-theme="dark"\] \.auth-card/);
 assert.match(loginStyles, /@media \(max-width: 600px\)/);
 assert.match(server, /\["\/login\.css", \["login\.css", "text\/css; charset=utf-8"\]\]/);
