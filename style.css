@@ -1010,8 +1010,8 @@ body.recording .stop-icon {
 }
 
 .preview-item.ambiguous {
-  border-color: var(--warning-border);
-  box-shadow: inset 4px 0 var(--warning-border);
+  border-color: var(--line);
+  box-shadow: none;
 }
 
 .preview-fields {
@@ -1100,14 +1100,14 @@ body.recording .stop-icon {
 
 .date-warning p {
   margin: 0;
-  color: var(--warning);
+  color: var(--muted);
   font-size: 0.8rem;
 }
 
 .confirm-date {
   flex: 0 0 auto;
-  color: var(--warning-ink);
-  background: var(--warning-background);
+  color: var(--accent-dark);
+  background: var(--soft-accent);
 }
 
 .save-preview {

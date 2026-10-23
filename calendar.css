@@ -1287,9 +1287,9 @@ html[data-theme="dark"] .calendar-label-badge {
 .event-clarification {
   margin-bottom: 15px;
   padding: 12px;
-  color: var(--warning);
-  background: var(--warning-background);
-  border: 1px solid var(--warning-border);
+  color: var(--ink);
+  background: var(--field-background);
+  border: 1px solid var(--line);
   border-radius: 11px;
   font-size: 0.78rem;
 }
@@ -1303,6 +1303,30 @@ html[data-theme="dark"] .calendar-label-badge {
   display: flex;
   align-items: center;
   gap: 7px;
+}
+
+.draft-clarification {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.draft-clarification p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.confirm-event-date {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  color: var(--accent-dark);
+  background: var(--soft-accent);
+  border: 0;
+  border-radius: 8px;
+  font-size: 0.76rem;
+  font-weight: 700;
 }
 
 .event-fields {

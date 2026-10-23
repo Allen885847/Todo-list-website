@@ -1533,6 +1533,8 @@ function createPreviewElement(item, index) {
       previewTasks[index].dateAmbiguous = false;
       previewTasks[index].dateQuestion = "";
       renderPreview();
+      setStatus("Date confirmed. You can save the generated tasks.", "success");
+      savePreviewButton.focus({ preventScroll: true });
     });
     warning.append(message, confirm);
     row.append(warning);

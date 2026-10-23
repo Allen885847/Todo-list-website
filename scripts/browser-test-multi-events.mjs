@@ -72,18 +72,33 @@ const expression = `(async () => {
   blank.querySelector('[data-field="title"]').value = "Dentist";
   blank.querySelector('[data-field="startDate"]').value = "2026-10-26";
   blank.querySelector('[data-field="endDate"]').value = "2026-10-26";
-  blank.querySelector('[data-field="confirmed"]').checked = true;
+  blank.querySelector(".confirm-event-date").click();
   cards[0].querySelector('[data-field="title"]').value = "Physics study group";
   document.querySelector("#save-event").click();
   await waitFor(() => !document.querySelector("#event-dialog").open, "Batch did not save");
   const saved = JSON.parse(localStorage.getItem("todo-calendar-events") || "[]");
+  window.fetch = async () => ({ ok: true, json: async () => ({ events: [
+    { title: "Ambiguous meeting", startDate: "2026-10-27", endDate: "2026-10-27", holiday: false, startTime: "", endTime: "", dateMissing: false, dateAmbiguous: true, clarificationQuestion: "Did you mean October 27?" }
+  ] }) });
+  document.querySelector("#add-event").click();
+  await waitFor(() => document.querySelector("#event-dialog").open, "Confirmation dialog did not open");
+  document.querySelector("#event-description").value = "Meeting on 10/27";
+  document.querySelector("#interpret-event").click();
+  await waitFor(() => Boolean(document.querySelector(".confirm-event-date")), "Date confirmation did not render");
+  document.querySelector(".confirm-event-date").click();
+  const confirmationCleared = !document.querySelector(".draft-clarification");
+  document.querySelector("#save-event").click();
+  await waitFor(() => !document.querySelector("#event-dialog").open, "Confirmed event did not save");
+  const savedAfterConfirmation = JSON.parse(localStorage.getItem("todo-calendar-events") || "[]");
   return {
     firstCount, appendedCount, removedCount,
     savedCount: saved.length,
     titles: saved.map((event) => event.title),
     dialogClosed: !document.querySelector("#event-dialog").open,
     holidayPreserved: saved.some((event) => event.holiday && event.startDate === "2026-12-20" && event.endDate === "2027-01-05"),
-    timesPreserved: saved.some((event) => event.startTime === "15:00" && event.endTime === "16:00")
+    timesPreserved: saved.some((event) => event.startTime === "15:00" && event.endTime === "16:00"),
+    confirmationCleared,
+    confirmedEventSaved: savedAfterConfirmation.length === 4 && savedAfterConfirmation.some((event) => event.title === "Ambiguous meeting")
   };
 })()`;
 const evaluation = await command("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
@@ -92,6 +107,7 @@ socket.close();
 if (evaluation.exceptionDetails) throw new Error(evaluation.exceptionDetails.text);
 if (!result || result.firstCount !== 2 || result.appendedCount !== 3 || result.removedCount !== 2
   || result.savedCount !== 3 || !result.dialogClosed || !result.holidayPreserved || !result.timesPreserved
+  || !result.confirmationCleared || !result.confirmedEventSaved
   || result.titles[0] !== "Physics study group" || !result.titles.includes("Dentist")) {
   throw new Error(`Multi-event browser test failed: ${JSON.stringify(result)}`);
 }

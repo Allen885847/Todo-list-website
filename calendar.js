@@ -899,7 +899,7 @@ function readEventDraftCards() {
     dateMissing: card.dataset.dateMissing === "true",
     dateAmbiguous: card.dataset.dateAmbiguous === "true",
     clarificationQuestion: card.dataset.question || "",
-    confirmed: card.querySelector('[data-field="confirmed"]')?.checked || false,
+    confirmed: card.dataset.confirmed === "true",
   }));
 }
 
@@ -932,6 +932,7 @@ function renderEventDrafts() {
     card.className = "event-draft-card";
     card.dataset.dateMissing = String(Boolean(draft.dateMissing));
     card.dataset.dateAmbiguous = String(Boolean(draft.dateAmbiguous));
+    card.dataset.confirmed = String(Boolean(draft.confirmed));
     card.dataset.question = draft.clarificationQuestion || "";
 
     const heading = document.createElement("div");
@@ -993,13 +994,30 @@ function renderEventDrafts() {
       clarification.className = "event-clarification draft-clarification";
       const question = document.createElement("p");
       question.textContent = draft.clarificationQuestion || "Please check this event date before saving.";
-      const confirmationLabel = document.createElement("label");
-      const confirmation = document.createElement("input");
-      confirmation.type = "checkbox";
-      confirmation.checked = Boolean(draft.confirmed);
-      confirmation.dataset.field = "confirmed";
-      confirmationLabel.append(confirmation, document.createTextNode(" I have checked and confirmed these dates."));
-      clarification.append(question, confirmationLabel);
+      const confirmDate = document.createElement("button");
+      confirmDate.type = "button";
+      confirmDate.className = "confirm-event-date";
+      confirmDate.textContent = "Confirm date";
+      confirmDate.addEventListener("click", () => {
+        if (!parseIsoDate(startDateField.input.value) || !parseIsoDate(endDateField.input.value)) {
+          setEventSaveStatus("Enter a valid start and end date before confirming.");
+          (parseIsoDate(startDateField.input.value) ? endDateField.input : startDateField.input).focus();
+          return;
+        }
+        if (endDateField.input.value < startDateField.input.value) {
+          setEventSaveStatus("The end date cannot be before the start date.");
+          endDateField.input.focus();
+          return;
+        }
+        card.dataset.dateMissing = "false";
+        card.dataset.dateAmbiguous = "false";
+        card.dataset.confirmed = "true";
+        card.dataset.question = "";
+        clarification.remove();
+        setEventSaveStatus();
+        setEventAiStatus("Date confirmed. This event is ready to save.", "success");
+      });
+      clarification.append(question, confirmDate);
       card.append(clarification);
     }
     card.append(fields);
