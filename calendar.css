@@ -1237,6 +1237,11 @@ html[data-theme="dark"] .calendar-label-badge {
   box-shadow: 0 8px 22px rgba(24, 34, 37, 0.05);
 }
 
+.event-draft-card.has-save-error {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(234, 104, 71, 0.12);
+}
+
 .event-draft-heading {
   margin-bottom: 12px;
 }
@@ -1257,6 +1262,14 @@ html[data-theme="dark"] .calendar-label-badge {
 
 .draft-clarification {
   margin: 0 0 12px;
+}
+
+.event-save-status {
+  justify-content: flex-end;
+  margin-top: 10px;
+  color: var(--accent-dark);
+  font-weight: 700;
+  text-align: right;
 }
 
 .event-draft-fields {

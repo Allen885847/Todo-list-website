@@ -48,6 +48,7 @@ const eventStartTime = document.querySelector("#event-start-time");
 const eventEndTime = document.querySelector("#event-end-time");
 const deleteEventButton = document.querySelector("#delete-event");
 const saveEventButton = document.querySelector("#save-event");
+const eventSaveStatus = document.querySelector("#event-save-status");
 
 const taskDialog = document.querySelector("#task-dialog");
 const taskEditor = document.querySelector("#task-editor");
@@ -857,8 +858,15 @@ function resetEventEditor() {
   deleteEventButton.hidden = true;
   saveEventButton.textContent = "Save event";
   saveEventButton.disabled = false;
+  eventSaveStatus.hidden = true;
+  eventSaveStatus.textContent = "";
   fillEventFields({ title: "", startDate: toIsoDate(selectedDate), endDate: toIsoDate(selectedDate), allDay: true, holiday: false });
   setEventTab("natural");
+}
+
+function setEventSaveStatus(message = "") {
+  eventSaveStatus.textContent = message;
+  eventSaveStatus.hidden = !message;
 }
 
 function blankEventDraft() {
@@ -995,6 +1003,10 @@ function renderEventDrafts() {
       card.append(clarification);
     }
     card.append(fields);
+    card.addEventListener("input", () => {
+      card.classList.remove("has-save-error");
+      setEventSaveStatus();
+    });
     eventDraftList.append(card);
   });
   showBatchEventPreview();
@@ -1087,10 +1099,12 @@ function validateEventFields() {
 }
 
 function saveEventFromEditor() {
+  setEventSaveStatus();
   if (!editingEventId && naturalPanel.hidden) {
     const error = validateEventFields();
     if (error) {
       showEventClarification(error, needsDateConfirmation);
+      setEventSaveStatus(error);
       return;
     }
     eventDrafts.push({
@@ -1121,6 +1135,8 @@ function saveEventFromEditor() {
       else if (draft.startDate === draft.endDate && draft.startTime && draft.endTime && draft.endTime <= draft.startTime) error = `${prefix}: the end time must be later than the start time.`;
       if (error) {
         setEventAiStatus(error, "error");
+        setEventSaveStatus(error);
+        eventDraftList.children[index]?.classList.add("has-save-error");
         eventDraftList.children[index]?.scrollIntoView({ behavior: reducedMotion.matches ? "auto" : "smooth", block: "center" });
         return;
       }
@@ -1142,6 +1158,7 @@ function saveEventFromEditor() {
   const error = validateEventFields();
   if (error) {
     showEventClarification(error, needsDateConfirmation);
+    setEventSaveStatus(error);
     return;
   }
   const event = {
@@ -1275,6 +1292,7 @@ eventEditor.addEventListener("submit", (event) => {
   event.preventDefault();
   saveEventFromEditor();
 });
+saveEventButton.addEventListener("click", saveEventFromEditor);
 deleteEventButton.addEventListener("click", deleteCurrentEvent);
 deleteTaskButton.addEventListener("click", deleteCurrentTask);
 document.querySelectorAll("[data-close-dialog]").forEach((button) => {

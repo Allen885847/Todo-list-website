@@ -59,11 +59,15 @@ assert.match(calendarScript, /Speech recognized\. DeepSeek is generating the eve
 assert.match(calendarHtml, /Describe one or more events/);
 assert.match(calendarHtml, /id="event-draft-list"/);
 assert.match(calendarHtml, /id="add-event-draft"[^>]*>Add event</);
+assert.match(calendarHtml, /id="event-editor" novalidate/);
+assert.match(calendarHtml, /id="save-event"[^>]*type="button"/);
+assert.match(calendarHtml, /id="event-save-status"/);
 assert.match(calendarScript, /Array\.isArray\(result\.events\)/);
 assert.match(calendarScript, /eventDrafts\.push\(\.\.\.generated/);
 assert.match(calendarScript, /function renderEventDrafts\(\)/);
 assert.match(calendarScript, /Save \$\{count\} \$\{count === 1 \? "event" : "events"\}/);
 assert.match(calendarScript, /events\.push\(\.\.\.prepared\)/);
+assert.match(calendarScript, /saveEventButton\.addEventListener\("click", saveEventFromEditor\)/);
 assert.match(calendarScript, /Manual event added to the review/);
 assert.match(serverScript, /async function parseEvents\(input, timeZone\)/);
 assert.match(serverScript, /"events":\[/);

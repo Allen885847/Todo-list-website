@@ -97,7 +97,7 @@
     </main>
 
     <dialog id="event-dialog" class="editor-dialog">
-      <form method="dialog" class="dialog-card" id="event-editor">
+      <form method="dialog" class="dialog-card" id="event-editor" novalidate>
         <div class="dialog-heading">
           <div>
             <p class="section-label">PERSONAL EVENT</p>
@@ -170,8 +170,9 @@
             <button id="delete-event" class="dialog-danger" type="button" hidden>Delete event</button>
             <span class="dialog-spacer"></span>
             <button class="dialog-secondary" type="button" data-close-dialog>Cancel</button>
-            <button id="save-event" class="dialog-primary" type="submit">Save event</button>
+            <button id="save-event" class="dialog-primary" type="button">Save event</button>
           </div>
+          <p id="event-save-status" class="dialog-status event-save-status" aria-live="assertive" hidden></p>
         </section>
       </form>
     </dialog>
