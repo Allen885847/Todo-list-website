@@ -37,11 +37,12 @@ const expression = `(async () => {
   const waitFor = async (predicate, message) => {
     const deadline = Date.now() + 3000;
     while (!predicate()) {
-      if (Date.now() > deadline) throw new Error(message);
+      if (Date.now() > deadline) throw new Error(typeof message === "function" ? message() : message);
       await new Promise((resolve) => setTimeout(resolve, 25));
     }
   };
   localStorage.removeItem("todo-calendar-events");
+  document.documentElement.dataset.theme = "dark";
   document.querySelector('[data-view="day"]').click();
   const periodBeforeSaving = document.querySelector("#period-label").textContent;
   document.querySelector("#add-event").click();
@@ -49,9 +50,13 @@ const expression = `(async () => {
   const backdropFilters = [getComputedStyle(document.querySelector("#event-dialog"), "::backdrop").backdropFilter];
   document.querySelector("#manual-tab").click();
   backdropFilters.push(getComputedStyle(document.querySelector("#event-dialog"), "::backdrop").backdropFilter);
-  await new Promise((resolve) => setTimeout(resolve, 60));
+  await new Promise((resolve) => setTimeout(resolve, 320));
+  const timeInputStyle = getComputedStyle(document.querySelector("#event-start-time"));
+  const timeTextIsWhite = timeInputStyle.color === "rgb(255, 255, 255)"
+    && timeInputStyle.webkitTextFillColor === "rgb(255, 255, 255)";
   document.querySelector("#natural-tab").click();
   backdropFilters.push(getComputedStyle(document.querySelector("#event-dialog"), "::backdrop").backdropFilter);
+  await new Promise((resolve) => setTimeout(resolve, 320));
   let responseNumber = 0;
   window.fetch = async (url) => {
     if (url !== "/api/parse-event") throw new Error("Unexpected request: " + url);
@@ -83,7 +88,10 @@ const expression = `(async () => {
   blank.querySelector(".confirm-event-date").click();
   cards[0].querySelector('[data-field="title"]').value = "Physics study group";
   document.querySelector("#save-event").click();
-  await waitFor(() => !document.querySelector("#event-dialog").open, "Batch did not save");
+  await waitFor(
+    () => !document.querySelector("#event-dialog").open,
+    () => "Batch did not save: " + (document.querySelector("#event-save-status").textContent || document.querySelector("#event-ai-status").textContent),
+  );
   const periodAfterSaving = document.querySelector("#period-label").textContent;
   const saved = JSON.parse(localStorage.getItem("todo-calendar-events") || "[]");
   window.fetch = async () => ({ ok: true, json: async () => ({ events: [
@@ -102,6 +110,7 @@ const expression = `(async () => {
   return {
     firstCount, appendedCount, removedCount,
     backdropStayedBlurred: backdropFilters.every((value) => value && value !== "none" && value.includes("blur")),
+    timeTextIsWhite,
     calendarDatePreserved: periodAfterSaving === periodBeforeSaving,
     savedCount: saved.length,
     titles: saved.map((event) => event.title),
@@ -118,6 +127,7 @@ socket.close();
 if (evaluation.exceptionDetails) throw new Error(evaluation.exceptionDetails.text);
 if (!result || result.firstCount !== 2 || result.appendedCount !== 3 || result.removedCount !== 2
   || !result.backdropStayedBlurred
+  || !result.timeTextIsWhite
   || !result.calendarDatePreserved
   || result.savedCount !== 3 || !result.dialogClosed || !result.holidayPreserved || !result.timesPreserved
   || !result.confirmationCleared || !result.confirmedEventSaved

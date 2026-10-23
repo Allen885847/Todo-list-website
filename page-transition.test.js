@@ -105,8 +105,10 @@ assert.match(calendarStyles, /\.editor-dialog::\-webkit-scrollbar,\s*\.dialog-ca
 assert.match(calendarStyles, /\.editor-dialog\.is-opening \.dialog-card\s*\{\s*overflow-y: hidden;/);
 assert.match(taskScript, /runTodoViewTransition\("task-panel", updateMode\)/);
 assert.doesNotMatch(calendarScript, /runTodoViewTransition\("event-panel", updateMode\)/);
-assert.match(calendarScript, /panel\.classList\.add\("event-panel-enter"\)/);
-assert.match(calendarStyles, /\.event-panel-enter\s*\{[\s\S]*?170ms cubic-bezier\(0\.22, 1, 0\.36, 1\)/);
+assert.match(calendarScript, /await eventModeContent\.animate\(\[/);
+assert.match(calendarScript, /duration: 105, easing: "ease-in"/);
+assert.match(calendarScript, /duration: 175, easing: "cubic-bezier\(0\.22, 1, 0\.36, 1\)"/);
+assert.match(calendarStyles, /html\[data-theme="dark"\] \.event-fields input\[type="time"\][\s\S]*?-webkit-text-fill-color: #ffffff;/);
 assert.match(calendarScript, /function closeDialogAnimated\(dialog\)/);
 assert.match(calendarScript, /function prepareDialogOpening\(dialog\)/);
 assert.match(calendarScript, /dialog\.classList\.remove\("is-opening"\)/);
