@@ -54,10 +54,17 @@
     );
   }
 
+  function isOptionalOrEarlyTask(task, today = localDateIso()) {
+    const isExtra = String(task?.label || "").trim().toLowerCase() === "extra";
+    const dueDate = dueDateIso(task);
+    return isExtra || Boolean(dueDate && dueDate > today);
+  }
+
   const rules = {
     areCurrentTasksComplete,
     compareByDueDate,
     dueDateIso,
+    isOptionalOrEarlyTask,
     isVisibleInActiveList,
     localDateIso,
     normalizeCompletedOn,

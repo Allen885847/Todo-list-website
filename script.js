@@ -94,6 +94,7 @@ let isRewritingTask = false;
 let taskEditDialogTimer;
 let composerOpen = activeTasks().length === 0;
 let appearanceMode = loadAppearance();
+let celebrationQueue = Promise.resolve();
 const taskLayoutAnimations = new WeakMap();
 
 function dueDateValue(item) {
@@ -438,16 +439,23 @@ function createTaskElement(todo, index) {
     const today = TodoTaskRules.localDateIso();
     const wereCurrentTasksComplete = TodoTaskRules.areCurrentTasksComplete(state.tasks, today);
     state.tasks[index] = TodoTaskRules.withCompletion(state.tasks[index], checkbox.checked, today);
+    const completedTask = state.tasks[index];
     const shouldCelebrate = checkbox.checked && TodoTaskRules.shouldCelebrateCurrentTasks(
       state.tasks,
-      state.tasks[index],
+      completedTask,
       wereCurrentTasksComplete,
       today,
     );
+    const shouldCelebrateOptionalOrEarly = checkbox.checked
+      && TodoTaskRules.isOptionalOrEarlyTask(completedTask, today);
     saveState();
     renderTasks();
-    if (shouldCelebrate) celebrateCompletion();
-    else if (checkbox.checked) showPageNotice("Task completed. It remains in Calendar.", "success");
+    if (shouldCelebrateOptionalOrEarly || shouldCelebrate) {
+      const celebrations = [];
+      if (shouldCelebrateOptionalOrEarly) celebrations.push(() => celebrateOptionalOrEarlyTask(completedTask, today));
+      if (shouldCelebrate) celebrations.push(celebrateCompletion);
+      enqueueCelebrations(celebrations);
+    } else if (checkbox.checked) showPageNotice("Task completed. It remains in Calendar.", "success");
     else showPageNotice("Task marked incomplete.", "success");
   });
   editButton.addEventListener("click", () => openTaskEditor(index));
@@ -708,16 +716,22 @@ function drawCelebrationStar(context, x, y, radius, rotation, points = 5) {
 }
 
 function launchCelebrationCanvas(variant, hero) {
+  return new Promise((resolve) => {
   const layer = document.createElement("canvas");
   layer.className = `confetti-layer celebration-canvas ${variant}`;
   layer.setAttribute("aria-hidden", "true");
   const context = layer.getContext("2d");
   if (!context) {
-    window.setTimeout(() => hero.remove(), 3000);
+    window.setTimeout(() => {
+      hero.remove();
+      resolve();
+    }, 3000);
     return;
   }
 
-  const colors = ["#ff6b52", "#ffbd3f", "#39bca0", "#55a8ff", "#9e72e8", "#f45fb3"];
+  const colors = variant === "bonus-achievement"
+    ? ["#ffd66b", "#ff9f43", "#68c7ff", "#8e7dff", "#ffffff"]
+    : ["#ff6b52", "#ffbd3f", "#39bca0", "#55a8ff", "#9e72e8", "#f45fb3"];
   let viewportWidth = window.innerWidth;
   let viewportHeight = window.innerHeight;
   let scale = Math.min(window.devicePixelRatio || 1, 2);
@@ -754,6 +768,24 @@ function launchCelebrationCanvas(variant, hero) {
         color: colors[index % colors.length],
       });
     }
+  } else if (variant === "bonus-achievement") {
+    for (let index = 0; index < 64; index += 1) {
+      const angle = -Math.PI * (0.15 + Math.random() * 0.7);
+      const speed = 2.5 + Math.random() * 4.8;
+      particles.push({
+        type: index % 4 === 0 ? "star" : (index % 3 === 0 ? "sparkle" : "orb"),
+        x: centerX + (Math.random() - 0.5) * Math.min(viewportWidth * 0.34, 260),
+        y: Math.min(viewportHeight * 0.34, 280) + (Math.random() - 0.5) * 34,
+        vx: Math.cos(angle) * speed * (Math.random() < 0.5 ? -1 : 1),
+        vy: Math.sin(angle) * speed - 0.8,
+        gravity: 0.075 + Math.random() * 0.025,
+        size: 3.5 + Math.random() * 6,
+        rotation: Math.random() * Math.PI * 2,
+        spin: (Math.random() - 0.5) * 0.2,
+        color: colors[index % colors.length],
+        delay: Math.random() * 260,
+      });
+    }
   } else {
     const bursts = [
       [0.25, 0.3, 0], [0.72, 0.25, 180], [0.48, 0.2, 410], [0.82, 0.43, 650],
@@ -783,7 +815,7 @@ function launchCelebrationCanvas(variant, hero) {
     }
   }
 
-  const duration = variant === "check-burst" ? 2850 : 3200;
+  const duration = variant === "check-burst" ? 2850 : (variant === "bonus-achievement" ? 2250 : 3200);
   let previousTime = performance.now();
   const startTime = previousTime;
   const animate = (time) => {
@@ -815,6 +847,10 @@ function launchCelebrationCanvas(variant, hero) {
         context.moveTo(particle.x, particle.y - particle.size);
         context.lineTo(particle.x, particle.y + particle.size);
         context.stroke();
+      } else if (particle.type === "orb") {
+        context.beginPath();
+        context.arc(particle.x, particle.y, particle.size / 2, 0, Math.PI * 2);
+        context.fill();
       } else if (particle.type === "firework") {
         particle.trail.push([particle.x, particle.y]);
         if (particle.trail.length > 7) particle.trail.shift();
@@ -848,9 +884,11 @@ function launchCelebrationCanvas(variant, hero) {
       window.removeEventListener("resize", resizeLayer);
       layer.remove();
       hero.remove();
+      resolve();
     }
   };
   requestAnimationFrame(animate);
+  });
 }
 
 function celebrateCompletion() {
@@ -859,7 +897,7 @@ function celebrateCompletion() {
     "completion",
     2300,
   );
-  if (prefersReducedMotion) return;
+  if (prefersReducedMotion) return new Promise((resolve) => window.setTimeout(resolve, 900));
   const variant = Math.random() < 0.5 ? "check-burst" : "firework-ribbons";
   const hero = document.createElement("div");
   hero.className = `celebration-hero ${variant}`;
@@ -868,7 +906,28 @@ function celebrateCompletion() {
     ? '<span class="celebration-check"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="51"></circle><path d="m34 61 17 17 36-39"></path></svg></span>'
     : '<span class="celebration-message"><strong>Brilliant work!</strong><small>Everything is complete</small></span>';
   document.body.append(hero);
-  launchCelebrationCanvas(variant, hero);
+  return launchCelebrationCanvas(variant, hero);
+}
+
+function celebrateOptionalOrEarlyTask(task, today) {
+  const isExtra = String(task?.label || "").trim().toLowerCase() === "extra";
+  const isEarly = Boolean(task?.date && toIsoDate(task.date) > today);
+  const headline = isExtra && isEarly ? "Extra and ahead!" : (isEarly ? "Ahead of schedule!" : "Extra effort!");
+  showPageNotice(`${headline} Bonus task complete.`, "completion", 1900);
+  if (prefersReducedMotion) return new Promise((resolve) => window.setTimeout(resolve, 900));
+  const hero = document.createElement("div");
+  hero.className = "celebration-hero bonus-achievement";
+  hero.setAttribute("aria-hidden", "true");
+  hero.innerHTML = `<span class="bonus-achievement-card"><span class="bonus-medal"><svg viewBox="0 0 64 64"><path d="M22 7h20l-4 17H26L22 7Z"></path><circle cx="32" cy="37" r="16"></circle><path class="bonus-star" d="m32 27 3 6 7 .9-5 4.8 1.3 7-6.3-3.3-6.3 3.3 1.3-7-5-4.8 7-.9 3-6Z"></path></svg></span><span><strong>${headline}</strong><small>Bonus task complete</small></span></span>`;
+  document.body.append(hero);
+  return launchCelebrationCanvas("bonus-achievement", hero);
+}
+
+function enqueueCelebrations(celebrations) {
+  if (!celebrations.length) return;
+  celebrationQueue = celebrationQueue.catch(() => {}).then(async () => {
+    for (const celebration of celebrations) await celebration();
+  });
 }
 
 function buildPlainTextList() {

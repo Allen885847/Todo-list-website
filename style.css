@@ -1499,6 +1499,72 @@ html[data-theme="dark"] .task-label-badge {
   pointer-events: none;
 }
 
+.celebration-hero.bonus-achievement {
+  align-items: start;
+  padding-top: min(22vh, 180px);
+}
+
+.bonus-achievement-card {
+  display: flex;
+  min-width: min(84vw, 330px);
+  align-items: center;
+  gap: 14px;
+  padding: 15px 22px 16px 16px;
+  color: #f8fbff;
+  background: linear-gradient(135deg, rgba(27, 49, 80, 0.97), rgba(65, 56, 124, 0.96));
+  border: 1px solid rgba(255, 214, 107, 0.65);
+  border-radius: 20px;
+  box-shadow: 0 20px 52px rgba(18, 30, 61, 0.34), 0 0 0 5px rgba(255, 214, 107, 0.1);
+  backdrop-filter: blur(12px);
+  animation: bonus-achievement-in 2.12s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+
+.bonus-achievement-card > span:last-child {
+  display: grid;
+  gap: 2px;
+}
+
+.bonus-achievement-card strong {
+  font-family: "Fraunces", serif;
+  font-size: clamp(1.2rem, 3.8vw, 1.65rem);
+  line-height: 1.2;
+}
+
+.bonus-achievement-card small {
+  color: rgba(248, 251, 255, 0.72);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.bonus-medal {
+  width: 58px;
+  height: 58px;
+  flex: 0 0 58px;
+  filter: drop-shadow(0 8px 14px rgba(4, 12, 28, 0.35));
+}
+
+.bonus-medal svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.bonus-medal path:first-child {
+  fill: #68c7ff;
+}
+
+.bonus-medal circle {
+  fill: #ffd66b;
+  stroke: #fff4c6;
+  stroke-width: 2;
+}
+
+.bonus-medal .bonus-star {
+  fill: #574698;
+}
+
 .celebration-check {
   display: grid;
   width: clamp(112px, 16vw, 164px);
@@ -1573,6 +1639,13 @@ html[data-theme="dark"] .task-label-badge {
   16% { opacity: 1; transform: translate3d(0, 0, 0) scale(1.035); }
   25%, 76% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
   100% { opacity: 0; transform: translate3d(0, -10px, 0) scale(0.97); }
+}
+
+@keyframes bonus-achievement-in {
+  0% { opacity: 0; transform: translate3d(0, -22px, 0) scale(0.88); }
+  15% { opacity: 1; transform: translate3d(0, 5px, 0) scale(1.035); }
+  25%, 72% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  100% { opacity: 0; transform: translate3d(0, -12px, 0) scale(0.96); }
 }
 
 .task-edit-dialog {

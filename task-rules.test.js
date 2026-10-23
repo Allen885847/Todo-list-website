@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const {
   areCurrentTasksComplete,
   compareByDueDate,
+  isOptionalOrEarlyTask,
   isVisibleInActiveList,
   shouldCelebrateCurrentTasks,
   withCompletion,
@@ -60,6 +61,13 @@ assert.equal(shouldCelebrateCurrentTasks([
   { date: date(2026, 10, 12), completed: false },
   { date: date(2026, 10, 13), completed: true },
 ], { date: date(2026, 10, 13), completed: true }, false, "2026-10-13"), false);
+
+assert.equal(isOptionalOrEarlyTask({ label: "Extra", date: date(2026, 10, 13) }, "2026-10-13"), true);
+assert.equal(isOptionalOrEarlyTask({ label: " extra ", date: date(2026, 10, 12) }, "2026-10-13"), true);
+assert.equal(isOptionalOrEarlyTask({ label: "", date: date(2026, 10, 14) }, "2026-10-13"), true);
+assert.equal(isOptionalOrEarlyTask({ label: "Extra", date: date(2026, 10, 14) }, "2026-10-13"), true);
+assert.equal(isOptionalOrEarlyTask({ label: "Important", date: date(2026, 10, 13) }, "2026-10-13"), false);
+assert.equal(isOptionalOrEarlyTask({ label: "", date: null }, "2026-10-13"), false);
 
 const orderedDates = [
   { date: date(2026, 10, 30) },
