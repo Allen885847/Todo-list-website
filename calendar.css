@@ -1094,11 +1094,6 @@ html[data-theme="dark"] .calendar-label-badge {
   gap: 10px;
 }
 
-.event-mode-content {
-  min-width: 0;
-  will-change: opacity, transform;
-}
-
 .event-description-help,
 .time-help {
   margin: -2px 0 1px;

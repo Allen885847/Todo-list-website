@@ -23,7 +23,6 @@ const eventDialogTitle = document.querySelector("#event-dialog-title");
 const eventEntryTabs = document.querySelector("#event-entry-tabs");
 const naturalTab = document.querySelector("#natural-tab");
 const manualTab = document.querySelector("#manual-tab");
-const eventModeContent = document.querySelector("#event-mode-content");
 const naturalPanel = document.querySelector("#natural-panel");
 const eventDescription = document.querySelector("#event-description");
 const interpretEventButton = document.querySelector("#interpret-event");
@@ -82,7 +81,6 @@ let isEventDescriptionComposing = false;
 let isInterpretingEvent = false;
 let eventVoiceInput;
 let eventDrafts = [];
-let isEventTabSwitching = false;
 const expandedTaskDates = new Set();
 const dialogOpenTimers = new WeakMap();
 
@@ -747,9 +745,8 @@ function showNotice(message) {
   noticeTimer = window.setTimeout(() => { calendarNotice.hidden = true; }, 2600);
 }
 
-async function setEventTab(mode) {
+function setEventTab(mode) {
   const natural = mode === "natural";
-  if (isEventTabSwitching) return;
   if (!natural) eventVoiceInput?.cancel();
   const updateMode = () => {
     naturalTab.classList.toggle("active", natural);
@@ -777,40 +774,13 @@ async function setEventTab(mode) {
       if (!eventEndDate.value) eventEndDate.value = eventStartDate.value;
     }
   };
-  const shouldAnimate = eventDialog.open && !reducedMotion.matches
-    && typeof eventModeContent.animate === "function"
-    && naturalTab.classList.contains("active") !== natural;
-  if (!shouldAnimate) {
-    updateMode();
-    if (!natural && eventDialog.open) requestAnimationFrame(() => eventTitle.focus());
-    return;
+  const transition = eventDialog.open && window.runTodoViewTransition
+    ? window.runTodoViewTransition("event-panel", updateMode)
+    : (updateMode(), null);
+  if (!natural && eventDialog.open) {
+    const ready = transition?.ready || Promise.resolve();
+    ready.finally(() => requestAnimationFrame(() => eventTitle.focus()));
   }
-
-  isEventTabSwitching = true;
-  const naturalWasDisabled = naturalTab.disabled;
-  const manualWasDisabled = manualTab.disabled;
-  naturalTab.disabled = true;
-  manualTab.disabled = true;
-  const direction = natural ? -1 : 1;
-  try {
-    await eventModeContent.animate([
-      { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)" },
-      { opacity: 0, transform: `translate3d(${-direction * 8}px, 0, 0) scale(0.995)` },
-    ], { duration: 105, easing: "ease-in", fill: "both" }).finished;
-    updateMode();
-    await eventModeContent.animate([
-      { opacity: 0, transform: `translate3d(${direction * 10}px, 0, 0) scale(0.995)` },
-      { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)" },
-    ], { duration: 175, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "both" }).finished;
-  } catch { updateMode(); }
-  finally {
-    isEventTabSwitching = false;
-    naturalTab.disabled = naturalWasDisabled;
-    manualTab.disabled = manualWasDisabled;
-    eventModeContent.style.opacity = "";
-    eventModeContent.style.transform = "";
-  }
-  if (!natural && eventDialog.open) requestAnimationFrame(() => eventTitle.focus());
 }
 
 function closeDialogAnimated(dialog) {
