@@ -112,9 +112,9 @@
         </div>
 
         <section id="natural-panel" class="natural-panel">
-          <label for="event-description">Describe one event</label>
-          <p class="event-description-help">Describe your event. Include a date and, optionally, a time or time range. For example: Study group on October 14 from 3 PM to 4 PM. Leave out the time when the event has no specific time.</p>
-          <textarea id="event-description" rows="3" maxlength="4000" placeholder="Study group on October 14 from 3 PM to 4 PM…"></textarea>
+          <label for="event-description">Describe one or more events</label>
+          <p class="event-description-help">Describe several events in one message. Include each date and any optional time or time range. For example: Study group on October 14 from 3 PM to 4 PM, and a birthday dinner on October 16 at 7 PM. Leave out the time when an event has no specific time.</p>
+          <textarea id="event-description" rows="3" maxlength="4000" placeholder="Study group on October 14 at 3 PM, and dinner on October 16 at 7 PM…"></textarea>
           <canvas id="event-voice-waveform" class="voice-waveform" aria-label="Live microphone waveform" hidden></canvas>
           <div class="event-ai-controls">
             <div class="event-ai-actions">
@@ -145,12 +145,19 @@
         </section>
 
         <section id="event-preview" class="event-preview" hidden>
-          <p id="preview-label" class="preview-label">EDITABLE PREVIEW</p>
+          <div class="event-preview-heading">
+            <div>
+              <p id="preview-label" class="preview-label">REVIEW BEFORE SAVING</p>
+              <p id="event-preview-summary" class="event-preview-summary" hidden></p>
+            </div>
+            <button id="add-event-draft" class="dialog-secondary compact-button" type="button" hidden>Add event</button>
+          </div>
+          <div id="event-draft-list" class="event-draft-list" hidden></div>
           <div id="event-clarification" class="event-clarification" hidden>
             <p id="event-question"></p>
             <label><input id="date-confirmed" type="checkbox" /> I have checked and confirmed these dates.</label>
           </div>
-          <div class="event-fields">
+          <div id="single-event-fields" class="event-fields">
             <label class="wide-field">Event title<input id="event-title" type="text" maxlength="200" required /></label>
             <label>Start date<input id="event-start-date" type="date" required /></label>
             <label>End date<input id="event-end-date" type="date" required /></label>

@@ -33,6 +33,10 @@ const eventRecordingTimer = document.querySelector("#event-recording-timer");
 const eventVoiceWaveform = document.querySelector("#event-voice-waveform");
 const eventPreview = document.querySelector("#event-preview");
 const previewLabel = document.querySelector("#preview-label");
+const eventPreviewSummary = document.querySelector("#event-preview-summary");
+const eventDraftList = document.querySelector("#event-draft-list");
+const addEventDraftButton = document.querySelector("#add-event-draft");
+const singleEventFields = document.querySelector("#single-event-fields");
 const eventClarification = document.querySelector("#event-clarification");
 const eventQuestion = document.querySelector("#event-question");
 const dateConfirmed = document.querySelector("#date-confirmed");
@@ -75,6 +79,7 @@ let dateRefreshTimer;
 let isEventDescriptionComposing = false;
 let isInterpretingEvent = false;
 let eventVoiceInput;
+let eventDrafts = [];
 const expandedTaskDates = new Set();
 const dialogOpenTimers = new WeakMap();
 
@@ -749,10 +754,19 @@ function setEventTab(mode) {
     manualTab.setAttribute("aria-selected", String(!natural));
     naturalPanel.hidden = !natural;
     if (natural) {
-      eventPreview.hidden = true;
+      eventPreview.hidden = eventDrafts.length === 0;
+      if (eventDrafts.length) showBatchEventPreview();
     } else {
+      if (eventDrafts.length) eventDrafts = readEventDraftCards();
       eventPreview.hidden = false;
       previewLabel.textContent = "MANUAL EVENT DETAILS";
+      eventPreviewSummary.hidden = true;
+      eventDraftList.hidden = true;
+      addEventDraftButton.hidden = true;
+      singleEventFields.hidden = false;
+      setSingleEventFieldsDisabled(false);
+      saveEventButton.disabled = false;
+      saveEventButton.textContent = "Add to review";
       needsDateConfirmation = false;
       eventClarification.hidden = true;
       if (!eventStartDate.value) eventStartDate.value = toIsoDate(selectedDate);
@@ -804,6 +818,12 @@ function updateTimeFields() {
   }
 }
 
+function setSingleEventFieldsDisabled(disabled) {
+  [eventTitle, eventStartDate, eventEndDate, eventHoliday, eventStartTime, eventEndTime]
+    .forEach((field) => { field.disabled = disabled; });
+  if (!disabled) updateTimeFields();
+}
+
 function fillEventFields(event) {
   eventTitle.value = event.title || "";
   eventStartDate.value = event.startDate || "";
@@ -817,6 +837,7 @@ function fillEventFields(event) {
 function resetEventEditor() {
   eventVoiceInput?.cancel();
   editingEventId = null;
+  eventDrafts = [];
   needsDateConfirmation = false;
   eventEditor.reset();
   eventDescription.value = "";
@@ -826,11 +847,157 @@ function resetEventEditor() {
   naturalPanel.hidden = false;
   eventPreview.hidden = true;
   eventClarification.hidden = true;
+  eventPreviewSummary.hidden = true;
+  eventDraftList.hidden = true;
+  eventDraftList.replaceChildren();
+  addEventDraftButton.hidden = true;
+  singleEventFields.hidden = false;
+  setSingleEventFieldsDisabled(false);
   dateConfirmed.checked = false;
   deleteEventButton.hidden = true;
   saveEventButton.textContent = "Save event";
+  saveEventButton.disabled = false;
   fillEventFields({ title: "", startDate: toIsoDate(selectedDate), endDate: toIsoDate(selectedDate), allDay: true, holiday: false });
   setEventTab("natural");
+}
+
+function blankEventDraft() {
+  return {
+    title: "", startDate: "", endDate: "", holiday: false,
+    startTime: "", endTime: "", dateMissing: true, dateAmbiguous: false,
+    clarificationQuestion: "Enter a date for this event.", confirmed: false,
+  };
+}
+
+function makeDraftField(labelText, type, value, className = "") {
+  const label = document.createElement("label");
+  if (className) label.className = className;
+  label.append(document.createTextNode(labelText));
+  const input = document.createElement("input");
+  input.type = type;
+  input.value = value || "";
+  label.append(input);
+  return { label, input };
+}
+
+function readEventDraftCards() {
+  return [...eventDraftList.querySelectorAll(".event-draft-card")].map((card) => ({
+    title: card.querySelector('[data-field="title"]').value.trim(),
+    startDate: card.querySelector('[data-field="startDate"]').value,
+    endDate: card.querySelector('[data-field="endDate"]').value,
+    holiday: card.querySelector('[data-field="holiday"]').checked,
+    startTime: card.querySelector('[data-field="startTime"]').value,
+    endTime: card.querySelector('[data-field="endTime"]').value,
+    dateMissing: card.dataset.dateMissing === "true",
+    dateAmbiguous: card.dataset.dateAmbiguous === "true",
+    clarificationQuestion: card.dataset.question || "",
+    confirmed: card.querySelector('[data-field="confirmed"]')?.checked || false,
+  }));
+}
+
+function showBatchEventPreview() {
+  if (!eventDrafts.length) {
+    eventPreview.hidden = true;
+    saveEventButton.disabled = false;
+    saveEventButton.textContent = "Save event";
+    return;
+  }
+  previewLabel.textContent = "REVIEW BEFORE SAVING";
+  eventPreview.hidden = false;
+  eventPreviewSummary.hidden = false;
+  eventDraftList.hidden = false;
+  addEventDraftButton.hidden = false;
+  singleEventFields.hidden = true;
+  setSingleEventFieldsDisabled(true);
+  eventClarification.hidden = true;
+  deleteEventButton.hidden = true;
+  const count = eventDrafts.length;
+  eventPreviewSummary.textContent = `Edit, remove, or add events below. ${count} ${count === 1 ? "event" : "events"} ready to review.`;
+  saveEventButton.textContent = `Save ${count} ${count === 1 ? "event" : "events"}`;
+  saveEventButton.disabled = false;
+}
+
+function renderEventDrafts() {
+  eventDraftList.replaceChildren();
+  eventDrafts.forEach((draft, index) => {
+    const card = document.createElement("article");
+    card.className = "event-draft-card";
+    card.dataset.dateMissing = String(Boolean(draft.dateMissing));
+    card.dataset.dateAmbiguous = String(Boolean(draft.dateAmbiguous));
+    card.dataset.question = draft.clarificationQuestion || "";
+
+    const heading = document.createElement("div");
+    heading.className = "event-draft-heading";
+    const title = document.createElement("strong");
+    title.textContent = `Event ${index + 1}`;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "event-draft-remove";
+    remove.textContent = "Remove";
+    remove.addEventListener("click", () => {
+      eventDrafts = readEventDraftCards();
+      eventDrafts.splice(index, 1);
+      renderEventDrafts();
+    });
+    heading.append(title, remove);
+
+    const fields = document.createElement("div");
+    fields.className = "event-fields event-draft-fields";
+    const titleField = makeDraftField("Event title", "text", draft.title, "wide-field");
+    titleField.input.maxLength = 200;
+    titleField.input.dataset.field = "title";
+    const startDateField = makeDraftField("Start date", "date", draft.startDate);
+    startDateField.input.dataset.field = "startDate";
+    const endDateField = makeDraftField("End date", "date", draft.endDate || draft.startDate);
+    endDateField.input.dataset.field = "endDate";
+    startDateField.input.addEventListener("change", () => {
+      if (!endDateField.input.value || endDateField.input.value < startDateField.input.value) endDateField.input.value = startDateField.input.value;
+    });
+    const holidayLabel = document.createElement("label");
+    holidayLabel.className = "all-day-field holiday-field";
+    const holidayInput = document.createElement("input");
+    holidayInput.type = "checkbox";
+    holidayInput.checked = Boolean(draft.holiday);
+    holidayInput.dataset.field = "holiday";
+    holidayLabel.append(holidayInput, document.createTextNode(" Holiday "));
+    const holidayHint = document.createElement("span");
+    holidayHint.textContent = "Highlights the full date range";
+    holidayLabel.append(holidayHint);
+    const startTimeField = makeDraftField("Start time (optional)", "time", draft.startTime, "time-field");
+    startTimeField.input.dataset.field = "startTime";
+    const endTimeField = makeDraftField("End time (optional)", "time", draft.endTime, "time-field");
+    endTimeField.input.dataset.field = "endTime";
+    const updateHoliday = () => {
+      startTimeField.input.disabled = holidayInput.checked;
+      endTimeField.input.disabled = holidayInput.checked;
+      if (holidayInput.checked) {
+        startTimeField.input.value = "";
+        endTimeField.input.value = "";
+      }
+    };
+    holidayInput.addEventListener("change", updateHoliday);
+    updateHoliday();
+    fields.append(titleField.label, startDateField.label, endDateField.label, holidayLabel, startTimeField.label, endTimeField.label);
+
+    card.append(heading);
+    if (draft.dateMissing || draft.dateAmbiguous) {
+      const clarification = document.createElement("div");
+      clarification.className = "event-clarification draft-clarification";
+      const question = document.createElement("p");
+      question.textContent = draft.clarificationQuestion || "Please check this event date before saving.";
+      const confirmationLabel = document.createElement("label");
+      const confirmation = document.createElement("input");
+      confirmation.type = "checkbox";
+      confirmation.checked = Boolean(draft.confirmed);
+      confirmation.dataset.field = "confirmed";
+      confirmationLabel.append(confirmation, document.createTextNode(" I have checked and confirmed these dates."));
+      clarification.append(question, confirmationLabel);
+      card.append(clarification);
+    }
+    card.append(fields);
+    eventDraftList.append(card);
+  });
+  showBatchEventPreview();
 }
 
 function setEventAiStatus(message, type = "idle") {
@@ -851,6 +1018,7 @@ function openEventDialog(eventId = null) {
     previewLabel.textContent = "EVENT DETAILS";
     deleteEventButton.hidden = false;
     saveEventButton.textContent = "Save changes";
+    setSingleEventFieldsDisabled(false);
     fillEventFields(event);
   } else {
     eventDialogTitle.textContent = "Add an event";
@@ -887,17 +1055,14 @@ async function interpretEvent(inputOverride, inputMethod = "typed") {
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Event interpretation failed.");
-    fillEventFields(result.event);
-    previewLabel.textContent = "EDITABLE AI PREVIEW";
-    eventPreview.hidden = false;
-    if (result.event.dateMissing || result.event.dateAmbiguous) {
-      showEventClarification(result.event.clarificationQuestion || "Please confirm the event date before saving.");
-    } else {
-      needsDateConfirmation = false;
-      eventClarification.hidden = true;
-    }
-    setEventAiStatus("Review and edit the interpreted details before saving.", "success");
-    requestAnimationFrame(() => eventTitle.focus());
+    const generated = Array.isArray(result.events) ? result.events : (result.event ? [result.event] : []);
+    if (!generated.length) throw new Error("No calendar events were found. Add more detail and try again.");
+    if (eventDrafts.length) eventDrafts = readEventDraftCards();
+    eventDrafts.push(...generated.map((event) => ({ ...event, confirmed: !event.dateMissing && !event.dateAmbiguous })));
+    renderEventDrafts();
+    eventDescription.value = "";
+    setEventAiStatus(`${generated.length} ${generated.length === 1 ? "event" : "events"} added to the review. You can describe more events now.`, "success");
+    requestAnimationFrame(() => eventDescription.focus());
   } catch (error) {
     setEventAiStatus(error.message || "Interpretation failed. Your text is preserved; use manual entry or retry.", "error");
   } finally {
@@ -922,6 +1087,58 @@ function validateEventFields() {
 }
 
 function saveEventFromEditor() {
+  if (!editingEventId && naturalPanel.hidden) {
+    const error = validateEventFields();
+    if (error) {
+      showEventClarification(error, needsDateConfirmation);
+      return;
+    }
+    eventDrafts.push({
+      title: eventTitle.value.trim(), startDate: eventStartDate.value, endDate: eventEndDate.value,
+      holiday: eventHoliday.checked, startTime: eventHoliday.checked ? "" : eventStartTime.value,
+      endTime: eventHoliday.checked || !eventStartTime.value ? "" : eventEndTime.value,
+      dateMissing: false, dateAmbiguous: false, clarificationQuestion: "", confirmed: true,
+    });
+    fillEventFields({ title: "", startDate: toIsoDate(selectedDate), endDate: toIsoDate(selectedDate), holiday: false, startTime: "", endTime: "" });
+    setEventTab("natural");
+    renderEventDrafts();
+    setEventAiStatus("Manual event added to the review. You can add more before saving.", "success");
+    requestAnimationFrame(() => eventDescription.focus());
+    return;
+  }
+  if (!editingEventId && eventDrafts.length) {
+    eventDrafts = readEventDraftCards();
+    const prepared = [];
+    for (let index = 0; index < eventDrafts.length; index += 1) {
+      const draft = eventDrafts[index];
+      const prefix = `Event ${index + 1}`;
+      let error = "";
+      if (!draft.title) error = `${prefix}: enter an event title.`;
+      else if (!parseIsoDate(draft.startDate) || !parseIsoDate(draft.endDate)) error = `${prefix}: enter a valid start and end date.`;
+      else if (draft.endDate < draft.startDate) error = `${prefix}: the end date cannot be before the start date.`;
+      else if ((draft.dateMissing || draft.dateAmbiguous) && !draft.confirmed) error = `${prefix}: confirm the clarified dates before saving.`;
+      else if (draft.endTime && !draft.startTime) error = `${prefix}: enter a start time or clear the end time.`;
+      else if (draft.startDate === draft.endDate && draft.startTime && draft.endTime && draft.endTime <= draft.startTime) error = `${prefix}: the end time must be later than the start time.`;
+      if (error) {
+        setEventAiStatus(error, "error");
+        eventDraftList.children[index]?.scrollIntoView({ behavior: reducedMotion.matches ? "auto" : "smooth", block: "center" });
+        return;
+      }
+      prepared.push({
+        id: crypto.randomUUID(), title: draft.title, startDate: draft.startDate, endDate: draft.endDate,
+        holiday: draft.holiday, allDay: draft.holiday || !draft.startTime,
+        startTime: draft.holiday ? "" : draft.startTime,
+        endTime: draft.holiday || !draft.startTime ? "" : draft.endTime,
+      });
+    }
+    events.push(...prepared);
+    saveEvents();
+    selectedDate = parseIsoDate(prepared[0].startDate);
+    eventDialog.close();
+    renderCalendar();
+    showNotice(`${prepared.length} ${prepared.length === 1 ? "event" : "events"} saved.`);
+    return;
+  }
   const error = validateEventFields();
   if (error) {
     showEventClarification(error, needsDateConfirmation);
@@ -1018,6 +1235,12 @@ viewButtons.forEach((button) => button.addEventListener("click", () => {
 }));
 
 addEventButton.addEventListener("click", () => openEventDialog());
+addEventDraftButton.addEventListener("click", () => {
+  if (eventDrafts.length) eventDrafts = readEventDraftCards();
+  eventDrafts.push(blankEventDraft());
+  renderEventDrafts();
+  eventDraftList.lastElementChild?.querySelector('[data-field="title"]')?.focus();
+});
 eventVoiceInput = new DoubaoVoiceInput({
   recordButton: eventRecordButton,
   cancelButton: cancelEventRecordingButton,
@@ -1026,7 +1249,7 @@ eventVoiceInput = new DoubaoVoiceInput({
   isBusy: () => isInterpretingEvent,
   onStatus: setEventAiStatus,
   onTranscript: async (transcript) => {
-    setEventAiStatus("Speech recognized. DeepSeek is generating the event preview…", "processing");
+    setEventAiStatus("Speech recognized. DeepSeek is generating the event review…", "processing");
     await interpretEvent(transcript, "voice");
   },
 });

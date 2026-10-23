@@ -412,8 +412,10 @@ function isValidIsoDate(value) {
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 
-function normalizeGeneratedEvent(payload) {
-  const item = payload?.event;
+function normalizeGeneratedEvents(payload) {
+  const source = Array.isArray(payload?.events) ? payload.events : (payload?.event ? [payload.event] : []);
+  if (source.length > 30) throw new Error("DeepSeek returned too many events.");
+  return source.map((item) => {
   const title = typeof item?.title === "string" ? item.title.trim() : "";
   const dateMissing = item?.dateMissing === true;
   const dateAmbiguous = item?.dateAmbiguous === true;
@@ -453,6 +455,7 @@ function normalizeGeneratedEvent(payload) {
     dateAmbiguous,
     clarificationQuestion,
   };
+  });
 }
 
 async function parseTasks(input, timeZone, { fromUpload = false } = {}) {
@@ -519,7 +522,7 @@ Rules:
   return normalizeGeneratedTasks(JSON.parse(content), { allowIncomplete: fromUpload });
 }
 
-async function parseEvent(input, timeZone) {
+async function parseEvents(input, timeZone) {
   const { today, localTime } = getLocalContext(timeZone);
   const apiResponse = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
@@ -537,7 +540,7 @@ async function parseEvent(input, timeZone) {
       messages: [
         {
           role: "system",
-          content: `Extract one personal calendar event from Mandarin Chinese, English, or mixed-language input.
+          content: `Extract one or more independent personal calendar events from Mandarin Chinese, English, or mixed-language input.
 
 Current local context:
 - IANA time zone: ${timeZone}
@@ -545,18 +548,19 @@ Current local context:
 - Current local date and time: ${localTime}
 
 Return JSON only in exactly this shape:
-{"event":{"title":"Trip","startDate":"2026-10-20","endDate":"2026-10-23","allDay":true,"holiday":false,"startTime":"","endTime":"","dateMissing":false,"dateAmbiguous":false,"clarificationQuestion":""}}
+{"events":[{"title":"Trip","startDate":"2026-10-20","endDate":"2026-10-23","allDay":true,"holiday":false,"startTime":"","endTime":"","dateMissing":false,"dateAmbiguous":false,"clarificationQuestion":""}]}
 
 Rules:
-1. Preserve the user's meaning and names. Correct spelling and produce a concise, natural English title.
-2. Use inclusive ISO dates. For a single-day event, endDate equals startDate. Resolve relative dates using the local context.
-3. Never invent a date. If no date is supplied, set dateMissing true, use empty date strings, and ask a short English clarificationQuestion.
-4. If a date has multiple reasonable interpretations, set dateAmbiguous true, choose the most likely tentative dates, and ask a short English clarificationQuestion. Always treat an unqualified weekday such as "Friday" as ambiguous when it could reasonably mean this week's or next week's occurrence. Also flag numeric dates whose month/day order is unclear. Otherwise set dateAmbiguous false.
-5. Set holiday true when the user describes a holiday, vacation, school break, public holiday, or named holiday period. Preserve its inclusive start and end dates, including when the range crosses a month or year. Otherwise set holiday false.
-6. Holidays are all-day events: set allDay true and use empty time strings. For other events, never invent or require a time. When no specific time is given, set allDay true and use empty time strings.
-7. When a specific time or time range is supplied for a non-holiday event, preserve it, set allDay false, and use 24-hour HH:MM values. A single supplied time must go in startTime and may use an empty endTime. Never return endTime without startTime.
-8. Do not ask the user to clarify or supply a time when the time is omitted. Missing time always means an all-day event; clarificationQuestion is only for missing or ambiguous dates.
-9. This is a personal event, not a completable task. Return exactly one event.`,
+1. Create a separate event for every independently scheduled plan. Preserve every explicitly described event, its meaning, and names. Do not combine unrelated plans, omit events, or invent details. Return at most 30 events.
+2. Correct spelling and produce a concise, natural English title for each event.
+3. Use inclusive ISO dates. For a single-day event, endDate equals startDate. Resolve relative dates separately for each event using the local context. Share a date or time only when the wording clearly applies it to multiple events.
+4. Never invent a date. If an event has no date, set dateMissing true, use empty date strings, and ask a short English clarificationQuestion for that event.
+5. If a date has multiple reasonable interpretations, set dateAmbiguous true, choose the most likely tentative dates, and ask a short English clarificationQuestion. Always treat an unqualified weekday such as "Friday" as ambiguous when it could reasonably mean this week's or next week's occurrence. Also flag numeric dates whose month/day order is unclear. Otherwise set dateAmbiguous false.
+6. Set holiday true when the user describes a holiday, vacation, school break, public holiday, or named holiday period. Preserve its inclusive start and end dates, including when the range crosses a month or year. Otherwise set holiday false.
+7. Holidays are all-day events: set allDay true and use empty time strings. For other events, never invent or require a time. When no specific time is given, set allDay true and use empty time strings.
+8. When a specific time or time range is supplied for a non-holiday event, preserve it, set allDay false, and use 24-hour HH:MM values. A single supplied time must go in startTime and may use an empty endTime. Never return endTime without startTime.
+9. Do not ask the user to clarify or supply a time when the time is omitted. Missing time always means an all-day event; clarificationQuestion is only for missing or ambiguous dates.
+10. These are personal events, not completable tasks. If no event is described, return {"events":[]}.`,
         },
         { role: "user", content: input },
       ],
@@ -569,7 +573,7 @@ Rules:
   }
   const content = payload?.choices?.[0]?.message?.content;
   if (typeof content !== "string") throw new Error("DeepSeek returned no event data.");
-  return normalizeGeneratedEvent(JSON.parse(content));
+  return normalizeGeneratedEvents(JSON.parse(content));
 }
 
 const server = http.createServer(async (request, response) => {
@@ -665,16 +669,16 @@ const server = http.createServer(async (request, response) => {
       const body = await readJson(request);
       const input = typeof body.input === "string" ? body.input.trim() : "";
       if (!input || input.length > MAX_INPUT_LENGTH) {
-        sendJson(response, 400, { error: "Describe one event in 1–4,000 characters." });
+        sendJson(response, 400, { error: "Describe one or more events in 1–4,000 characters." });
         return;
       }
       const timeZone = resolveTimeZone(body.timeZone);
-      const event = await parseEvent(input, timeZone);
-      sendJson(response, 200, { event });
+      const events = await parseEvents(input, timeZone);
+      sendJson(response, 200, { events });
     } catch (error) {
       console.error("Event processing failed:", error.message);
       sendJson(response, 502, {
-        error: "DeepSeek could not interpret this event. Your text is preserved; use manual entry or try again.",
+        error: "DeepSeek could not interpret these events. Your text is preserved; use manual entry or try again.",
       });
     }
     return;

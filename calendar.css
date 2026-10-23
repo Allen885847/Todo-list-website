@@ -1199,6 +1199,70 @@ html[data-theme="dark"] .calendar-label-badge {
   border-top: 1px solid var(--line);
 }
 
+.event-preview-heading,
+.event-draft-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.event-preview-heading .preview-label {
+  margin-bottom: 4px;
+}
+
+.event-preview-summary {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.compact-button {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+}
+
+.event-draft-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 15px;
+}
+
+.event-draft-card {
+  padding: 15px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 8px 22px rgba(24, 34, 37, 0.05);
+}
+
+.event-draft-heading {
+  margin-bottom: 12px;
+}
+
+.event-draft-heading strong {
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+
+.event-draft-remove {
+  padding: 5px 0;
+  color: var(--accent-dark);
+  background: transparent;
+  border: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.draft-clarification {
+  margin: 0 0 12px;
+}
+
+.event-draft-fields {
+  gap: 11px;
+}
+
 .preview-label {
   margin: 0 0 12px;
   color: var(--accent-dark);
@@ -1419,6 +1483,14 @@ html[data-theme="dark"] .calendar-label-badge {
 
   .event-fields {
     grid-template-columns: 1fr;
+  }
+
+  .event-preview-heading {
+    align-items: flex-start;
+  }
+
+  .event-draft-card {
+    padding: 13px;
   }
 
   .wide-field,

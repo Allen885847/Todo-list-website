@@ -100,8 +100,10 @@ function normalizeTasks(payload, { allowIncomplete = false } = {}) {
   return normalized;
 }
 
-function normalizeEvent(payload) {
-  const item = payload?.event;
+function normalizeEvents(payload) {
+  const source = Array.isArray(payload?.events) ? payload.events : (payload?.event ? [payload.event] : []);
+  if (source.length > 30) throw new Error("INVALID_AI_RESULT");
+  return source.map((item) => {
   const title = typeof item?.title === "string" ? item.title.trim() : "";
   const dateMissing = item?.dateMissing === true;
   const dateAmbiguous = item?.dateAmbiguous === true;
@@ -123,6 +125,7 @@ function normalizeEvent(payload) {
     allDay, holiday, startTime: allDay ? "" : startTime, endTime: allDay ? "" : endTime,
     dateMissing, dateAmbiguous, clarificationQuestion,
   };
+  });
 }
 
 async function callDeepSeek(env, messages, maxTokens) {
@@ -167,13 +170,13 @@ Rules:
   );
 }
 
-async function parseEvent(env, input, timeZone) {
+async function parseEvents(env, input, timeZone) {
   const { today, localTime } = localContext(timeZone);
-  const system = `Extract exactly one personal calendar event from Mandarin, English, or mixed-language input.
+  const system = `Extract one or more independent personal calendar events from Mandarin, English, or mixed-language input.
 Local time zone: ${timeZone}. Today: ${today}. Current local time: ${localTime}.
-Return JSON only: {"event":{"title":"Study group","startDate":"2026-10-20","endDate":"2026-10-20","allDay":false,"holiday":false,"startTime":"15:00","endTime":"16:00","dateMissing":false,"dateAmbiguous":false,"clarificationQuestion":""}}.
-Preserve meaning and names; use a concise natural English title. Use inclusive ISO dates and resolve relative dates locally. Never invent a date: if missing, set dateMissing true, empty dates, and ask a short clarificationQuestion. If ambiguous, choose a tentative date, set dateAmbiguous true, and ask a short question. Holiday, vacation, school break, and public-holiday ranges set holiday true and include every start/end day across months or years. Holidays have no times. For other events, preserve supplied time or range as 24-hour HH:MM. If only a start time exists, leave endTime empty. If no time exists, leave both time strings empty and set allDay true. Never ask for an omitted time. This is an event, not a task.`;
-  return normalizeEvent(await callDeepSeek(env, [{ role: "system", content: system }, { role: "user", content: input }], 1_500));
+Return JSON only: {"events":[{"title":"Study group","startDate":"2026-10-20","endDate":"2026-10-20","allDay":false,"holiday":false,"startTime":"15:00","endTime":"16:00","dateMissing":false,"dateAmbiguous":false,"clarificationQuestion":""}]}.
+Create one item for every independently scheduled plan, up to 30. Preserve every explicit event, meaning, and name; never combine unrelated plans, omit events, or invent details. Use concise natural English titles. Resolve dates separately per event in the local time zone; share a date or time only when the wording clearly applies it to multiple events. Use inclusive ISO dates. Never invent a date: if missing, set dateMissing true, empty dates, and ask a short clarificationQuestion for that event. If ambiguous, choose a tentative date, set dateAmbiguous true, and ask a short question. Holiday, vacation, school break, and public-holiday ranges set holiday true and include every start/end day across months or years. Holidays have no times. For other events, preserve each supplied time or range as 24-hour HH:MM. If only a start time exists, leave endTime empty. If no time exists, leave both time strings empty and set allDay true. Never ask for an omitted time. These are events, not tasks. If none is described, return {"events":[]}.`;
+  return normalizeEvents(await callDeepSeek(env, [{ role: "system", content: system }, { role: "user", content: input }], 4_000));
 }
 
 function concatBytes(...parts) {
@@ -325,15 +328,15 @@ export async function handleAiRequest(request, env, userId) {
     const inputLimit = fromUpload ? MAX_UPLOAD_TEXT_LENGTH : MAX_INPUT_LENGTH;
     if (!input || input.length > inputLimit) return json({ error: fromUpload
       ? "The readable file content must be between 1 and 16,000 characters. Try a shorter document."
-      : (isTask ? "Enter one or more tasks in 1–4,000 characters." : "Describe one event in 1–4,000 characters.") }, 400);
+      : (isTask ? "Enter one or more tasks in 1–4,000 characters." : "Describe one or more events in 1–4,000 characters.") }, 400);
     const timeZone = resolveTimeZone(body.timeZone);
-    const result = isTask ? { tasks: await parseTasks(env, input, timeZone, { fromUpload }) } : { event: await parseEvent(env, input, timeZone) };
+    const result = isTask ? { tasks: await parseTasks(env, input, timeZone, { fromUpload }) } : { events: await parseEvents(env, input, timeZone) };
     await logMessage(env, userId, isTask ? "task_generation" : "event_generation", inputMethod, input, result, "success");
     return json(result);
   } catch (error) {
     await logMessage(env, userId, isTask ? "task_generation" : "event_generation", inputMethod, input, null, "failed", error?.message || "PROCESSING_FAILED");
     return json({ error: isTask
       ? "DeepSeek could not process your tasks. Your input is preserved; please retry."
-      : "DeepSeek could not interpret this event. Your text is preserved; use manual entry or try again." }, 502);
+      : "DeepSeek could not interpret these events. Your text is preserved; use manual entry or try again." }, 502);
   }
 }
