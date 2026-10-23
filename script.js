@@ -240,8 +240,7 @@ function incompleteTasks() {
   return state.tasks.filter((task) => !task.completed);
 }
 
-function activeTasks() {
-  const today = TodoTaskRules.localDateIso();
+function activeTasks(today = TodoTaskRules.localDateIso()) {
   return state.tasks.filter((task) => TodoTaskRules.isVisibleInActiveList(task, today));
 }
 
@@ -659,9 +658,11 @@ function renderTasks() {
   });
   taskList.replaceChildren(...content);
   titleInput.value = state.title;
-  const remaining = incompleteTasks().length;
-  const activeCount = activeTasks().length;
-  taskCount.textContent = remaining === 1 ? "1 task left" : `${remaining} tasks left`;
+  const today = TodoTaskRules.localDateIso();
+  const visibleTasks = activeTasks(today);
+  const activeCount = visibleTasks.length;
+  const todayCount = visibleTasks.filter((task) => task.date && toIsoDate(task.date) === today).length;
+  taskCount.textContent = `Today: ${todayCount} · Total: ${activeCount}`;
   emptyState.hidden = activeCount > 0;
   copyButton.hidden = activeCount === 0;
   shareButton.disabled = activeCount === 0 || isExporting;

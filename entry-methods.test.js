@@ -87,6 +87,8 @@ assert.match(serverScript, /expandGeneratedDateRange/);
 assert.match(taskScript, /Math\.random\(\) < 0\.5 \? "check-burst" : "firework-ribbons"/);
 assert.match(taskScript, /TodoTaskRules\.shouldCelebrateCurrentTasks/);
 assert.match(taskScript, /const wereCurrentTasksComplete = TodoTaskRules\.areCurrentTasksComplete/);
+assert.match(taskScript, /const today = TodoTaskRules\.localDateIso\(\);[\s\S]*?const visibleTasks = activeTasks\(today\);[\s\S]*?Today: \$\{todayCount\} · Total: \$\{activeCount\}/);
+assert.match(indexHtml, /id="task-count"[^>]*>Today: 0 · Total: 0</);
 assert.doesNotMatch(taskScript, /CELEBRATION_KEY|todo-last-celebrated-list/);
 assert.match(taskScript, /if \(prefersReducedMotion\) return;/);
 assert.match(styles, /\.celebration-check/);
