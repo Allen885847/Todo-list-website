@@ -42,6 +42,8 @@ const expression = `(async () => {
     }
   };
   localStorage.removeItem("todo-calendar-events");
+  document.querySelector('[data-view="day"]').click();
+  const periodBeforeSaving = document.querySelector("#period-label").textContent;
   document.querySelector("#add-event").click();
   await waitFor(() => document.querySelector("#event-dialog").open, "Event dialog did not open");
   let responseNumber = 0;
@@ -76,6 +78,7 @@ const expression = `(async () => {
   cards[0].querySelector('[data-field="title"]').value = "Physics study group";
   document.querySelector("#save-event").click();
   await waitFor(() => !document.querySelector("#event-dialog").open, "Batch did not save");
+  const periodAfterSaving = document.querySelector("#period-label").textContent;
   const saved = JSON.parse(localStorage.getItem("todo-calendar-events") || "[]");
   window.fetch = async () => ({ ok: true, json: async () => ({ events: [
     { title: "Ambiguous meeting", startDate: "2026-10-27", endDate: "2026-10-27", holiday: false, startTime: "", endTime: "", dateMissing: false, dateAmbiguous: true, clarificationQuestion: "Did you mean October 27?" }
@@ -92,6 +95,7 @@ const expression = `(async () => {
   const savedAfterConfirmation = JSON.parse(localStorage.getItem("todo-calendar-events") || "[]");
   return {
     firstCount, appendedCount, removedCount,
+    calendarDatePreserved: periodAfterSaving === periodBeforeSaving,
     savedCount: saved.length,
     titles: saved.map((event) => event.title),
     dialogClosed: !document.querySelector("#event-dialog").open,
@@ -106,6 +110,7 @@ const result = evaluation.result?.value;
 socket.close();
 if (evaluation.exceptionDetails) throw new Error(evaluation.exceptionDetails.text);
 if (!result || result.firstCount !== 2 || result.appendedCount !== 3 || result.removedCount !== 2
+  || !result.calendarDatePreserved
   || result.savedCount !== 3 || !result.dialogClosed || !result.holidayPreserved || !result.timesPreserved
   || !result.confirmationCleared || !result.confirmedEventSaved
   || result.titles[0] !== "Physics study group" || !result.titles.includes("Dentist")) {

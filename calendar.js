@@ -1167,7 +1167,6 @@ function saveEventFromEditor() {
     }
     events.push(...prepared);
     saveEvents();
-    selectedDate = parseIsoDate(prepared[0].startDate);
     eventDialog.close();
     renderCalendar();
     showNotice(`${prepared.length} ${prepared.length === 1 ? "event" : "events"} saved.`);
@@ -1196,7 +1195,6 @@ function saveEventFromEditor() {
     events.push(event);
   }
   saveEvents();
-  selectedDate = parseIsoDate(event.startDate);
   eventDialog.close();
   renderCalendar();
   showNotice(editingEventId ? "Event updated." : "Event saved.");
