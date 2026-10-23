@@ -46,6 +46,12 @@ const expression = `(async () => {
   const periodBeforeSaving = document.querySelector("#period-label").textContent;
   document.querySelector("#add-event").click();
   await waitFor(() => document.querySelector("#event-dialog").open, "Event dialog did not open");
+  const backdropFilters = [getComputedStyle(document.querySelector("#event-dialog"), "::backdrop").backdropFilter];
+  document.querySelector("#manual-tab").click();
+  backdropFilters.push(getComputedStyle(document.querySelector("#event-dialog"), "::backdrop").backdropFilter);
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  document.querySelector("#natural-tab").click();
+  backdropFilters.push(getComputedStyle(document.querySelector("#event-dialog"), "::backdrop").backdropFilter);
   let responseNumber = 0;
   window.fetch = async (url) => {
     if (url !== "/api/parse-event") throw new Error("Unexpected request: " + url);
@@ -95,6 +101,7 @@ const expression = `(async () => {
   const savedAfterConfirmation = JSON.parse(localStorage.getItem("todo-calendar-events") || "[]");
   return {
     firstCount, appendedCount, removedCount,
+    backdropStayedBlurred: backdropFilters.every((value) => value && value !== "none" && value.includes("blur")),
     calendarDatePreserved: periodAfterSaving === periodBeforeSaving,
     savedCount: saved.length,
     titles: saved.map((event) => event.title),
@@ -110,6 +117,7 @@ const result = evaluation.result?.value;
 socket.close();
 if (evaluation.exceptionDetails) throw new Error(evaluation.exceptionDetails.text);
 if (!result || result.firstCount !== 2 || result.appendedCount !== 3 || result.removedCount !== 2
+  || !result.backdropStayedBlurred
   || !result.calendarDatePreserved
   || result.savedCount !== 3 || !result.dialogClosed || !result.holidayPreserved || !result.timesPreserved
   || !result.confirmationCleared || !result.confirmedEventSaved

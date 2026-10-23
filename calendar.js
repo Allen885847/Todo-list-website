@@ -774,12 +774,16 @@ function setEventTab(mode) {
       if (!eventEndDate.value) eventEndDate.value = eventStartDate.value;
     }
   };
-  const transition = eventDialog.open && window.runTodoViewTransition
-    ? window.runTodoViewTransition("event-panel", updateMode)
-    : (updateMode(), null);
+  updateMode();
+  if (eventDialog.open && !reducedMotion.matches) {
+    const panel = natural ? naturalPanel : eventPreview;
+    panel.classList.remove("event-panel-enter");
+    void panel.offsetWidth;
+    panel.classList.add("event-panel-enter");
+    panel.addEventListener("animationend", () => panel.classList.remove("event-panel-enter"), { once: true });
+  }
   if (!natural && eventDialog.open) {
-    const ready = transition?.ready || Promise.resolve();
-    ready.finally(() => requestAnimationFrame(() => eventTitle.focus()));
+    requestAnimationFrame(() => eventTitle.focus());
   }
 }
 
