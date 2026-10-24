@@ -1117,7 +1117,7 @@ function createTodoImageBlob(snapshot) {
   context.stroke();
   context.fillStyle = "#6c777b";
   context.font = '500 20px Arial, "Helvetica Neue", sans-serif';
-  context.fillText("AI Todo List · V3.0", padding, y + 48);
+  context.fillText("AI Todo List · V3.1", padding, y + 48);
 
   const dataUrl = canvas.toDataURL("image/png");
   if (!dataUrl.startsWith("data:image/png;base64,")) {
