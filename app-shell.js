@@ -32,6 +32,12 @@
       : mode;
   }
 
+  function broadcastAppearance(mode) {
+    frames.forEach((frame) => {
+      frame.contentWindow?.postMessage({ type: "todo-appearance-sync", mode }, location.origin);
+    });
+  }
+
   function createFrame(route) {
     const frame = document.createElement("iframe");
     frame.className = "app-view";
@@ -159,7 +165,7 @@
     const entersFromRight = direction !== "back";
     const enterOffset = entersFromRight ? "100%" : "-100%";
     const leaveOffset = entersFromRight ? "-6%" : "6%";
-    const timing = { duration: 300, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "forwards" };
+    const timing = { duration: 220, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "forwards" };
 
     const incoming = nextFrame.animate([
       { transform: `translate3d(${enterOffset}, 0, 0)` },
@@ -216,7 +222,19 @@
   }
 
   window.addEventListener("popstate", () => navigate(routeFromLocation()));
-  systemTheme.addEventListener("change", syncShellTheme);
+  window.addEventListener("message", (event) => {
+    if (event.origin !== location.origin || event.data?.type !== "todo-appearance-change") return;
+    const mode = event.data.mode;
+    if (!["light", "dark", "system"].includes(mode)) return;
+    try { localStorage.setItem("todo-appearance", mode); } catch { /* Keep in-memory appearance. */ }
+    syncShellTheme();
+    broadcastAppearance(mode);
+  });
+  systemTheme.addEventListener("change", () => {
+    syncShellTheme();
+    const mode = document.documentElement.dataset.appearance || "system";
+    if (mode === "system") broadcastAppearance(mode);
+  });
   window.todoShellNavigate = (route) => navigate(route, { updateHistory: true });
   syncShellTheme();
   navigate(routeFromLocation());

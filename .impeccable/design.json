@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-24T14:40:00+08:00",
+  "title": "Design System: Todo List Blue Workspace",
+  "extensions": {
+    "colorMeta": {
+      "primary-blue": { "role": "primary", "displayName": "Planner Blue", "canonical": "#5b82f6", "tonalRamp": ["#101a38", "#1f3270", "#3151ae", "#4770e0", "#7397ff", "#9db7ff", "#cad8ff", "#eef3ff"] },
+      "event-purple": { "role": "secondary", "displayName": "Event Purple", "canonical": "#8170bd", "tonalRamp": ["#1d1930", "#342b55", "#50427e", "#6b5ba3", "#9482cd", "#b7a8e1", "#d9d0f2", "#f3effc"] },
+      "light-ground": { "role": "neutral", "displayName": "Cool Ground", "canonical": "#edf3fb", "tonalRamp": ["#111a26", "#253349", "#425673", "#667c9a", "#8fa3bd", "#b8c8db", "#d9e4f0", "#f4f8fd"] },
+      "overdue-red": { "role": "tertiary", "displayName": "Soft Overdue Red", "canonical": "#b64353", "tonalRamp": ["#301218", "#57212b", "#82303d", "#ad4050", "#ce6978", "#e69aa5", "#f4c8ce", "#fff1f3"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Planner Display", "purpose": "Fraunces headings for To-Do List, Tasks, Calendar, and account identity.", "fontFamily": "Fraunces, Georgia, serif", "fontWeight": 700 },
+      "headline": { "displayName": "Application Headline", "purpose": "Calendar and account page titles." },
+      "body": { "displayName": "Working Text", "purpose": "Tasks, event details, instructions, and forms." }
+    },
+    "shadows": [
+      { "name": "overlay", "value": "0 28px 80px rgba(15, 35, 68, 0.22)", "purpose": "Dialogs and protected-focus overlays only." },
+      { "name": "drag", "value": "0 20px 42px rgba(34, 64, 112, 0.20)", "purpose": "Lifted task card during drag-and-drop." }
+    ],
+    "motion": [
+      { "name": "navigation", "value": "220ms cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "Directional To-Do List and Calendar transitions." },
+      { "name": "panel", "value": "180ms cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "Compact control, stack, and form transitions." }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "720px" },
+      { "name": "compact-calendar", "value": "900px" },
+      { "name": "wide-calendar", "value": "1180px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary task, event, save, and authentication action.",
+      "html": "<button class=\"ds-btn-primary\">Ask AI</button>",
+      "css": ".ds-btn-primary{padding:11px 18px 12px;border:0;border-radius:10px;background:#416bdc;color:#fff;font:700 15px/1.4 'DM Sans',sans-serif;transition:background 150ms ease,transform 150ms ease}.ds-btn-primary:hover{background:#3763d8}.ds-btn-primary:active{transform:translateY(1px)}.ds-btn-primary:focus-visible{outline:3px solid rgba(91,130,246,.35);outline-offset:3px}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Task, event, account, and review text entry.",
+      "html": "<input class=\"ds-input\" value=\"Physics worksheet\" aria-label=\"Task title\">",
+      "css": ".ds-input{padding:11px 12px;border:1px solid #dce5f2;border-radius:10px;background:#fff;color:#17243b;font:500 15px/1.45 'DM Sans',sans-serif;outline:0}.ds-input:focus-visible{border-color:#5b82f6;box-shadow:0 0 0 3px rgba(91,130,246,.16)}"
+    },
+    {
+      "name": "Task Card",
+      "kind": "card",
+      "refersTo": "task-card",
+      "description": "Compact, flat task row with metadata and actions.",
+      "html": "<article class=\"ds-task\"><span class=\"ds-check\"></span><strong>Physics worksheet</strong></article>",
+      "css": ".ds-task{display:flex;align-items:center;gap:12px;padding:15px 16px;border:1px solid #dce5f2;border-radius:12px;background:#fff;color:#17243b;font:600 15px/1.5 'DM Sans',sans-serif}.ds-check{width:22px;height:22px;border:2px solid #91a0b8;border-radius:5px}"
+    },
+    {
+      "name": "Extra Label",
+      "kind": "chip",
+      "refersTo": "extra-label",
+      "description": "Optional-task metadata shown beside Overdue when both apply.",
+      "html": "<span class=\"ds-extra\">Extra</span>",
+      "css": ".ds-extra{display:inline-block;padding:3px 7px;border:1px solid #c8bcf4;border-radius:4px;background:#f1edff;color:#6652a7;font:650 11px/1.3 'DM Sans',sans-serif}"
+    },
+    {
+      "name": "Calendar View Navigation",
+      "kind": "nav",
+      "description": "Day, Week, Month, and Year navigation with one active blue underline.",
+      "html": "<nav class=\"ds-tabs\"><button>Day</button><button class=\"is-active\">Week</button><button>Month</button><button>Year</button></nav>",
+      "css": ".ds-tabs{display:flex;border-bottom:1px solid #dce5f2}.ds-tabs button{position:relative;padding:10px 12px;border:0;background:transparent;color:#66758d;font:700 12px/1.4 'DM Sans',sans-serif}.ds-tabs button:hover{color:#17243b}.ds-tabs .is-active{color:#17243b}.ds-tabs .is-active:after{position:absolute;right:8px;bottom:-1px;left:8px;height:2px;content:'';background:#5b82f6}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Precise Blue Planner",
+    "overview": "This interface is a quiet productivity workspace: structured enough for dense schedules, calm enough to stay open all day. Cool white and navy-gray grounds create continuity between every application surface. Motion confirms context changes without delaying input.",
+    "keyCharacteristics": ["Cool, blue-led neutral surfaces", "Full-canvas Calendar", "Semantic task and event colors", "Flat panels with overlay-only elevation"],
+    "rules": [
+      { "name": "The Color Role Rule", "body": "Blue is the only primary action color; purple never represents tasks, red never represents a normal action, and completed work always recedes into blue-gray.", "section": "colors" },
+      { "name": "The Appearance Pair Rule", "body": "Light and dark modes use the same semantic hierarchy, not independent palettes. System mode resolves live from the device setting.", "section": "colors" },
+      { "name": "The Flat Workspace Rule", "body": "Main cards, calendar cells, and task rows never rely on a large ambient shadow for structure.", "section": "elevation" }
+    ],
+    "dos": ["Do keep blue reserved for primary task and navigation actions.", "Do show all seven weekdays together on desktop Week view.", "Do use consistent outlined SVG iconography."],
+    "donts": ["Don't reintroduce orange or green as interface accents.", "Don't constrain the Calendar to the To-Do List width.", "Don't use gradients, thick side stripes, decorative glass, or permanent card shadows."]
+  }
+}

@@ -40,6 +40,7 @@
     <link rel="prefetch" href="index.html" />
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="calendar.css" />
+    <link rel="stylesheet" href="impeccable.css" />
   </head>
   <body class="calendar-page">
     <main class="calendar-shell">
@@ -58,13 +59,13 @@
 
       <section class="calendar-toolbar" aria-label="Calendar controls">
         <div class="date-navigation">
-          <button id="previous-period" class="icon-button" type="button" aria-label="Previous period">‹</button>
+          <button id="previous-period" class="icon-button" type="button" aria-label="Previous period"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 6-6 6 6 6"></path></svg></button>
           <button id="today-button" class="today-button" type="button">Today</button>
-          <button id="next-period" class="icon-button" type="button" aria-label="Next period">›</button>
+          <button id="next-period" class="icon-button" type="button" aria-label="Next period"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 6 6 6-6 6"></path></svg></button>
           <div class="year-navigation" aria-label="Switch calendar year">
-            <button id="previous-year" class="icon-button year-button" type="button" aria-label="Previous year">‹</button>
+            <button id="previous-year" class="icon-button year-button" type="button" aria-label="Previous year"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 6-6 6 6 6"></path></svg></button>
             <h2 id="period-label" aria-live="polite"></h2>
-            <button id="next-year" class="icon-button year-button" type="button" aria-label="Next year">›</button>
+            <button id="next-year" class="icon-button year-button" type="button" aria-label="Next year"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 6 6 6-6 6"></path></svg></button>
           </div>
         </div>
         <div class="view-switcher" role="group" aria-label="Calendar view">
@@ -99,10 +100,9 @@
       <form method="dialog" class="dialog-card" id="event-editor" novalidate>
         <div class="dialog-heading">
           <div>
-            <p class="section-label">PERSONAL EVENT</p>
             <h2 id="event-dialog-title">Add an event</h2>
           </div>
-          <button class="dialog-close" type="button" data-close-dialog aria-label="Close event editor">×</button>
+          <button class="dialog-close" type="button" data-close-dialog aria-label="Close event editor"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"></path></svg></button>
         </div>
 
         <div id="event-entry-tabs" class="entry-tabs" role="tablist" aria-label="Event input method">
@@ -179,8 +179,8 @@
     <dialog id="task-dialog" class="editor-dialog">
       <form method="dialog" class="dialog-card" id="task-editor">
         <div class="dialog-heading">
-          <div><p class="section-label">TO-DO TASK</p><h2>Edit task</h2></div>
-          <button class="dialog-close" type="button" data-close-dialog aria-label="Close task editor">×</button>
+          <div><h2>Edit task</h2></div>
+          <button class="dialog-close" type="button" data-close-dialog aria-label="Close task editor"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"></path></svg></button>
         </div>
         <div class="event-fields">
           <label class="wide-field">Task title<input id="task-title" type="text" maxlength="220" required /></label>

@@ -17,14 +17,17 @@
         document.documentElement.dataset.theme = resolved;
       })();
     </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="app-shell.css" />
     <link rel="stylesheet" href="login.css" />
+    <link rel="stylesheet" href="impeccable.css" />
   </head>
   <body>
     <main id="auth-stage" class="auth-stage" aria-label="Account access">
       <section id="auth-card" class="auth-card">
         <div class="auth-brand">
-          <p class="auth-eyebrow">YOUR DAY, CLEARLY PLANNED</p>
           <h1>Todo-List</h1>
           <p>A calm, focused home for your tasks and calendar.</p>
         </div>
@@ -53,7 +56,6 @@
 
       <section id="recovery-panel" class="auth-card recovery-card" hidden>
         <button id="back-to-login" class="auth-back" type="button">← Back to sign in</button>
-        <p class="auth-eyebrow">ACCOUNT RECOVERY</p>
         <h1>Reset your password</h1>
         <p>Enter your email address. We will send a six-digit code so you can choose a new password.</p>
         <form id="recovery-form" class="auth-form">
@@ -69,7 +71,6 @@
     </main>
     <main id="reset-stage" class="auth-stage" aria-label="Reset password" hidden>
       <section class="auth-card recovery-card">
-        <p class="auth-eyebrow">ACCOUNT RECOVERY</p>
         <h1>Choose a new password</h1>
         <form id="reset-form" class="auth-form">
           <label>New password<input id="reset-password" type="password" minlength="8" autocomplete="new-password" required /></label>
@@ -100,10 +101,9 @@
       <form id="profile-form" class="profile-card">
         <div class="profile-heading">
           <div>
-            <p class="auth-eyebrow">ACCOUNT SETTINGS</p>
             <h2 id="profile-dialog-title">Edit Profile</h2>
           </div>
-          <button id="close-profile" class="profile-close" type="button" aria-label="Close profile settings">&times;</button>
+          <button id="close-profile" class="profile-close" type="button" aria-label="Close profile settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"></path></svg></button>
         </div>
         <label>Display name<input id="profile-display-name" type="text" maxlength="60" autocomplete="name" required /></label>
         <label>Email address<input id="profile-email" type="email" readonly aria-readonly="true" /></label>

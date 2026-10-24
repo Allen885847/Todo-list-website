@@ -240,6 +240,11 @@ function applyAppearance() {
   appearanceSelect.value = appearanceMode;
 }
 
+function announceAppearanceChange() {
+  if (window.parent === window) return;
+  window.parent.postMessage({ type: "todo-appearance-change", mode: appearanceMode }, location.origin);
+}
+
 function tasksOnDate(isoDate) {
   return taskState.tasks
     .map((task, index) => ({ task, index }))
@@ -315,8 +320,12 @@ function createCalendarItem(type, data, index) {
 
   const symbol = document.createElement("span");
   symbol.className = "item-symbol";
-  symbol.textContent = type === "event" ? (data.holiday ? "◆" : "●") : (data.completed ? "✓" : "○");
+  symbol.classList.add(type === "event" ? "is-event" : "is-task");
+  if (type === "event" && data.holiday) symbol.classList.add("is-holiday");
+  if (type === "task" && data.completed) symbol.classList.add("is-complete");
   const content = document.createElement("span");
+  const titleLine = document.createElement("span");
+  titleLine.className = "calendar-item-title-line";
   const title = document.createElement("span");
   title.className = "item-title";
   title.textContent = type === "event" ? data.title : data.task;
@@ -328,8 +337,7 @@ function createCalendarItem(type, data, index) {
   } else {
     meta.textContent = data.subject;
   }
-  content.append(title);
-  if (meta.textContent) content.append(meta);
+  titleLine.append(title);
   if (type === "task" && (data.completed || isTaskOverdue(data) || data.label)) {
     const badges = document.createElement("span");
     badges.className = "calendar-task-badges";
@@ -345,8 +353,10 @@ function createCalendarItem(type, data, index) {
       label.textContent = data.label;
       badges.append(label);
     }
-    content.append(badges);
+    titleLine.append(badges);
   }
+  content.append(titleLine);
+  if (meta.textContent) content.append(meta);
   button.append(symbol, content);
   button.addEventListener("click", () => {
     if (type === "event") openEventDialog(data.id);
@@ -504,7 +514,7 @@ function createTaskStack(tasks, isoDate, context = "day") {
   const icon = document.createElement("span");
   icon.className = "task-stack-icon";
   icon.setAttribute("aria-hidden", "true");
-  icon.textContent = "▤";
+  icon.innerHTML = '<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"></rect><path d="M8 9h8M8 12h8M8 15h6"></path></svg>';
   const label = document.createElement("span");
   label.className = "task-stack-label";
   label.textContent = `${tasks.length} ${tasks.length === 1 ? "Task" : "Tasks"}`;
@@ -514,7 +524,7 @@ function createTaskStack(tasks, isoDate, context = "day") {
   const chevron = document.createElement("span");
   chevron.className = "task-stack-chevron";
   chevron.setAttribute("aria-hidden", "true");
-  chevron.textContent = expanded ? "▴" : "▾";
+  chevron.classList.toggle("up", expanded);
   toggle.append(icon, label, hint, chevron);
 
   const itemsClip = document.createElement("div");
@@ -542,7 +552,7 @@ function createTaskStack(tasks, isoDate, context = "day") {
     toggle.setAttribute("aria-expanded", String(expanded));
     toggle.setAttribute("aria-label", `${expanded ? "Collapse" : "Expand"} ${tasks.length} ${tasks.length === 1 ? "task" : "tasks"} for ${isoDate}`);
     hint.textContent = expanded ? "Collapse" : "Show all";
-    chevron.textContent = expanded ? "▴" : "▾";
+    chevron.classList.toggle("up", expanded);
   };
 
   toggle.addEventListener("click", () => {
@@ -1336,6 +1346,7 @@ appearanceSelect.addEventListener("change", () => {
   appearanceMode = appearanceSelect.value;
   localStorage.setItem(APPEARANCE_KEY, appearanceMode);
   applyAppearance();
+  announceAppearanceChange();
 });
 const handleSystemAppearanceChange = () => {
   if (appearanceMode === "system") applyAppearance();
@@ -1349,7 +1360,16 @@ window.addEventListener("storage", (event) => {
   if (event.key === TASK_STORAGE_KEY || event.key === EVENT_STORAGE_KEY) renderCalendar();
 });
 window.addEventListener("message", (event) => {
-  if (event.origin !== location.origin || event.data?.type !== "todo-view-activated") return;
+  if (event.origin !== location.origin) return;
+  if (event.data?.type === "todo-appearance-sync") {
+    const mode = event.data.mode;
+    if (!["light", "dark", "system"].includes(mode)) return;
+    appearanceMode = mode;
+    try { localStorage.setItem(APPEARANCE_KEY, mode); } catch { /* Apply without persistence. */ }
+    applyAppearance();
+    return;
+  }
+  if (event.data?.type !== "todo-view-activated") return;
   taskState = loadTaskState();
   events = loadEvents();
   renderCalendar();

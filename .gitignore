@@ -15,3 +15,5 @@ state.previous.json
 !.dev.vars.example
 .wrangler/
 dist/
+.impeccable/review/
+.taste-skill/

@@ -219,6 +219,11 @@ function applyAppearance() {
   appearanceSelect.value = appearanceMode;
 }
 
+function announceAppearanceChange() {
+  if (window.parent === window) return;
+  window.parent.postMessage({ type: "todo-appearance-change", mode: appearanceMode }, location.origin);
+}
+
 function formatDate(date) {
   if (!date) return "No due date";
   return new Intl.DateTimeFormat(undefined, {
@@ -386,6 +391,8 @@ function createTaskElement(todo, index) {
 
   const content = document.createElement("div");
   content.className = "task-content";
+  const titleLine = document.createElement("div");
+  titleLine.className = "task-title-line";
   const text = document.createElement("span");
   text.className = "task-text";
   text.textContent = todo.task;
@@ -465,8 +472,9 @@ function createTaskElement(todo, index) {
     renderTasks();
   });
 
-  if (badges.childElementCount) content.append(badges);
-  content.append(text);
+  titleLine.append(text);
+  if (badges.childElementCount) titleLine.append(badges);
+  content.append(titleLine);
   item.append(dragHandle, checkbox, content, editButton, deleteButton);
   return item;
 }
@@ -2074,6 +2082,7 @@ appearanceSelect.addEventListener("change", () => {
     console.warn("The appearance preference could not be saved.", error);
   }
   applyAppearance();
+  announceAppearanceChange();
   if (appearanceInputMethod === "pointer") {
     requestAnimationFrame(() => appearanceSelect.blur());
   }
@@ -2113,7 +2122,16 @@ window.addEventListener("storage", (event) => {
   renderTasks();
 });
 window.addEventListener("message", (event) => {
-  if (event.origin !== location.origin || event.data?.type !== "todo-view-activated") return;
+  if (event.origin !== location.origin) return;
+  if (event.data?.type === "todo-appearance-sync") {
+    const mode = event.data.mode;
+    if (!["light", "dark", "system"].includes(mode)) return;
+    appearanceMode = mode;
+    try { localStorage.setItem(APPEARANCE_KEY, mode); } catch { /* Apply without persistence. */ }
+    applyAppearance();
+    return;
+  }
+  if (event.data?.type !== "todo-view-activated") return;
   state = loadState();
   renderTasks();
 });

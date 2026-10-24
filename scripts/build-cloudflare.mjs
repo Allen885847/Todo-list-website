@@ -14,6 +14,7 @@ const assets = [
   "script.js",
   "calendar.html",
   "calendar.css",
+  "impeccable.css",
   "calendar.js",
   "data.html",
   "data.css",

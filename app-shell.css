@@ -1,15 +1,15 @@
 :root {
   color-scheme: light;
-  --shell-background: #eef1ee;
-  --shell-ink: #172126;
-  --shell-accent: #ea6847;
+  --shell-background: #edf3fb;
+  --shell-ink: #17243b;
+  --shell-accent: #5b82f6;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --shell-background: #0c0d0e;
-  --shell-ink: #f3f1ed;
-  --shell-accent: #ff8060;
+  --shell-background: #09111f;
+  --shell-ink: #edf4ff;
+  --shell-accent: #78a0ff;
 }
 
 * {

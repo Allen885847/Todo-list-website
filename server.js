@@ -45,6 +45,7 @@ const STATIC_FILES = new Map([
   ["/script.js", ["script.js", "text/javascript; charset=utf-8"]],
   ["/calendar.html", ["calendar.html", "text/html; charset=utf-8"]],
   ["/calendar.css", ["calendar.css", "text/css; charset=utf-8"]],
+  ["/impeccable.css", ["impeccable.css", "text/css; charset=utf-8"]],
   ["/calendar.js", ["calendar.js", "text/javascript; charset=utf-8"]],
   ["/data.html", ["data.html", "text/html; charset=utf-8"]],
   ["/data.css", ["data.css", "text/css; charset=utf-8"]],
