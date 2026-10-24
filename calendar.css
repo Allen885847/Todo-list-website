@@ -793,25 +793,25 @@ html[data-theme="dark"] .calendar-label-badge {
 }
 
 .week-day.weekend-day {
-  background: linear-gradient(var(--weekend-background), var(--surface) 48%);
+  background: var(--weekend-background);
   border-color: var(--weekend-border);
 }
 
 .week-day.holiday-day {
-  background: linear-gradient(var(--holiday-background), var(--surface) 48%);
+  background: var(--holiday-background);
   border-color: var(--holiday-border);
 }
 
 .day-view.weekend-day {
   padding: 14px;
-  background: linear-gradient(180deg, var(--weekend-background), transparent 38%);
+  background: var(--weekend-background);
   border: 1px solid var(--weekend-border);
   border-radius: 18px;
 }
 
 .day-view.holiday-period {
   padding: 14px;
-  background: linear-gradient(180deg, var(--holiday-background), transparent 38%);
+  background: var(--holiday-background);
   border: 1px solid var(--holiday-border);
   border-radius: 18px;
 }
@@ -1560,5 +1560,182 @@ html[data-theme="dark"] .event-fields input[type="time"]::-webkit-datetime-edit-
 
   .event-ai-actions .dialog-primary {
     margin-right: auto;
+  }
+}
+
+/* Editorial workspace refresh — taste-skill seed 1092139704. */
+.calendar-shell {
+  width: min(1100px, calc(100% - 48px));
+  min-height: calc(100vh - 48px);
+  margin: 24px auto;
+  padding: 32px;
+  background: var(--paper);
+  border-color: var(--paper-border);
+  border-radius: 18px;
+  box-shadow: none;
+}
+
+.calendar-header {
+  align-items: center;
+}
+
+.calendar-brand {
+  gap: 16px;
+}
+
+.calendar-brand h1 {
+  font-family: "DM Sans", sans-serif;
+  font-size: 1.75rem;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+
+.back-link,
+.add-event-button,
+.dialog-primary,
+.today-button,
+.icon-button,
+.view-switcher,
+.view-switcher button {
+  border-radius: 8px;
+}
+
+.back-link {
+  min-height: 40px;
+  color: var(--muted);
+  background: var(--surface);
+  border-color: var(--line);
+}
+
+.back-link:hover,
+.back-link:focus-visible {
+  color: var(--ink);
+  background: var(--surface);
+  border-color: var(--ink);
+}
+
+.add-event-button,
+.dialog-primary {
+  min-height: 40px;
+  background: var(--primary-button-background);
+}
+
+.add-event-button:hover,
+.dialog-primary:hover:not(:disabled) {
+  background: var(--primary-button-hover);
+  transform: none;
+}
+
+.calendar-toolbar {
+  margin-top: 24px;
+  padding: 12px 0;
+}
+
+.date-navigation h2 {
+  font-family: "DM Sans", sans-serif;
+  font-size: 1.15rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.view-switcher {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.view-switcher button {
+  position: relative;
+  padding-inline: 12px;
+  color: var(--muted);
+  background: transparent;
+}
+
+.view-switcher button.active {
+  color: var(--ink);
+  background: transparent;
+}
+
+.view-switcher button.active::after {
+  position: absolute;
+  right: 8px;
+  bottom: -1px;
+  left: 8px;
+  height: 2px;
+  content: "";
+  background: var(--accent);
+}
+
+.calendar-stage {
+  min-height: 0;
+  margin-top: 20px;
+}
+
+.agenda-section h3,
+.week-group-label {
+  font-size: 0.82rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.day-heading span,
+.empty-agenda,
+.calendar-legend {
+  font-size: 0.82rem;
+}
+
+.month-day,
+.week-day,
+.day-view,
+.event-card,
+.calendar-task-card {
+  box-shadow: none;
+}
+
+.weekday-row span,
+.preview-label,
+.natural-panel > label,
+.event-fields label {
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.calendar-footer {
+  margin-top: 28px;
+  padding-top: 18px;
+}
+
+.editor-dialog .dialog-card {
+  border-radius: 14px;
+}
+
+@media (max-width: 720px) {
+  .calendar-shell {
+    width: 100%;
+    min-height: 100vh;
+    margin: 0;
+    padding: 24px 18px 40px;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .calendar-header {
+    align-items: flex-start;
+  }
+
+  .calendar-brand {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .calendar-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .calendar-stage {
+    min-height: 0;
   }
 }

@@ -1,13 +1,13 @@
 :root {
   color-scheme: light;
-  --shell-background: linear-gradient(135deg, #d9eee0, #f0e8d4 55%, #efd4c5);
+  --shell-background: #eef1ee;
   --shell-ink: #172126;
   --shell-accent: #ea6847;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --shell-background: linear-gradient(135deg, #101114, #17181b 55%, #211b1a);
+  --shell-background: #0c0d0e;
   --shell-ink: #f3f1ed;
   --shell-accent: #ff8060;
 }
