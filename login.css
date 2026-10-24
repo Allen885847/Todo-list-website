@@ -98,6 +98,10 @@
   gap: 16px;
 }
 
+.auth-mode-panel {
+  min-width: 0;
+}
+
 .auth-form label {
   display: grid;
   gap: 7px;
@@ -283,6 +287,10 @@
   white-space: normal;
 }
 
+.account-avatar-initial {
+  display: none;
+}
+
 .account-menu-button svg {
   width: 14px;
   flex: 0 0 auto;
@@ -323,14 +331,28 @@
   display: none;
 }
 
-.account-menu p {
-  overflow: hidden;
+.account-menu-identity {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
   margin: 2px 8px 7px;
-  padding-bottom: 1px;
+  padding: 2px 0 9px;
+  border-bottom: 1px solid color-mix(in srgb, var(--shell-ink) 10%, transparent);
+}
+
+.account-menu-identity strong,
+.account-menu-identity p {
+  overflow: hidden;
+  margin: 0;
   color: color-mix(in srgb, var(--shell-ink) 58%, transparent);
   line-height: 1.45;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.account-menu-identity strong {
+  color: var(--shell-ink);
+  font-size: 0.86rem;
 }
 
 .account-menu button {
@@ -488,5 +510,40 @@
     min-height: 100%;
     padding: 42px 24px;
     border-radius: 0;
+  }
+
+  .account-bar {
+    top: max(12px, env(safe-area-inset-top));
+    right: max(14px, env(safe-area-inset-right));
+  }
+
+  .account-menu-button {
+    width: 44px;
+    height: 44px;
+    justify-content: center;
+    padding: 0;
+    border-radius: 50%;
+  }
+
+  .account-avatar-initial {
+    display: grid !important;
+    width: 100%;
+    height: 100%;
+    place-items: center;
+    padding: 0 !important;
+    color: var(--shell-ink);
+    font-size: 1rem;
+    font-weight: 800;
+    line-height: 1;
+    text-align: center;
+  }
+
+  #account-display-name,
+  .account-menu-button svg {
+    display: none;
+  }
+
+  .account-menu {
+    width: min(286px, calc(100vw - 28px));
   }
 }

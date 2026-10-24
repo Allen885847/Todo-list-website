@@ -37,21 +37,23 @@
           <button id="register-tab" type="button" role="tab" aria-selected="false">Create account</button>
         </div>
 
-        <form id="auth-form" class="auth-form">
-          <label>Email address<input id="auth-email" type="email" autocomplete="email" required /></label>
-          <label id="auth-password-field">Password<input id="auth-password" type="password" minlength="8" autocomplete="current-password" required /></label>
-          <label id="confirm-password-field" style="display: none" hidden>Confirm password<input id="auth-password-confirm" type="password" minlength="8" autocomplete="new-password" /></label>
-          <p id="password-help" class="password-help">Use the password for your existing account.</p>
-          <div id="verification-fields" class="verification-fields" hidden>
-            <label>Email verification code<input id="verification-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" /></label>
-            <p class="password-help">Enter the six-digit code from your email. It expires in 10 minutes.</p>
-          </div>
-          <div id="turnstile-widget" class="turnstile-widget" aria-label="Security check"></div>
-          <button id="auth-submit" class="auth-primary" type="submit">Sign in</button>
-          <button id="resend-verification" class="auth-secondary" type="button" hidden>Send verification code</button>
-        </form>
-        <button id="forgot-password" class="auth-link" type="button">Forgot password?</button>
-        <p id="auth-status" class="auth-status" role="status" aria-live="polite">Checking secure sign-in…</p>
+        <div id="auth-mode-panel" class="auth-mode-panel">
+          <form id="auth-form" class="auth-form">
+            <label>Email address<input id="auth-email" type="email" autocomplete="email" required /></label>
+            <label id="auth-password-field">Password<input id="auth-password" type="password" minlength="8" autocomplete="current-password" required /></label>
+            <label id="confirm-password-field" style="display: none" hidden>Confirm password<input id="auth-password-confirm" type="password" minlength="8" autocomplete="new-password" /></label>
+            <p id="password-help" class="password-help">Use the password for your existing account.</p>
+            <div id="verification-fields" class="verification-fields" hidden>
+              <label>Email verification code<input id="verification-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" /></label>
+              <p class="password-help">Enter the six-digit code from your email. It expires in 10 minutes.</p>
+            </div>
+            <div id="turnstile-widget" class="turnstile-widget" aria-label="Security check"></div>
+            <button id="auth-submit" class="auth-primary" type="submit">Sign in</button>
+            <button id="resend-verification" class="auth-secondary" type="button" hidden>Send verification code</button>
+          </form>
+          <button id="forgot-password" class="auth-link" type="button">Forgot password?</button>
+          <p id="auth-status" class="auth-status" role="status" aria-live="polite">Checking secure sign-in…</p>
+        </div>
       </section>
 
       <section id="recovery-panel" class="auth-card recovery-card" hidden>
@@ -83,11 +85,15 @@
     <main id="app-stage" class="app-stage" aria-label="Todo List application" hidden>
       <div class="account-bar">
         <button id="account-menu-button" class="account-menu-button" type="button" aria-haspopup="menu" aria-expanded="false">
+          <span id="account-avatar-initial" class="account-avatar-initial" aria-hidden="true">A</span>
           <span id="account-display-name">Account</span>
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"></path></svg>
         </button>
         <div id="account-menu" class="account-menu" role="menu" hidden>
-          <p id="account-menu-email"></p>
+          <div class="account-menu-identity">
+            <strong id="account-menu-name">Account</strong>
+            <p id="account-menu-email"></p>
+          </div>
           <button id="edit-profile-button" type="button" role="menuitem">Edit Profile</button>
           <button id="logout-button" class="logout-button" type="button" role="menuitem">Log out</button>
         </div>

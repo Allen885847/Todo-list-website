@@ -9,6 +9,7 @@
   const appStage = $("#app-stage");
   const loginTab = $("#login-tab");
   const registerTab = $("#register-tab");
+  const authModePanel = $("#auth-mode-panel");
   const authForm = $("#auth-form");
   const authEmail = $("#auth-email");
   const authPasswordField = $("#auth-password-field");
@@ -35,8 +36,10 @@
   const resetPasswordConfirm = $("#reset-password-confirm");
   const resetStatus = $("#reset-status");
   const accountMenuButton = $("#account-menu-button");
+  const accountAvatarInitial = $("#account-avatar-initial");
   const accountDisplayName = $("#account-display-name");
   const accountMenu = $("#account-menu");
+  const accountMenuName = $("#account-menu-name");
   const accountMenuEmail = $("#account-menu-email");
   const editProfileButton = $("#edit-profile-button");
   const logoutButton = $("#logout-button");
@@ -58,6 +61,7 @@
   let appStarted = false;
   let currentUser = null;
   let profileBusy = false;
+  let modeTransitioning = false;
 
   function setStatus(element, message, type = "notice") {
     element.textContent = message;
@@ -107,7 +111,7 @@
       : "Set or reset an existing account password";
   }
 
-  function setMode(nextMode) {
+  function applyMode(nextMode) {
     mode = nextMode;
     const registering = mode === "register";
     loginTab.classList.toggle("active", !registering);
@@ -131,14 +135,59 @@
     resetTurnstile();
   }
 
+  async function setMode(nextMode, { animate = false } = {}) {
+    if (animate && (nextMode === mode || modeTransitioning)) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const compactViewport = window.matchMedia("(max-width: 600px)").matches;
+    if (!animate || reducedMotion || compactViewport || authCard.hidden) {
+      applyMode(nextMode);
+      return;
+    }
+
+    modeTransitioning = true;
+    const direction = nextMode === "register" ? 1 : -1;
+    const outgoing = authModePanel.animate([
+      { opacity: 1, transform: "translate3d(0, 0, 0)" },
+      { opacity: 0, transform: `translate3d(${-direction * 12}px, 0, 0)` },
+    ], { duration: 100, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" });
+    await outgoing.finished.catch(() => {});
+
+    const startHeight = authCard.getBoundingClientRect().height;
+    applyMode(nextMode);
+    authCard.style.height = "auto";
+    const endHeight = authCard.getBoundingClientRect().height;
+    authCard.style.height = `${startHeight}px`;
+    authCard.style.overflow = "clip";
+    authCard.style.transition = "height 180ms cubic-bezier(0.16, 1, 0.3, 1)";
+    outgoing.cancel();
+
+    const incoming = authModePanel.animate([
+      { opacity: 0, transform: `translate3d(${direction * 14}px, 0, 0)` },
+      { opacity: 1, transform: "translate3d(0, 0, 0)" },
+    ], { duration: 180, easing: "cubic-bezier(0.16, 1, 0.3, 1)" });
+    requestAnimationFrame(() => { authCard.style.height = `${endHeight}px`; });
+    await Promise.all([
+      incoming.finished.catch(() => {}),
+      new Promise((resolve) => window.setTimeout(resolve, 190)),
+    ]);
+    authCard.style.removeProperty("height");
+    authCard.style.removeProperty("overflow");
+    authCard.style.removeProperty("transition");
+    modeTransitioning = false;
+  }
+
   function displayNameFor(user) {
     return String(user?.name || "").trim() || String(user?.email || "").trim() || "Account";
   }
 
   function renderAccount(user) {
     currentUser = user ? { ...user } : null;
-    accountDisplayName.textContent = displayNameFor(currentUser);
+    const displayName = displayNameFor(currentUser);
+    accountDisplayName.textContent = displayName;
+    accountAvatarInitial.textContent = Array.from(displayName)[0]?.toLocaleUpperCase() || "A";
+    accountMenuName.textContent = displayName;
     accountMenuEmail.textContent = currentUser?.email || "";
+    accountMenuButton.setAttribute("aria-label", `Open account menu for ${displayName}`);
     profileDisplayName.value = String(currentUser?.name || "").trim();
     profileEmail.value = currentUser?.email || "";
   }
@@ -440,7 +489,7 @@
     setAccountMenu(false);
     try { await api("/api/auth/sign-out", { method: "POST", body: "{}" }); } finally { location.href = "/app.html"; }
   });
-  loginTab.addEventListener("click", () => setMode("login"));
-  registerTab.addEventListener("click", () => setMode("register"));
+  loginTab.addEventListener("click", () => setMode("login", { animate: true }));
+  registerTab.addEventListener("click", () => setMode("register", { animate: true }));
   initialize();
 })();

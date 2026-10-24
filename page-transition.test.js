@@ -97,7 +97,8 @@ assert.match(styles, /\.task-label-badge\s*\{[\s\S]*?padding: 3px 7px 4px;[\s\S]
 assert.match(indexHtml, /class="list-tagline">A clear view of what matters next\.<\/p>/);
 assert.match(fs.readFileSync("impeccable.css", "utf8"), /\.list-title\s*\{[\s\S]*?font-size: clamp\(3\.4rem, 5vw, 4\.5rem\);/);
 assert.match(fs.readFileSync("impeccable.css", "utf8"), /@media \(max-width: 720px\),[\s\S]*?\(orientation: landscape\) and \(pointer: coarse\)[\s\S]*?grid-template-areas:[\s\S]*?"title actions"[\s\S]*?"tagline tagline"/);
-assert.match(fs.readFileSync("impeccable.css", "utf8"), /\.todo-card input\[type="date"\][\s\S]*?min-inline-size: 0;[\s\S]*?max-inline-size: 100%;/);
+assert.match(fs.readFileSync("impeccable.css", "utf8"), /\.preview-fields\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);/);
+assert.match(fs.readFileSync("impeccable.css", "utf8"), /\.todo-card input\[type="date"\][\s\S]*?width: 100% !important;[\s\S]*?min-width: 0 !important;[\s\S]*?max-width: 100% !important;[\s\S]*?-webkit-min-logical-width: 0;/);
 assert.match(fs.readFileSync("impeccable.css", "utf8"), /@media \(max-width: 720px\),[\s\S]*?\.calendar-brand\s*\{[\s\S]*?flex-direction: row;/);
 assert.match(fs.readFileSync("impeccable.css", "utf8"), /\.back-link span \{ display: none; \}/);
 assert.match(calendarStyles, /\.item-title\s*\{[\s\S]*?padding-bottom: 0\.08em;[\s\S]*?line-height: 1\.45;/);

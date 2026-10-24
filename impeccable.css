@@ -363,18 +363,55 @@ body.recording .record-button { background: var(--accent); box-shadow: 0 0 0 6px
   .preview-fields,
   .preview-field,
   .date-field { min-width: 0; }
+  .preview-section,
+  .preview-list,
+  .preview-item,
+  .preview-fields {
+    width: 100%;
+    max-width: 100%;
+  }
+  .preview-item { padding: 16px; }
+  .preview-fields {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .preview-emoji,
+  .title-field,
+  .subject-field,
+  .label-field,
+  .date-field,
+  .remove-preview {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .preview-emoji {
+    align-self: start;
+    padding: 0;
+  }
+  .preview-field input {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .date-field { width: 100%; }
   .todo-card input[type="date"],
   .task-edit-card input[type="date"] {
     display: block;
-    inline-size: 100%;
-    min-inline-size: 0;
-    max-inline-size: 100%;
-    box-sizing: border-box;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    -webkit-min-logical-width: 0;
+    box-sizing: border-box !important;
   }
   .todo-card input[type="date"]::-webkit-date-and-time-value,
   .task-edit-card input[type="date"]::-webkit-date-and-time-value {
     min-width: 0;
     text-align: start;
+  }
+  @supports (-webkit-touch-callout: none) {
+    .date-field input[type="date"] {
+      -webkit-appearance: none;
+      appearance: none;
+    }
   }
   .calendar-shell { width: 100%; min-height: 100vh; margin: 0; padding: 24px 18px 40px; border: 0; border-radius: 0; box-shadow: none; }
   .calendar-header {
