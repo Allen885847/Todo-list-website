@@ -4,11 +4,11 @@ STABLE_DIR="/Users/wanghaoyu/Desktop/MyCode/Todo-list-website-v3.0"
 STABLE_PORT="4192"
 APP_URL="http://127.0.0.1:${STABLE_PORT}/app.html#todo"
 HEALTH_URL="http://127.0.0.1:${STABLE_PORT}/calendar.html"
-LOG_FILE="${HOME}/Library/Logs/AI-Todo-List-v3.0.log"
+LOG_FILE="${HOME}/Library/Logs/AI-Todo-List-v3.1.log"
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
 show_error() {
-  /usr/bin/osascript -e "display alert \"AI Todo List V3.0 could not start\" message \"$1\" as critical buttons {\"OK\"} default button \"OK\""
+  /usr/bin/osascript -e "display alert \"AI Todo List V3.1 could not start\" message \"$1\" as critical buttons {\"OK\"} default button \"OK\""
 }
 
 open_todo_list() {
@@ -16,12 +16,12 @@ open_todo_list() {
 }
 
 if [[ ! -d "$STABLE_DIR" ]]; then
-  show_error "The V3.0 folder was not found at: $STABLE_DIR"
+  show_error "The stable application folder was not found at: $STABLE_DIR"
   exit 1
 fi
 
 if [[ ! -f "$STABLE_DIR/.env" ]]; then
-  show_error "The local API configuration is missing from the V3.0 folder."
+  show_error "The local API configuration is missing from the stable application folder."
   exit 1
 fi
 
@@ -42,5 +42,5 @@ for attempt in {1..40}; do
   /bin/sleep 0.25
 done
 
-show_error "The V3.0 server did not become ready. See ${LOG_FILE} for details."
+show_error "The V3.1 server did not become ready. See ${LOG_FILE} for details."
 exit 1
