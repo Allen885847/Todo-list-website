@@ -51,7 +51,6 @@
     <main class="app-shell">
       <section class="todo-card" aria-labelledby="page-title">
         <header class="card-header">
-          <p class="eyebrow">Your day, clearly planned</p>
           <label class="sr-only" for="list-title">Todo list title</label>
           <input
             id="list-title"
@@ -211,7 +210,7 @@
 
         <div class="list-heading">
           <h1 id="page-title">Tasks</h1>
-          <p id="task-count" aria-live="polite">0 tasks</p>
+          <p id="task-count" aria-live="polite">Today: 0 · Total: 0</p>
         </div>
         <p class="reorder-help">Initially sorted by due date. Drag within a subject to create and preserve your own order.</p>
         <p id="page-notice" class="page-notice" role="status" aria-live="polite" hidden></p>
@@ -219,7 +218,6 @@
         <ul id="task-list" class="task-list" aria-label="Todo tasks"></ul>
 
         <div id="empty-state" class="empty-state">
-          <span aria-hidden="true">✓</span>
           <p>Your list is clear.</p>
           <small>Add your first task above.</small>
         </div>
@@ -245,6 +243,7 @@
             </button>
           </div>
         </footer>
+        <small id="app-version" class="app-version" aria-label="Application version">v__APP_VERSION__</small>
       </section>
     </main>
 
