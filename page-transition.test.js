@@ -96,6 +96,10 @@ assert.match(styles, /\.task-text\s*\{[\s\S]*?padding-block: 0\.04em 0\.12em;[\s
 assert.match(styles, /\.task-label-badge\s*\{[\s\S]*?padding: 3px 7px 4px;[\s\S]*?line-height: 1\.3;/);
 assert.match(indexHtml, /class="list-tagline">A clear view of what matters next\.<\/p>/);
 assert.match(fs.readFileSync("impeccable.css", "utf8"), /\.list-title\s*\{[\s\S]*?font-size: clamp\(3\.4rem, 5vw, 4\.5rem\);/);
+assert.match(fs.readFileSync("impeccable.css", "utf8"), /@media \(max-width: 720px\),[\s\S]*?\(orientation: landscape\) and \(pointer: coarse\)[\s\S]*?grid-template-areas:[\s\S]*?"title actions"[\s\S]*?"tagline tagline"/);
+assert.match(fs.readFileSync("impeccable.css", "utf8"), /\.todo-card input\[type="date"\][\s\S]*?min-inline-size: 0;[\s\S]*?max-inline-size: 100%;/);
+assert.match(fs.readFileSync("impeccable.css", "utf8"), /@media \(max-width: 720px\),[\s\S]*?\.calendar-brand\s*\{[\s\S]*?flex-direction: row;/);
+assert.match(fs.readFileSync("impeccable.css", "utf8"), /\.back-link span \{ display: none; \}/);
 assert.match(calendarStyles, /\.item-title\s*\{[\s\S]*?padding-bottom: 0\.08em;[\s\S]*?line-height: 1\.45;/);
 assert.match(calendarStyles, /\.calendar-label-badge\s*\{[\s\S]*?padding: 2px 6px 3px;[\s\S]*?line-height: 1\.3;/);
 assert.match(fs.readFileSync("login.css", "utf8"), /\.account-bar\s*\{[\s\S]*?font: 600 0\.75rem\/1\.4/);
