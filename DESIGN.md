@@ -25,7 +25,7 @@ colors:
 typography:
   display:
     fontFamily: "Fraunces, Georgia, serif"
-    fontSize: "2.75rem"
+    fontSize: "clamp(3.4rem, 5vw, 4.5rem)"
     fontWeight: 700
     lineHeight: 1.08
     letterSpacing: "-0.04em"
@@ -146,7 +146,7 @@ The palette is cool and purposeful: blue leads interaction, while purple, lavend
 
 ### Hierarchy
 
-- **Display** (700, 2.75rem, 1.08): Editable To-Do List title on desktop.
+- **Display** (700, 3.4–4.5rem, 1.04): Editable To-Do List title on desktop, paired with one quiet explanatory sentence below it.
 - **Headline** (700, 2rem, 1.05): Tasks, Calendar, and account page titles.
 - **Title** (650, 1.5rem, 1.2): Task sections, dialogs, and review headings.
 - **Body** (400–600, 0.95rem, 1.5): Task names, instructions, and form content.

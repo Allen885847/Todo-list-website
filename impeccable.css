@@ -60,7 +60,35 @@ select {
   letter-spacing: -0.025em;
   text-wrap: balance;
 }
-.list-title { max-width: 720px; font-size: 2.75rem; line-height: 1.08; }
+.card-header {
+  grid-template-rows: auto auto;
+  align-items: center;
+  row-gap: 10px;
+}
+.list-title {
+  grid-column: 1;
+  grid-row: 1;
+  max-width: 760px;
+  font-size: clamp(3.4rem, 5vw, 4.5rem);
+  line-height: 1.04;
+}
+.list-tagline {
+  grid-column: 1;
+  grid-row: 2;
+  max-width: 52ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.98rem;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+.title-meta {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
 .list-heading h1 { font-size: 1.65rem; line-height: 1.08; }
 .preview-heading h2,
 .task-edit-heading h2 { font-family: inherit; }
@@ -295,12 +323,17 @@ body.recording .record-button { background: var(--accent); box-shadow: 0 0 0 6px
   .app-shell { padding: 0; }
   .todo-card { width: 100%; min-height: 100vh; padding: 28px 20px 44px; border: 0; border-radius: 0; box-shadow: none; }
   .card-header { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
-  .list-title { font-size: 2.1rem; }
+  .list-title { font-size: clamp(2.55rem, 12vw, 3.25rem); }
+  .list-tagline {
+    grid-column: 1 / -1;
+    max-width: 34ch;
+    font-size: 0.9rem;
+  }
   .list-heading h1 { font-size: 1.5rem; }
   .task-title-line,
   .calendar-item-title-line { column-gap: 7px; }
   .task-date { font-size: 0.84rem; }
-  .title-meta { grid-column: 2; margin: 0; }
+  .title-meta { grid-column: 2; grid-row: 1; margin: 0; }
   .composer-region:not(.collapsed) { grid-column: 1 / -1; }
   .preview-section { padding: 18px; }
   .calendar-shell { width: 100%; min-height: 100vh; margin: 0; padding: 24px 18px 40px; border: 0; border-radius: 0; box-shadow: none; }

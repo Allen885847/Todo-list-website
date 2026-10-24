@@ -10,7 +10,7 @@
       "overdue-red": { "role": "tertiary", "displayName": "Soft Overdue Red", "canonical": "#b64353", "tonalRamp": ["#301218", "#57212b", "#82303d", "#ad4050", "#ce6978", "#e69aa5", "#f4c8ce", "#fff1f3"] }
     },
     "typographyMeta": {
-      "display": { "displayName": "Planner Display", "purpose": "Fraunces headings for To-Do List, Tasks, Calendar, and account identity.", "fontFamily": "Fraunces, Georgia, serif", "fontWeight": 700 },
+      "display": { "displayName": "Planner Display", "purpose": "Fraunces headings for To-Do List, Tasks, Calendar, and account identity.", "fontFamily": "Fraunces, Georgia, serif", "fontSize": "clamp(3.4rem, 5vw, 4.5rem)", "fontWeight": 700 },
       "headline": { "displayName": "Application Headline", "purpose": "Calendar and account page titles." },
       "body": { "displayName": "Working Text", "purpose": "Tasks, event details, instructions, and forms." }
     },
