@@ -677,8 +677,8 @@ function renderTasks() {
   const today = TodoTaskRules.localDateIso();
   const visibleTasks = activeTasks(today);
   const activeCount = visibleTasks.length;
-  const todayCount = visibleTasks.filter((task) => task.date && toIsoDate(task.date) === today).length;
-  taskCount.textContent = `Today: ${todayCount} · Total: ${activeCount}`;
+  const { today: todayCount, total: totalCount } = TodoTaskRules.countIncompleteTasks(state.tasks, today);
+  taskCount.textContent = `Today: ${todayCount} · Total: ${totalCount}`;
   emptyState.hidden = activeCount > 0;
   copyButton.hidden = activeCount === 0;
   shareButton.disabled = activeCount === 0 || isExporting;

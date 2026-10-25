@@ -29,6 +29,14 @@
     };
   }
 
+  function countIncompleteTasks(tasks, today = localDateIso()) {
+    const incomplete = (Array.isArray(tasks) ? tasks : []).filter((task) => !task?.completed);
+    return {
+      today: incomplete.filter((task) => dueDateIso(task) === today).length,
+      total: incomplete.length,
+    };
+  }
+
   function isVisibleInActiveList(task, today = localDateIso()) {
     if (!task?.completed) return true;
     const dueDate = dueDateIso(task);
@@ -63,6 +71,7 @@
   const rules = {
     areCurrentTasksComplete,
     compareByDueDate,
+    countIncompleteTasks,
     dueDateIso,
     isOptionalOrEarlyTask,
     isVisibleInActiveList,

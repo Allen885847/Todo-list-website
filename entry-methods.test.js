@@ -121,7 +121,7 @@ assert.match(taskScript, /celebrations\.push\(\(\) => celebrateOptionalOrEarlyTa
 assert.match(taskScript, /if \(shouldCelebrate\) celebrations\.push\(celebrateCompletion\)/);
 assert.match(styles, /\.bonus-achievement-card/);
 assert.match(styles, /@keyframes bonus-achievement-in/);
-assert.match(taskScript, /const today = TodoTaskRules\.localDateIso\(\);[\s\S]*?const visibleTasks = activeTasks\(today\);[\s\S]*?Today: \$\{todayCount\} · Total: \$\{activeCount\}/);
+assert.match(taskScript, /const today = TodoTaskRules\.localDateIso\(\);[\s\S]*?TodoTaskRules\.countIncompleteTasks\(state\.tasks, today\);[\s\S]*?Today: \$\{todayCount\} · Total: \$\{totalCount\}/);
 assert.match(indexHtml, /id="task-count"[^>]*>Today: 0 · Total: 0</);
 assert.doesNotMatch(taskScript, /CELEBRATION_KEY|todo-last-celebrated-list/);
 assert.match(taskScript, /if \(prefersReducedMotion\) return;/);

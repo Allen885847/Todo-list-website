@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const {
   areCurrentTasksComplete,
   compareByDueDate,
+  countIncompleteTasks,
   isOptionalOrEarlyTask,
   isVisibleInActiveList,
   shouldCelebrateCurrentTasks,
@@ -22,6 +23,29 @@ const completed = withCompletion({ task: "History worksheet", date: date(2026, 1
 assert.equal(completed.completed, true);
 assert.equal(completed.completedOn, "2026-10-13");
 assert.equal(withCompletion(completed, false, "2026-10-13").completedOn, null);
+
+const counterTasks = [
+  { date: date(2026, 10, 12), completed: false },
+  { date: date(2026, 10, 13), completed: false },
+  { date: date(2026, 10, 13), completed: true },
+  { date: date(2026, 10, 14), completed: false },
+  { date: null, completed: false },
+];
+assert.deepEqual(countIncompleteTasks(counterTasks, "2026-10-13"), { today: 1, total: 4 });
+assert.deepEqual(countIncompleteTasks([
+  ...counterTasks.slice(0, 1),
+  { ...counterTasks[1], completed: true },
+  ...counterTasks.slice(2),
+], "2026-10-13"), { today: 0, total: 3 });
+assert.deepEqual(countIncompleteTasks([
+  { ...counterTasks[0], completed: true },
+  ...counterTasks.slice(1),
+], "2026-10-13"), { today: 1, total: 3 });
+assert.deepEqual(countIncompleteTasks([
+  ...counterTasks.slice(0, 3),
+  { ...counterTasks[3], completed: true },
+  ...counterTasks.slice(4),
+], "2026-10-13"), { today: 1, total: 3 });
 
 assert.equal(areCurrentTasksComplete([
   { date: date(2026, 10, 13), completed: true },
