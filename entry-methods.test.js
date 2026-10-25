@@ -3,6 +3,7 @@ const fs = require("node:fs");
 
 const indexHtml = fs.readFileSync("index.html", "utf8");
 const taskScript = fs.readFileSync("script.js", "utf8");
+const taskRules = fs.readFileSync("task-rules.js", "utf8");
 const calendarHtml = fs.readFileSync("calendar.html", "utf8");
 const calendarScript = fs.readFileSync("calendar.js", "utf8");
 const voiceScript = fs.readFileSync("voice-input.js", "utf8");
@@ -116,7 +117,10 @@ assert.match(taskScript, /Math\.random\(\) < 0\.5 \? "check-burst" : "firework-r
 assert.match(taskScript, /TodoTaskRules\.shouldCelebrateCurrentTasks/);
 assert.match(taskScript, /const wereCurrentTasksComplete = TodoTaskRules\.areCurrentTasksComplete/);
 assert.match(taskScript, /TodoTaskRules\.isOptionalOrEarlyTask/);
+assert.match(taskRules, /!isExtraTask\(task\).*dueDateIso\(task\).*<= today/s);
+assert.match(taskRules, /completedTask\?\.completed[\s\S]*?!isExtraTask\(completedTask\)/);
 assert.match(taskScript, /function enqueueCelebrations\(celebrations\)/);
+assert.match(taskScript, /celebrationQueue = celebrationQueue\.catch\(\(\) => \{\}\)\.then\(async \(\) => \{[\s\S]*?for \(const celebration of celebrations\) await celebration\(\);/);
 assert.match(taskScript, /celebrations\.push\(\(\) => celebrateOptionalOrEarlyTask/);
 assert.match(taskScript, /if \(shouldCelebrate\) celebrations\.push\(celebrateCompletion\)/);
 assert.match(styles, /\.bonus-achievement-card/);

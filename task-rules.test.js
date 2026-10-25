@@ -3,6 +3,7 @@ const {
   areCurrentTasksComplete,
   compareByDueDate,
   countIncompleteTasks,
+  isExtraTask,
   isOptionalOrEarlyTask,
   isVisibleInActiveList,
   shouldCelebrateCurrentTasks,
@@ -62,6 +63,13 @@ assert.equal(areCurrentTasksComplete([
   { date: date(2026, 10, 12), completed: false },
   { date: date(2026, 10, 13), completed: true },
 ], "2026-10-13"), false);
+assert.equal(areCurrentTasksComplete([
+  { date: date(2026, 10, 13), completed: true },
+  { date: date(2026, 10, 13), completed: false, label: "Extra" },
+], "2026-10-13"), true);
+assert.equal(areCurrentTasksComplete([
+  { date: date(2026, 10, 13), completed: false, label: "Extra" },
+], "2026-10-13"), false);
 
 const currentCompletedTasks = [
   { date: date(2026, 10, 13), completed: true, label: "Extra" },
@@ -73,6 +81,7 @@ assert.equal(shouldCelebrateCurrentTasks(currentCompletedTasks, currentCompleted
 assert.equal(shouldCelebrateCurrentTasks(currentCompletedTasks, currentCompletedTasks[1], true, "2026-10-13"), false);
 assert.equal(shouldCelebrateCurrentTasks(currentCompletedTasks, currentCompletedTasks[2], false, "2026-10-13"), true);
 assert.equal(shouldCelebrateCurrentTasks(currentCompletedTasks, currentCompletedTasks[3], false, "2026-10-13"), false);
+assert.equal(shouldCelebrateCurrentTasks(currentCompletedTasks, currentCompletedTasks[0], false, "2026-10-13"), false);
 assert.equal(shouldCelebrateCurrentTasks([
   { date: date(2026, 10, 12), completed: true },
   { date: date(2026, 10, 14), completed: true },
@@ -80,7 +89,7 @@ assert.equal(shouldCelebrateCurrentTasks([
 assert.equal(shouldCelebrateCurrentTasks([
   { date: date(2026, 10, 13), completed: true },
   { date: date(2026, 10, 13), completed: false, label: "Extra" },
-], { date: date(2026, 10, 13), completed: true }, false, "2026-10-13"), false);
+], { date: date(2026, 10, 13), completed: true }, false, "2026-10-13"), true);
 assert.equal(shouldCelebrateCurrentTasks([
   { date: date(2026, 10, 12), completed: false },
   { date: date(2026, 10, 13), completed: true },
@@ -92,6 +101,8 @@ assert.equal(isOptionalOrEarlyTask({ label: "", date: date(2026, 10, 14) }, "202
 assert.equal(isOptionalOrEarlyTask({ label: "Extra", date: date(2026, 10, 14) }, "2026-10-13"), true);
 assert.equal(isOptionalOrEarlyTask({ label: "Important", date: date(2026, 10, 13) }, "2026-10-13"), false);
 assert.equal(isOptionalOrEarlyTask({ label: "", date: null }, "2026-10-13"), false);
+assert.equal(isExtraTask({ label: " Extra " }), true);
+assert.equal(isExtraTask({ label: "Important" }), false);
 
 const orderedDates = [
   { date: date(2026, 10, 30) },

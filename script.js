@@ -901,7 +901,7 @@ function launchCelebrationCanvas(variant, hero) {
 
 function celebrateCompletion() {
   showPageNotice(
-    prefersReducedMotion ? "All tasks completed. Nice work!" : "All tasks are done — nice work! 🎉",
+    prefersReducedMotion ? "Today’s priorities are complete. Nice work!" : "Today’s priorities are complete — nice work! 🎉",
     "completion",
     2300,
   );
@@ -912,7 +912,7 @@ function celebrateCompletion() {
   hero.setAttribute("aria-hidden", "true");
   hero.innerHTML = variant === "check-burst"
     ? '<span class="celebration-check"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="51"></circle><path d="m34 61 17 17 36-39"></path></svg></span>'
-    : '<span class="celebration-message"><strong>Brilliant work!</strong><small>Everything is complete</small></span>';
+    : '<span class="celebration-message"><strong>Brilliant work!</strong><small>Today’s priorities are complete</small></span>';
   document.body.append(hero);
   return launchCelebrationCanvas(variant, hero);
 }

@@ -37,6 +37,10 @@
     };
   }
 
+  function isExtraTask(task) {
+    return String(task?.label || "").trim().toLowerCase() === "extra";
+  }
+
   function isVisibleInActiveList(task, today = localDateIso()) {
     if (!task?.completed) return true;
     const dueDate = dueDateIso(task);
@@ -46,7 +50,7 @@
 
   function areCurrentTasksComplete(tasks, today = localDateIso()) {
     const currentTasks = (Array.isArray(tasks) ? tasks : [])
-      .filter((task) => dueDateIso(task) && dueDateIso(task) <= today);
+      .filter((task) => !isExtraTask(task) && dueDateIso(task) && dueDateIso(task) <= today);
     const hasTaskDueToday = currentTasks.some((task) => dueDateIso(task) === today);
     return hasTaskDueToday && currentTasks.every((task) => task.completed);
   }
@@ -55,6 +59,7 @@
     const completedDueDate = dueDateIso(completedTask);
     return Boolean(
       completedTask?.completed
+      && !isExtraTask(completedTask)
       && completedDueDate
       && completedDueDate <= today
       && !wereCurrentTasksComplete
@@ -63,9 +68,8 @@
   }
 
   function isOptionalOrEarlyTask(task, today = localDateIso()) {
-    const isExtra = String(task?.label || "").trim().toLowerCase() === "extra";
     const dueDate = dueDateIso(task);
-    return isExtra || Boolean(dueDate && dueDate > today);
+    return isExtraTask(task) || Boolean(dueDate && dueDate > today);
   }
 
   const rules = {
@@ -73,6 +77,7 @@
     compareByDueDate,
     countIncompleteTasks,
     dueDateIso,
+    isExtraTask,
     isOptionalOrEarlyTask,
     isVisibleInActiveList,
     localDateIso,
