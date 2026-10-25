@@ -324,6 +324,7 @@ function createCalendarItem(type, data, index) {
   if (type === "event" && data.holiday) symbol.classList.add("is-holiday");
   if (type === "task" && data.completed) symbol.classList.add("is-complete");
   const content = document.createElement("span");
+  content.className = "calendar-item-content";
   const titleLine = document.createElement("span");
   titleLine.className = "calendar-item-title-line";
   const title = document.createElement("span");
@@ -338,6 +339,7 @@ function createCalendarItem(type, data, index) {
     meta.textContent = data.subject;
   }
   titleLine.append(title);
+  content.append(titleLine);
   if (type === "task" && (data.completed || isTaskOverdue(data) || data.label)) {
     const badges = document.createElement("span");
     badges.className = "calendar-task-badges";
@@ -353,9 +355,8 @@ function createCalendarItem(type, data, index) {
       label.textContent = data.label;
       badges.append(label);
     }
-    titleLine.append(badges);
+    content.append(badges);
   }
-  content.append(titleLine);
   if (meta.textContent) content.append(meta);
   button.append(symbol, content);
   button.addEventListener("click", () => {

@@ -44,8 +44,8 @@ assert.match(calendarHtml, /id="task-label"/);
 assert.match(calendarScript, /className = "calendar-label-badge"/);
 assert.match(calendarScript, /status\.textContent = data\.completed \? "Completed" : "Past Due"/);
 assert.match(calendarStyles, /\.calendar-task-badges/);
+assert.match(calendarScript, /content\.append\(titleLine\);[\s\S]*content\.append\(badges\);/);
 assert.match(calendarScript, /titleLine\.append\(title\)/);
-assert.match(calendarScript, /titleLine\.append\(badges\)/);
 assert.match(calendarScript, /content\.append\(titleLine\)/);
 
 console.log("Calendar labels and controls passed.");
