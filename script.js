@@ -84,6 +84,7 @@ let isTextComposing = false;
 let isExporting = false;
 let noticeTimer;
 let noticeHideTimer;
+let noticeShowFrame;
 let copyResetTimer;
 let dateRefreshTimer;
 let pointerDrag = null;
@@ -700,12 +701,16 @@ function scheduleDateRefresh() {
 function showPageNotice(message, type = "success", duration = 2400) {
   clearTimeout(noticeTimer);
   clearTimeout(noticeHideTimer);
+  cancelAnimationFrame(noticeShowFrame);
   pageNotice.textContent = message;
-  pageNotice.className = `page-notice visible ${type}`;
   pageNotice.hidden = false;
+  pageNotice.className = `page-notice ${type}`;
+  noticeShowFrame = requestAnimationFrame(() => {
+    noticeShowFrame = requestAnimationFrame(() => pageNotice.classList.add("visible"));
+  });
   noticeTimer = window.setTimeout(() => {
     pageNotice.classList.remove("visible");
-    noticeHideTimer = window.setTimeout(() => { pageNotice.hidden = true; }, prefersReducedMotion ? 0 : 180);
+    noticeHideTimer = window.setTimeout(() => { pageNotice.hidden = true; }, prefersReducedMotion ? 120 : 220);
   }, duration);
 }
 

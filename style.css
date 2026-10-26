@@ -1444,10 +1444,11 @@ html[data-theme="dark"] .task-label-badge {
 
 .page-notice {
   position: fixed;
-  z-index: 1200;
+  z-index: 2147483647;
   left: 50%;
-  bottom: 28px;
-  max-width: min(90vw, 520px);
+  bottom: max(24px, calc(env(safe-area-inset-bottom, 0px) + 16px));
+  width: max-content;
+  max-width: min(520px, calc(100vw - 32px));
   margin: 0;
   padding: 11px 17px 12px;
   color: var(--notice-text);
@@ -1459,14 +1460,22 @@ html[data-theme="dark"] .task-label-badge {
   font-weight: 700;
   line-height: 1.45;
   text-align: center;
+  overflow-wrap: anywhere;
   opacity: 0;
+  pointer-events: none;
   transform: translate(-50%, 12px);
-  transition: opacity 180ms ease, transform 180ms ease;
+  visibility: hidden;
+  transition:
+    opacity 180ms ease,
+    transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s linear 220ms;
 }
 
 .page-notice.visible {
   opacity: 1;
   transform: translate(-50%, 0);
+  visibility: visible;
+  transition-delay: 0s;
 }
 
 .page-notice.completion {
@@ -1476,6 +1485,25 @@ html[data-theme="dark"] .task-label-badge {
 
 .page-notice.error {
   background: var(--accent-dark);
+}
+
+@media (max-width: 480px) {
+  .page-notice {
+    bottom: max(16px, calc(env(safe-area-inset-bottom, 0px) + 10px));
+    max-width: calc(100vw - 24px);
+    padding-inline: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-notice {
+    transform: translate(-50%, 0);
+    transition: opacity 120ms ease, visibility 0s linear 120ms;
+  }
+
+  .page-notice.visible {
+    transition-delay: 0s;
+  }
 }
 
 .confetti-layer {
