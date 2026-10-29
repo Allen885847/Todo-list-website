@@ -122,4 +122,19 @@ assert.deepEqual(orderedDates, [
   "undated",
 ]);
 
+const expiredExtra = Object.freeze({
+  id: "extra-calendar-record", task: "Optional reading", label: "Extra",
+  date: Object.freeze(date(2026, 12, 31)), completed: false, completedOn: null,
+});
+const savedRecords = Object.freeze([expiredExtra]);
+assert.equal(isVisibleInActiveList(expiredExtra, "2026-12-31"), true);
+assert.equal(isVisibleInActiveList(expiredExtra, "2027-01-01"), false);
+assert.deepEqual(countIncompleteTasks(savedRecords, "2027-01-01"), { today: 0, total: 0 });
+assert.equal(savedRecords.length, 1);
+assert.equal(savedRecords[0].completed, false);
+assert.equal(savedRecords[0].label, "Extra");
+assert.equal(isVisibleInActiveList({ ...expiredExtra, label: " extra " }, "2027-01-01"), false);
+assert.equal(isVisibleInActiveList({ ...expiredExtra, label: "" }, "2027-01-01"), true);
+assert.equal(isVisibleInActiveList({ ...expiredExtra, date: null }, "2027-01-01"), true);
+
 console.log("Task completion visibility rules passed.");

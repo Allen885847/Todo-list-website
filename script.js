@@ -240,7 +240,7 @@ function localTodayIso() {
 }
 
 function isTaskOverdue(task) {
-  return Boolean(task.date && !task.completed && toIsoDate(task.date) < localTodayIso());
+  return Boolean(task.date && !task.completed && !TodoTaskRules.isExtraTask(task) && toIsoDate(task.date) < localTodayIso());
 }
 
 function incompleteTasks() {
