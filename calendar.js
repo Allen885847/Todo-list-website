@@ -570,7 +570,21 @@ function createHolidayBanner(holidayEvents) {
   icon.setAttribute("aria-hidden", "true");
   icon.textContent = "◆";
   const text = document.createElement("span");
-  text.textContent = holidayEvents.map((event) => event.title).join(" · ");
+  holidayEvents.forEach((event, index) => {
+    if (index) text.append(document.createTextNode(" · "));
+    const name = document.createElement("span");
+    name.textContent = event.title;
+    name.setAttribute("role", "button");
+    name.setAttribute("aria-label", `Edit holiday: ${event.title}`);
+    name.tabIndex = 0;
+    name.addEventListener("click", () => openEventDialog(event.id));
+    name.addEventListener("keydown", (keyEvent) => {
+      if (keyEvent.key !== "Enter" && keyEvent.key !== " ") return;
+      keyEvent.preventDefault();
+      openEventDialog(event.id);
+    });
+    text.append(name);
+  });
   banner.append(icon, text);
   return banner;
 }
@@ -581,8 +595,8 @@ function renderDay() {
   const tasks = tasksOnDate(isoDate);
   const dayEvents = eventsOnDate(isoDate);
   const holidayEvents = dayEvents.filter((event) => event.holiday);
-  const allDayEvents = dayEvents.filter((event) => event.allDay);
-  const timedEvents = sortTimedEvents(dayEvents.filter((event) => !event.allDay));
+  const allDayEvents = dayEvents.filter((event) => !event.holiday && event.allDay);
+  const timedEvents = sortTimedEvents(dayEvents.filter((event) => !event.holiday && !event.allDay));
   const wrapper = document.createElement("div");
   wrapper.className = "day-view";
   if (holidayEvents.length) wrapper.classList.add("holiday-period");
@@ -671,8 +685,8 @@ function renderWeek() {
     };
     appendGroup("Tasks", tasks, []);
     appendGroup("Events", [], [
-      ...dayEvents.filter((event) => event.allDay),
-      ...sortTimedEvents(dayEvents.filter((event) => !event.allDay)),
+      ...dayEvents.filter((event) => !event.holiday && event.allDay),
+      ...sortTimedEvents(dayEvents.filter((event) => !event.holiday && !event.allDay)),
     ]);
     if (!tasks.length && !dayEvents.length) {
       const empty = document.createElement("p");
