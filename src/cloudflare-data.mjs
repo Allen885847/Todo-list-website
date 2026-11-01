@@ -17,6 +17,7 @@ const SNAPSHOT_KEYS = new Set([
   "todo-appearance",
   "todo-calendar-view",
   "todo-calendar-view-v2.5",
+  "todo-task-timers-v1",
   "todo-data-schema",
   "todo-data-backup-before-v2.5",
 ]);

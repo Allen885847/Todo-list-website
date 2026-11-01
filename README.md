@@ -2,11 +2,11 @@
 
 A responsive, AI-powered to-do list built with HTML, CSS, JavaScript, and a small Node.js server.
 
-The `Online-1.0` branch currently contains the email/password sign-in, registration, and recovery interface. Authentication and cloud syncing are intentionally not connected yet.
+The Online application uses account-scoped Cloudflare D1/R2 storage and email/password authentication. The desktop Shortcut remains login-free and uses its existing local file and browser storage; these are separate applications.
 
-Release: **V3.1**.
+Release: **V3.2 — Focus, Time, and Weather**.
 
-V3.1 completely redesigns the frontend and refines the task display pipeline, making tasks clearer and easier to scan across the To-Do List, Calendar, review flows, and responsive layouts.
+V3.2 adds task countdown timers, a flip clock, local weather, and today’s progress tracking. A cleaner, more organized layout helps you stay focused and complete tasks more efficiently.
 
 ## Features
 
@@ -73,3 +73,13 @@ npm start
 Then visit `http://127.0.0.1:4173`.
 
 Voice input works best in the latest Google Chrome. The backend keeps the Doubao credential out of browser code and uses `volc.seedasr.sauc.duration` by default. If microphone or speech-recognition access is unavailable, typed input continues to work normally.
+
+## V3.2 upgrade procedure
+
+- Back up the existing desktop `state.json`, previous snapshot, application files, and shortcut before replacing application assets. Export the production D1 database to a private directory before deployment. Never put these backups, `.env`, credentials, or user data in Git.
+- Keep the desktop server at `127.0.0.1:4192` and keep `TODO_DATA_DIR` unchanged. Promote frontend assets and the compatible local server only. Retain the login-free desktop `app.html`; never copy the Online authentication shell into the Shortcut installation.
+- Timers use stable task IDs, absolute local timestamps, and the existing persistence route (`/api/local-data` on desktop, authenticated `/api/storage` Online). They initialize after storage restoration, are isolated by account Online, and are included in portable JSON backups. Only one timer runs at once; prior timers are paused. Completion/deletion stops that task’s timer without deleting other task records.
+- The weather opt-in is remembered per browser. Coordinates are requested afresh only with browser permission and are never stored in account snapshots or the local file. A revoked or expired permission resets the weather display and offers Enable location.
+- Today’s progress includes only regular tasks due on the user’s current local day. Extra, overdue, and future tasks are excluded. The flip clock uses local 12-hour time with AM/PM.
+- After deploying, check the version/assets and authenticated API guard, compare data before/after, launch the existing Shortcut, and verify task/calendar persistence after reopening. Keep backups available. No database schema migration is needed for this release.
+- Recovery: stop the local server, restore the backed-up application and `state.json`, then relaunch the unchanged origin. Keep the upgraded copy before restoring. For production rollback, deploy the previous application version; D1/R2 are not replaced during normal deployments. Restore SQL only as a deliberate disaster recovery action, since it replaces newer account changes.

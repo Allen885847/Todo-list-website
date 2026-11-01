@@ -8,6 +8,7 @@
   const VIEW_KEYS = ["todo-calendar-view", "todo-calendar-view-v2.5"];
   const BACKUP_KEY = "todo-data-backup-before-v2.5";
   const MIGRATION_KEY = "todo-data-schema";
+  const TIMER_KEY = "todo-task-timers-v1";
   const SCHEMA_VERSION = 1;
 
   function parseJson(value, fallback) {
@@ -16,7 +17,7 @@
   }
 
   function snapshot(label = "manual") {
-    const keys = [TASK_KEY, EVENT_KEY, ...LEGACY_EVENT_KEYS, APPEARANCE_KEY, ...VIEW_KEYS, MIGRATION_KEY];
+    const keys = [TASK_KEY, EVENT_KEY, ...LEGACY_EVENT_KEYS, APPEARANCE_KEY, ...VIEW_KEYS, TIMER_KEY, MIGRATION_KEY];
     return {
       format: "ai-todo-list-backup",
       schemaVersion: SCHEMA_VERSION,
@@ -116,7 +117,7 @@
     );
     localStorage.setItem(EVENT_KEY, JSON.stringify(events));
 
-    [APPEARANCE_KEY, ...VIEW_KEYS].forEach((key) => {
+    [APPEARANCE_KEY, ...VIEW_KEYS, TIMER_KEY].forEach((key) => {
       if (localStorage.getItem(key) === null && typeof payload.data[key] === "string") {
         localStorage.setItem(key, payload.data[key]);
       }

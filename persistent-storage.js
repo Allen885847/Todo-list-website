@@ -9,6 +9,7 @@
     "todo-appearance",
     "todo-calendar-view",
     "todo-calendar-view-v2.5",
+    "todo-task-timers-v1",
     "todo-data-schema",
     "todo-data-backup-before-v2.5",
   ];
@@ -107,6 +108,10 @@
     sessionStorage.removeItem("todo-local-file-restored");
     notifyShellReady();
   }
+
+  window.addEventListener("message", (event) => {
+    if (event.origin === location.origin && event.source === window.parent && event.data?.type === "todo-timer-changed") scheduleSave();
+  });
 
   window.addEventListener("pagehide", () => saveNow({ keepalive: true }));
   window.TodoLocalPersistence = { collect, saveNow };

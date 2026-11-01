@@ -100,7 +100,7 @@ assert.match(serverScript, /only do it if I have time/);
 assert.match(serverScript, /preserve their wording in label/);
 assert.match(taskScript, /label: normalizeLabel\(task\.label\)/);
 assert.match(taskScript, /className = "task-label-badge"/);
-assert.match(taskScript, /titleLine\.append\(text\);\s*if \(badges\.childElementCount\) titleLine\.append\(badges\);\s*content\.append\(titleLine\);/);
+assert.match(taskScript, /titleLine\.append\(text\);\s*if \(badges\.childElementCount\) titleLine\.append\(badges\);\s*content\.append\(titleLine(?:, timerStatus)?\);/);
 assert.match(indexHtml, /id="upload-task-button"/);
 assert.match(indexHtml, /id="task-file-input"/);
 assert.match(indexHtml, /src="task-file-scanner\.js"/);

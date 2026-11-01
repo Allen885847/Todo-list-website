@@ -203,6 +203,7 @@
   }
 
   function startApplication(user) {
+    window.todoAccountId = String(user.id);
     authStage.hidden = true;
     resetStage.hidden = true;
     appStage.hidden = false;

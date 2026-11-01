@@ -1,0 +1,108 @@
+const assert = require('node:assert/strict');
+const vm = require('node:vm');
+const fs = require('node:fs');
+class Element {
+  constructor() { this.textContent = ''; this.innerHTML = ''; this.hidden = false; this.attrs = {}; this.handlers = {}; this.children = {}; this.classList = { toggle() {} }; }
+  querySelector(key) { return this.children[key] ||= new Element(); }
+  setAttribute(key,value) { this.attrs[key] = value; }
+  getAttribute(key) { return this.attrs[key]; }
+  addEventListener(key, handler) { this.handlers[key] = handler; }
+  click() { return this.handlers.click?.(); }
+}
+const fixture = (networkFails = false, options = {}) => {
+  const widget = new Element();
+  const days = Array.from({ length: 4 }, () => new Element());
+  widget.querySelectorAll = () => days;
+  const calls = [];
+  let locationRequest;
+  let locationRequests = 0;
+  const saved = options.saved || new Map();
+  const permissionHandlers = {};
+  const permission = options.permission ? { state: options.permission, addEventListener: (name, handler) => { permissionHandlers[name] = handler; }, removeEventListener: (name) => { delete permissionHandlers[name]; } } : null;
+  const events = {};
+  const doc = { hidden: false, getElementById: () => widget, addEventListener: (name, handler) => { events[name] = handler; } };
+  const result = { current: { temperature_2m: 20.6, weather_code: 2 }, daily: { time: ['2026-11-01','2026-11-02','2026-11-03','2026-11-04'], weather_code: [2,61,0,3], temperature_2m_max: [24,22,25,21], temperature_2m_min: [17,16,18,15], precipitation_probability_max: [10,80,0,40] } };
+  const context = { localStorage: { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key,value) }, document: doc, window: { isSecureContext: true, addEventListener() {} }, navigator: { ...(permission ? { permissions: { query: async () => permission } } : {}), geolocation: { getCurrentPosition: (success,error) => { locationRequests++; locationRequest = { success,error }; } } }, matchMedia: () => ({ matches: false }), Intl, URLSearchParams, AbortController, Date, setTimeout: () => 1, clearTimeout() {}, fetch: async (url) => { calls.push(url); if (networkFails) throw new Error('Offline'); return { ok: true, json: async () => url.includes('open-meteo') ? result : { address: { city: 'Test city' } } }; } };
+  vm.runInNewContext(fs.readFileSync('weather.js','utf8'), context);
+  return { widget, days, calls, saved, permission, changePermission(state) { permission.state = state; permissionHandlers.change?.(); }, get locationRequests() { return locationRequests; }, get location() { return locationRequest; } };
+};
+const settle = async () => { for (let i=0;i<4;i++) await new Promise(resolve => setImmediate(resolve)); };
+(async () => {
+  const f = fixture();
+  const get = key => f.widget.querySelector(key);
+  assert.equal(f.calls.length,0, 'No weather or geocoding request on load');
+  assert.equal(f.location,undefined, 'No automatic geolocation prompt');
+  assert.equal(get('.weather-city').textContent,'—');
+  assert.equal(get('.weather-current-temp').textContent,'—');
+  assert(f.days.every(day => day.querySelector('.weather-day-condition').textContent === '—'));
+  get('.weather-toggle').click();
+  assert.equal(get('.weather-toggle').getAttribute('aria-expanded'),'true');
+  assert.equal(f.calls.length,0, 'Expanding does not enable weather');
+  await get('.weather-enable').click();
+  f.location.error({ code: 1 });
+  assert.match(get('.weather-status').textContent,/denied/);
+  assert.equal(f.calls.length,0, 'Denial never fetches weather');
+  await get('.weather-enable').click();
+  const success = f.location.success;
+  await success({ coords: { latitude: 51.5074, longitude: -0.1278 } });
+  await settle();
+  assert.equal(f.calls.length,2);
+  assert.match(f.calls[0],/latitude=51.51/);
+  assert.equal(get('.weather-city').textContent,'Test city');
+  assert.equal(get('.weather-current-temp').textContent,'21°');
+  assert.equal(f.days[1].querySelector('.weather-day-condition').textContent,'Rain');
+  assert.equal(f.days[1].querySelector('.weather-rain').textContent,'80%');
+  get('.weather-disable').click();
+  assert.equal(get('.weather-city').textContent,'—');
+  assert.equal(get('.weather-current-temp').textContent,'—');
+  assert(f.days.every(day => day.querySelector('.weather-high').textContent === '—'));
+  await success({ coords: { latitude: 51.5074, longitude: -0.1278 } });
+  assert.equal(f.calls.length,2, 'Stale location callbacks cannot re-enable weather');
+  const offline = fixture(true);
+  await offline.widget.querySelector('.weather-enable').click();
+  await offline.location.success({ coords: { latitude: 51.5074, longitude: -0.1278 } });
+  await settle();
+  assert.match(offline.widget.querySelector('.weather-status').textContent, /could not be loaded/);
+  assert.equal(offline.widget.querySelector('.weather-city').textContent, '—');
+  assert.equal(offline.widget.querySelector('.weather-enable').hidden, false);
+  const failed = fixture();
+  // A denied/timeout retry leaves all weather fields blank and usable.
+  await failed.widget.querySelector('.weather-enable').click();
+  failed.location.error({ code: 3 });
+  assert.match(failed.widget.querySelector('.weather-status').textContent,/timed out/);
+  assert.equal(failed.widget.querySelector('.weather-enable').disabled,false);
+  const key = 'todo-weather-enabled-v1';
+  const remembered = new Map([[key,'enabled']]);
+  const revisit = fixture(false, { saved: remembered, permission: 'granted' });
+  await settle();
+  assert.equal(revisit.locationRequests, 1, 'Granted location automatically refreshes on a remembered visit');
+  await revisit.location.success({ coords: { latitude: 51.5074, longitude: -0.1278 } });
+  assert.equal(revisit.calls.length, 2);
+  assert.equal(remembered.get(key), 'enabled');
+  assert.equal(remembered.size, 1, 'Store only preference, never coordinates');
+  revisit.changePermission('prompt');
+  assert.equal(revisit.widget.querySelector('.weather-city').textContent, '—', 'Expired permission clears weather');
+  assert.equal(revisit.widget.querySelector('.weather-enable').hidden, false);
+  assert.equal(revisit.locationRequests, 1, 'Expired permission does not automatically prompt');
+  const expiredVisit = fixture(false, { saved: remembered, permission: 'prompt' });
+  await settle();
+  assert.equal(expiredVisit.locationRequests, 0);
+  assert.equal(expiredVisit.calls.length, 0);
+  const deniedVisit = fixture(false, { saved: remembered, permission: 'denied' });
+  await settle();
+  assert.equal(deniedVisit.locationRequests, 0);
+  const pending = fixture(false, { saved: remembered, permission: 'granted' });
+  await settle();
+  pending.changePermission('denied');
+  await pending.location.success({ coords: { latitude: 51.5074, longitude: -0.1278 } });
+  assert.equal(pending.calls.length, 0, 'Revocation cancels pending location results');
+  const optedOut = new Map([[key,'disabled']]);
+  const offVisit = fixture(false, { saved: optedOut, permission: 'granted' });
+  await settle();
+  assert.equal(offVisit.locationRequests, 0, 'Explicit Turn off weather is remembered');
+  const existingGrant = fixture(false, { permission: 'granted' });
+  await settle();
+  assert.equal(existingGrant.locationRequests, 1, 'Existing browser grants migrate without prompting');
+  console.log('Weather preference checks passed: remembered grants, expired/denied permission, revocation race, opt-out, no coordinate storage.');
+  console.log('Weather checks passed: disabled default, no requests before consent, collapse, denial, permission-based data, 4 days, disable/reset, stale callbacks, timeout.');
+})();

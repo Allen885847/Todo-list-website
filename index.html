@@ -47,24 +47,54 @@
     <link rel="prefetch" href="calendar.html" />
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="impeccable.css" />
+    <link rel="stylesheet" href="flip-clock.css" />
+    <link rel="stylesheet" href="weather.css" />
+    <link rel="stylesheet" href="task-timer.css" />
   </head>
   <body>
     <main class="app-shell">
       <section class="todo-card" aria-labelledby="page-title">
         <header class="card-header">
           <label class="sr-only" for="list-title">Todo list title</label>
-          <input
+          <textarea
             id="list-title"
             class="list-title"
-            type="text"
-            value="Today’s focus"
+            rows="1"
             maxlength="60"
             aria-describedby="title-help"
-          />
+            spellcheck="false"
+          >Today’s focus</textarea>
+          <div id="flip-clock" class="flip-clock" role="timer" aria-label="Local time"></div>
           <p class="list-tagline">A clear view of what matters next.</p>
-          <div class="title-meta">
-            <p id="title-help" class="title-help">Click the title to rename your list.</p>
+          <p id="title-help" class="title-help">Click the title to rename your list.</p>
+        </header>
+
+        <div class="list-heading">
+          <div class="tasks-heading-copy">
+            <h1 id="page-title">Tasks</h1>
+            <p id="task-count" aria-live="polite">Today: 0 · Total: 0</p>
+          </div>
             <div class="title-actions">
+            <section id="weather-widget" class="weather-widget" aria-label="Local weather">
+              <div class="weather-summary">
+                <button class="weather-toggle" type="button" aria-expanded="false" aria-controls="weather-forecast" aria-label="Weather: —. Expand forecast">
+                  <span class="weather-icon weather-current-icon" role="img" aria-label="—">—</span>
+                  <span class="weather-city">—</span><span class="weather-current-temp">—</span>
+                  <svg class="weather-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>
+                </button>
+                <button class="weather-enable" type="button">Enable location</button>
+              </div>
+              <div id="weather-forecast" class="weather-expansion" aria-hidden="true" inert>
+                <div class="weather-expansion-inner"><ul class="weather-forecast"><li class="weather-day"><span class="weather-day-name">Today</span><span class="weather-day-description"><span class="weather-icon" role="img" aria-label="—">—</span><span class="weather-day-condition">—</span></span><span class="weather-day-temperatures">H <span class="weather-high">—</span> / L <span class="weather-low">—</span></span><span class="weather-day-rain">Rain <span class="weather-rain">—</span></span></li><li class="weather-day"><span class="weather-day-name">Tomorrow</span><span class="weather-day-description"><span class="weather-icon" role="img" aria-label="—">—</span><span class="weather-day-condition">—</span></span><span class="weather-day-temperatures">H <span class="weather-high">—</span> / L <span class="weather-low">—</span></span><span class="weather-day-rain">Rain <span class="weather-rain">—</span></span></li><li class="weather-day"><span class="weather-day-name">—</span><span class="weather-day-description"><span class="weather-icon" role="img" aria-label="—">—</span><span class="weather-day-condition">—</span></span><span class="weather-day-temperatures">H <span class="weather-high">—</span> / L <span class="weather-low">—</span></span><span class="weather-day-rain">Rain <span class="weather-rain">—</span></span></li><li class="weather-day"><span class="weather-day-name">—</span><span class="weather-day-description"><span class="weather-icon" role="img" aria-label="—">—</span><span class="weather-day-condition">—</span></span><span class="weather-day-temperatures">H <span class="weather-high">—</span> / L <span class="weather-low">—</span></span><span class="weather-day-rain">Rain <span class="weather-rain">—</span></span></li></ul>
+                  <div class="weather-footer">
+                    <p class="weather-status" role="status">Weather is off. Enable location to see your forecast.</p>
+                    <div class="weather-footer-actions"><button class="weather-disable" type="button" hidden>Turn off weather</button>
+                    <span class="weather-credits"><a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a></span></div>
+                    <p class="weather-status">Weather preference is remembered. Device coordinates are shared with these services but not saved.</p>
+                  </div>
+                </div>
+              </div>
+            </section>
               <a class="calendar-link" href="calendar.html" aria-label="Open calendar" title="Open calendar" onclick="if (window.parent !== window && typeof window.parent.todoShellNavigate === 'function') { window.parent.todoShellNavigate('calendar'); return false; }">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <rect x="3" y="5" width="18" height="16" rx="3"></rect>
@@ -83,8 +113,16 @@
                 Add tasks
               </button>
             </div>
+        </div>
+        <section class="today-progress" aria-labelledby="today-progress-label">
+          <div class="today-progress-meta">
+            <span id="today-progress-label">Today’s progress</span>
+            <span id="today-progress-summary" aria-live="polite">No tasks due today</span>
           </div>
-        </header>
+          <div id="today-progress-bar" class="today-progress-track" role="progressbar" aria-labelledby="today-progress-label" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div id="today-progress-fill" class="today-progress-fill"></div>
+          </div>
+        </section>
 
         <div id="composer-region" class="composer-region collapsed" aria-hidden="true" inert>
           <div class="composer-region-inner">
@@ -209,10 +247,6 @@
           <button id="save-preview" class="save-preview" type="button">Save tasks</button>
         </section>
 
-        <div class="list-heading">
-          <h1 id="page-title">Tasks</h1>
-          <p id="task-count" aria-live="polite">Today: 0 · Total: 0</p>
-        </div>
         <p class="reorder-help">Initially sorted by due date. Drag within a subject to create and preserve your own order.</p>
         <ul id="task-list" class="task-list" aria-label="Todo tasks"></ul>
 
@@ -284,6 +318,9 @@
     <script src="task-rules.js"></script>
     <script src="task-file-scanner.js"></script>
     <script src="script.js"></script>
+    <script src="flip-clock.js"></script>
+    <script src="weather.js"></script>
+    <script src="task-timer-bindings.js"></script>
     <script src="page-transition.js"></script>
   </body>
 </html>

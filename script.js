@@ -166,6 +166,7 @@ function normalizeTask(task) {
   const date = task.date || null;
 
   return {
+    id: String(task.id || crypto.randomUUID()),
     date: date ? {
       day: Number(date.day),
       month: Number(date.month),
@@ -448,6 +449,7 @@ function createTaskElement(todo, index) {
     const wereCurrentTasksComplete = TodoTaskRules.areCurrentTasksComplete(state.tasks, today);
     state.tasks[index] = TodoTaskRules.withCompletion(state.tasks[index], checkbox.checked, today);
     const completedTask = state.tasks[index];
+    if (completedTask.completed) window.parent.TodoTimer?.stopTask(completedTask.id);
     const shouldCelebrate = checkbox.checked && TodoTaskRules.shouldCelebrateCurrentTasks(
       state.tasks,
       completedTask,
@@ -468,15 +470,28 @@ function createTaskElement(todo, index) {
   });
   editButton.addEventListener("click", () => openTaskEditor(index));
   deleteButton.addEventListener("click", () => {
+    window.parent.TodoTimer?.stopTask(todo.id);
     state.tasks.splice(index, 1);
     saveState();
     renderTasks();
   });
 
+  const timerButton = document.createElement('button');
+  timerButton.className = 'task-stopwatch';
+  timerButton.type = 'button';
+  timerButton.disabled = todo.completed;
+  timerButton.title = 'Start task timer';
+  timerButton.setAttribute('aria-label', `Timer for ${todo.task}`);
+  timerButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 2h6M12 2v3m6 1 2 2"/><circle cx="12" cy="14" r="8"/><path d="M12 9v5l3 2"/></svg>';
+  timerButton.addEventListener('click', () => { saveState(); window.parent.TodoTimer?.open(todo); });
+  const timerStatus = document.createElement('span');
+  timerStatus.className = 'task-timer-status';
+  timerStatus.dataset.timerTask = todo.id;
+  timerStatus.hidden = true;
   titleLine.append(text);
   if (badges.childElementCount) titleLine.append(badges);
-  content.append(titleLine);
-  item.append(dragHandle, checkbox, content, editButton, deleteButton);
+  content.append(titleLine, timerStatus);
+  item.append(dragHandle, checkbox, content, timerButton, editButton, deleteButton);
   return item;
 }
 
@@ -657,6 +672,24 @@ function cancelPointerDrag(event) {
   cleanUpPointerDrag(drag);
 }
 
+function calculateTodayProgress(tasks, today = TodoTaskRules.localDateIso()) {
+  const regularToday = tasks.filter(task => !TodoTaskRules.isExtraTask(task) && TodoTaskRules.dueDateIso(task) === today);
+  const total = regularToday.length;
+  const completed = regularToday.filter(task => task.completed).length;
+  return { total, completed, percent: total ? Math.round(completed / total * 100) : 0 };
+}
+
+function renderTodayProgress(today) {
+  const { total, completed, percent } = calculateTodayProgress(state.tasks, today);
+  document.querySelector('#today-progress-summary').textContent = total
+    ? `${completed}/${total} completed · ${percent}%`
+    : 'No tasks due today';
+  const bar = document.querySelector('#today-progress-bar');
+  bar.setAttribute('aria-valuenow', String(percent));
+  bar.setAttribute('aria-valuetext', total ? `${completed} of ${total} tasks completed, ${percent} percent` : 'No tasks due today');
+  document.querySelector('#today-progress-fill').style.transform = `scaleX(${percent / 100})`;
+}
+
 function renderTasks() {
   const content = [];
   groupTasks(state.tasks).forEach((dateGroup) => {
@@ -676,6 +709,7 @@ function renderTasks() {
   taskList.replaceChildren(...content);
   titleInput.value = state.title;
   const today = TodoTaskRules.localDateIso();
+  renderTodayProgress(today);
   const visibleTasks = activeTasks(today);
   const activeCount = visibleTasks.length;
   const { today: todayCount, total: totalCount } = TodoTaskRules.countIncompleteTasks(state.tasks, today);
@@ -685,6 +719,7 @@ function renderTasks() {
   shareButton.disabled = activeCount === 0 || isExporting;
   if (activeCount === 0 && !composerOpen) setComposerOpen(true, { focus: true });
   updateComposerToggle();
+  window.parent.TodoTimer?.sync();
   scheduleDateRefresh();
 }
 
@@ -2044,6 +2079,7 @@ taskEditForm.addEventListener("submit", (event) => {
     return;
   }
   state.tasks[editingTaskIndex] = normalizeTask({
+    id: state.tasks[editingTaskIndex].id,
     ...state.tasks[editingTaskIndex],
     task: title,
     subject,

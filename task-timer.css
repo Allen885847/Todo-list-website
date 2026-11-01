@@ -1,0 +1,61 @@
+:root { --timer-paper: #f8faff; --timer-ink: #17243b; --timer-muted: #66758d; --timer-line: #dce5f2; --timer-accent: #416bdc; --timer-soft: #eaf0ff; }
+:root[data-theme="dark"] { --timer-paper: #18243a; --timer-ink: #edf4ff; --timer-muted: #aab8cf; --timer-line: #344763; --timer-accent: #8daaff; --timer-soft: #22365a; }
+.task-stopwatch { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 32px; width: 32px; height: 34px; padding: 6px; color: var(--accent-dark); background: transparent; border: 1px solid transparent; border-radius: 8px; cursor: pointer; }
+.task-stopwatch svg, .timer-icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.task-stopwatch:hover { background: var(--soft-accent); border-color: var(--line); }
+.task-stopwatch:disabled { opacity: .4; cursor: default; }
+.task-timer-status { display: block; margin-top: 5px; color: var(--accent-dark); font-size: .75rem; font-weight: 600; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.task-timer-status[hidden] { display: none; }
+.timer-bar { position: fixed; z-index: 2147483000; bottom: max(16px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: min(680px, calc(100% - 32px)); display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--timer-line); border-radius: 16px; background: var(--timer-paper); color: var(--timer-ink); box-shadow: 0 8px 28px #0003; font: 500 .87rem/1.5 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.timer-bar[hidden] { display: none; }
+.timer-bar-info { flex: 1; min-width: 0; }
+.timer-bar-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.timer-bar-status { display: block; color: var(--timer-muted); font-size: .72rem; }
+.timer-countdown { font-size: 1.2rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.timer-control { min-height: 36px; padding: 7px 10px; border: 1px solid var(--timer-line); border-radius: 8px; background: var(--timer-soft); color: var(--timer-ink); cursor: pointer; font: inherit; font-size: .78rem; line-height: 1.5; }
+.timer-control:hover { border-color: var(--timer-accent); }
+.timer-control:focus-visible, .timer-close:focus-visible { outline: 2px solid var(--timer-accent); outline-offset: 3px; }
+.timer-collapse { padding: 6px; display: inline-flex; justify-content: center; align-items: center; min-width: 34px; }
+.timer-collapse svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.timer-bar.is-collapsed { width: auto; gap: 10px; padding: 8px 10px; }
+.timer-bar.is-collapsed .timer-bar-info, .timer-bar.is-collapsed .timer-action, .timer-bar.is-collapsed .timer-end { display: none; }
+.timer-picker { width: min(420px, calc(100vw - 32px)); box-sizing: border-box; max-height: calc(100dvh - 40px); overflow: auto; padding: 24px; border: 1px solid var(--timer-line); border-radius: 18px; color: var(--timer-ink); background: var(--timer-paper); font: 400 .9rem/1.5 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; box-shadow: 0 20px 60px #0004; }
+.timer-picker::backdrop { background: #08122266; backdrop-filter: blur(8px); }
+.timer-picker[open] { animation: timer-picker-enter 200ms cubic-bezier(.16,1,.3,1); }
+.timer-picker-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.timer-picker h2 { margin: 0; font-size: 1.35rem; line-height: 1.35; }
+.timer-close { background: transparent; color: inherit; border: 0; border-radius: 8px; padding: 6px; cursor: pointer; }
+.timer-picker-title { color: var(--timer-muted); margin: 8px 0 18px; overflow-wrap: anywhere; }
+.timer-presets { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; margin: 0 0 16px; padding: 0; border: 0; }
+.timer-presets label { position: relative; cursor: pointer; }
+.timer-presets input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.timer-presets span { display: block; padding: 10px 5px; text-align: center; border: 1px solid var(--timer-line); border-radius: 8px; }
+.timer-presets input:checked + span { border-color: var(--timer-accent); background: var(--timer-soft); color: var(--timer-accent); font-weight: 700; }
+.timer-presets input:focus-visible + span { outline: 2px solid var(--timer-accent); outline-offset: 2px; }
+.timer-custom { display: grid; gap: 6px; margin-bottom: 16px; }
+.timer-custom[hidden] { display: none; }
+.timer-custom input { width: 100%; min-width: 0; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--timer-line); border-radius: 8px; color: inherit; background: var(--timer-paper); font: inherit; }
+.timer-start, .timer-resume-saved { display: block; width: 100%; margin-top: 8px; }
+.timer-start { background: var(--timer-accent); color: #fff; border-color: transparent; font-weight: 700; }
+:root[data-theme="dark"] .timer-start { color: #101a2a; }
+.timer-picker-error { color: #c94d67; }
+.timer-picker-error:empty { margin: 0; }
+.has-task-timer .todo-card, .has-task-timer .calendar-shell { padding-bottom: 120px; }
+.has-task-timer .page-notice { bottom: 110px; }
+@keyframes timer-picker-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 720px) {
+  .timer-bar { flex-wrap: wrap; gap: 8px; bottom: max(10px, env(safe-area-inset-bottom)); padding: 10px 12px; }
+  .timer-bar-info { flex-basis: calc(100% - 100px); }
+  .timer-countdown { margin-left: auto; }
+  .timer-bar.is-collapsed .timer-countdown { margin: 0; }
+  .timer-bar .timer-collapse { margin-left: auto; }
+  .task-item { column-gap: 7px; }
+  .task-stopwatch { width: 28px; flex-basis: 28px; padding: 4px; }
+  .task-item .edit-task { padding-inline: 4px; font-size: .76rem; }
+}
+@media (prefers-reduced-motion: reduce) { .timer-picker[open] { animation: none; } }
+.timer-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+.timer-resume-saved[hidden], .timer-action[hidden], .timer-end[hidden], .timer-collapse[hidden] { display: none; }
+html.has-task-timer { scroll-padding-bottom: 140px; }
+.has-task-timer .task-stopwatch, .has-task-timer .task-checkbox { scroll-margin-block: 100px 140px; }
