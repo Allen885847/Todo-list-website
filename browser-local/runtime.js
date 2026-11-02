@@ -11,6 +11,6 @@
   },true);
   window.TodoBrowserStorage = TodoLocalStore.create({storage:localStorage,indexedDB,chooseDirectory:window.showDirectoryPicker?.bind(window)});
   if (window.parent === window && 'serviceWorker' in navigator) {
-    window.addEventListener('load',() => navigator.serviceWorker.register('/local/sw.js',{scope:'/local/'}).then(registration => registration.update()).catch(() => {}));
+    window.addEventListener('load',() => navigator.serviceWorker.register('/local/sw.js',{scope:'/local/',updateViaCache:'none'}).then(registration => registration.update()).catch(() => {}));
   }
 })();

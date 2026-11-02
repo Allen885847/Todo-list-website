@@ -20,7 +20,8 @@ let index=await readFile(join(out,'index.html'),'utf8');
 index=index.replace('data-desktop-only href="desktop.html"','href="data.html"').replace('>Desktop App</a>','>Data</a>').replace('    <script src="desktop-availability.js"></script>\n','');
 await writeFile(join(out,'index.html'),index);
 let shell=await readFile(join(out,'app-shell.js'),'utf8');
-shell=shell.replace('data: { src: "desktop.html?embedded=1", title: "Desktop App · Todo List" }','data: { src: "data.html?embedded=1", title: "Data · Todo List" }');
+shell=shell.replace('src: "index.html?embedded=1"', 'src: "./?embedded=1"').replace('src: "calendar.html?embedded=1"', 'src: "calendar?embedded=1"');
+shell=shell.replace('data: { src: "desktop.html?embedded=1", title: "Desktop App · Todo List" }','data: { src: "data?embedded=1", title: "Data · Todo List" }');
 await writeFile(join(out,'app-shell.js'),shell);
 let scanner=await readFile(join(out,'task-file-scanner.js'),'utf8');await writeFile(join(out,'task-file-scanner.js'),scanner.replaceAll('"/vendor/','"/local/vendor/'));
 async function download(url,name){const path=join(cache,name);try{await stat(path)}catch{execFileSync('curl',['--fail','--silent','--show-error','--location','--retry','2','--max-time','120',url,'-o',path],{stdio:'inherit'})}return path;}
@@ -39,13 +40,11 @@ for(const name of ['app.html','index.html','calendar.html','data.html']){
 async function paths(directory,prefix=''){let files=[];for(const entry of await readdir(directory,{withFileTypes:true})){const name=prefix+entry.name;if(entry.isDirectory())files.push(...await paths(join(directory,entry.name),name+'/'));else files.push(name)}return files;}
 const files=(await paths(out)).filter(f=>f!=='sw.js').sort();
 const digest=createHash('sha256');for(const name of files)digest.update(await readFile(join(out,name)));
+const workerSource=await readFile(join(root,'browser-local/service-worker.js'),'utf8');
+digest.update(workerSource);
 const version=digest.digest('hex').slice(0,16);
-const resources=files.map(name=>'/local/'+name);
-for(const name of ['app','calendar','data'])resources.push('/local/'+name);resources.push('/local/');
-const worker=`const CACHE='todo-local-${version}',FILES=${JSON.stringify(resources)};
-self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES))));
-self.addEventListener('activate',event=>event.waitUntil((async()=>{for(const name of await caches.keys())if(name.startsWith('todo-local-')&&name!==CACHE)await caches.delete(name);await self.clients.claim()})()));
-self.addEventListener('fetch',event=>{const url=new URL(event.request.url);if(event.request.method!=='GET'||url.origin!==self.location.origin||!url.pathname.startsWith('/local/')||url.pathname==='/local/sw.js')return;event.respondWith((async()=>{const cache=await caches.open(CACHE);const key=url.origin+url.pathname;const hit=await cache.match(key);if(hit)return hit;return fetch(event.request)})())});
-`;
+const canonical=name=>name==='index.html'?'/local/':['app.html','calendar.html','data.html'].includes(name)?'/local/'+name.slice(0,-5):'/local/'+name;
+const resources=[...new Set(files.map(canonical))];
+const worker=workerSource.replace('__TODO_CACHE_NAME__','todo-local-assets-v2-'+version).replace('__TODO_PRECACHE_FILES__',JSON.stringify(resources));
 await writeFile(join(out,'sw.js'),worker);
 console.log('Built login-free, isolated browser-local workspace and offline cache:',version);
