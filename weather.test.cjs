@@ -43,6 +43,7 @@ const settle = async () => { for (let i=0;i<4;i++) await new Promise(resolve => 
   assert.equal(get('.weather-aqi-compact').textContent,'—');
   assert.equal(get('.weather-aqi-value').textContent,'—');
   assert.equal(get('.weather-aqi-category').textContent,'—');
+  assert.equal(f.widget.getAttribute('data-aqi-level'),'unknown');
   assert(f.days.every(day => day.querySelector('.weather-day-condition').textContent === '—'));
   get('.weather-toggle').click();
   assert.equal(get('.weather-toggle').getAttribute('aria-expanded'),'true');
@@ -62,6 +63,7 @@ const settle = async () => { for (let i=0;i<4;i++) await new Promise(resolve => 
   assert.equal(get('.weather-aqi-compact').textContent,'42');
   assert.equal(get('.weather-aqi-value').textContent,'42');
   assert.equal(get('.weather-aqi-category').textContent,'Good');
+  assert.equal(f.widget.getAttribute('data-aqi-level'),'good');
   assert.match(get('.weather-aqi-status').textContent,/US AQI/);
   assert.match(get('.weather-toggle').getAttribute('aria-label'),/US AQI 42/);
   const weatherURL = new URL(f.calls[0]), airURL = new URL(f.calls[2]);
@@ -76,6 +78,7 @@ const settle = async () => { for (let i=0;i<4;i++) await new Promise(resolve => 
   assert.equal(get('.weather-aqi-compact').textContent,'—');
   assert.equal(get('.weather-aqi-value').textContent,'—');
   assert.equal(get('.weather-aqi-category').textContent,'—');
+  assert.equal(f.widget.getAttribute('data-aqi-level'),'unknown');
   assert(f.days.every(day => day.querySelector('.weather-high').textContent === '—'));
   await success({ coords: { latitude: 51.5074, longitude: -0.1278 } });
   assert.equal(f.calls.length,3, 'Stale location callbacks cannot re-enable weather');
@@ -129,6 +132,7 @@ const settle = async () => { for (let i=0;i<4;i++) await new Promise(resolve => 
   await noAir.location.success({ coords: { latitude: 51.5074, longitude: -0.1278 } });
   assert.equal(noAir.widget.querySelector('.weather-current-temp').textContent,'21°','Air quality failure does not hide weather');
   assert.equal(noAir.widget.querySelector('.weather-aqi-value').textContent,'—');
+  assert.equal(noAir.widget.getAttribute('data-aqi-level'),'unknown');
   assert.equal(noAir.widget.querySelector('.weather-enable').hidden,false);
   assert.equal(noAir.widget.querySelector('.weather-enable').getAttribute('data-short-label'),'Retry');
   const airOnly = fixture(false, { weatherFails: true });
@@ -136,11 +140,13 @@ const settle = async () => { for (let i=0;i<4;i++) await new Promise(resolve => 
   await airOnly.location.success({ coords: { latitude: 51.5074, longitude: -0.1278 } });
   assert.equal(airOnly.widget.querySelector('.weather-aqi-value').textContent,'42','Weather failure does not hide available air quality');
   assert.equal(airOnly.widget.querySelector('.weather-current-temp').textContent,'—');
-  for (const [aqi, label] of [[0,'Good'],[50,'Good'],[51,'Moderate'],[100,'Moderate'],[101,'Unhealthy for sensitive groups'],[150,'Unhealthy for sensitive groups'],[151,'Unhealthy'],[200,'Unhealthy'],[201,'Very unhealthy'],[300,'Very unhealthy'],[301,'Hazardous'],[null,'—'],[-1,'—'],[Infinity,'—']]) {
+  for (const [aqi, label] of [[0,'Good'],[50,'Good'],[51,'Moderate'],[100,'Moderate'],[101,'Unhealthy for sensitive groups'],[150,'Unhealthy for sensitive groups'],[151,'Unhealthy'],[200,'Unhealthy'],[201,'Very unhealthy'],[300,'Very unhealthy'],[301,'Hazardous'],[500,'Hazardous'],[501,'Hazardous'],[50.49,'Good'],[50.5,'Moderate'],[null,'—'],[-1,'—'],[Infinity,'—']]) {
     const sample=fixture(false,{aqi});
     await sample.widget.querySelector('.weather-enable').click();
     await sample.location.success({coords:{latitude:51.5074,longitude:-0.1278}});
     assert.equal(sample.widget.querySelector('.weather-aqi-category').textContent,label,`AQI boundary ${aqi}`);
+    const levels = { 'Good':'good', 'Moderate':'moderate', 'Unhealthy for sensitive groups':'sensitive', 'Unhealthy':'unhealthy', 'Very unhealthy':'very-unhealthy', 'Hazardous':'hazardous', '—':'unknown' };
+    assert.equal(sample.widget.getAttribute('data-aqi-level'),levels[label],`AQI color boundary ${aqi}`);
   }
   console.log('Air quality checks passed: consent gating, same coordinates, current US AQI, categories, zero/missing/invalid data, reset/revocation, partial failures and retry.');
   console.log('Weather preference checks passed: remembered grants, expired/denied permission, revocation race, opt-out, no coordinate storage.');

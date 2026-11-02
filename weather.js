@@ -23,6 +23,15 @@
   let coordinates;
   let permission;
   const PREFERENCE_KEY = 'todo-weather-enabled-v1';
+  // Open-Meteo's us_aqi uses these six US AQI category boundaries.
+  const AQI_BANDS = [
+    { max: 50, level: 'good', label: 'Good' },
+    { max: 100, level: 'moderate', label: 'Moderate' },
+    { max: 150, level: 'sensitive', label: 'Unhealthy for sensitive groups' },
+    { max: 200, level: 'unhealthy', label: 'Unhealthy' },
+    { max: 300, level: 'very-unhealthy', label: 'Very unhealthy' },
+    { max: Infinity, level: 'hazardous', label: 'Hazardous' },
+  ];
   function preference() {
     try { return localStorage.getItem(PREFERENCE_KEY); } catch { return null; }
   }
@@ -58,6 +67,7 @@
   const numeric = value => typeof value === 'number' && Number.isFinite(value);
   const degrees = value => numeric(value) ? `${Math.round(value)}°` : '—';
   function blankAirQuality(message = 'Enable location to see air quality.') {
+    widget.setAttribute('data-aqi-level', 'unknown');
     aqiCompact.textContent = '—';
     aqiValue.textContent = '—';
     aqiCategory.textContent = '—';
@@ -71,8 +81,9 @@
       return false;
     }
     const score = Math.round(value);
-    const category = score <= 50 ? 'Good' : score <= 100 ? 'Moderate' : score <= 150
-      ? 'Unhealthy for sensitive groups' : score <= 200 ? 'Unhealthy' : score <= 300 ? 'Very unhealthy' : 'Hazardous';
+    const band = AQI_BANDS.find(entry => score <= entry.max);
+    const category = band.label;
+    widget.setAttribute('data-aqi-level', band.level);
     aqiCompact.textContent = String(score);
     aqiValue.textContent = String(score);
     aqiCategory.textContent = category;
@@ -133,7 +144,7 @@
     const params = new URLSearchParams({ latitude, longitude, current: 'temperature_2m,weather_code', daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'auto', forecast_days: '4' });
     const reverse = new URLSearchParams({ lat: latitude, lon: longitude, format: 'jsonv2', zoom: '10', 'accept-language': 'en' });
     const airParams = new URLSearchParams({ latitude, longitude, current: 'us_aqi', timezone: params.get('timezone') });
-    blankAirQuality('Updating air quality…');
+    aqiStatus.textContent = 'Updating air quality…'; // Keep the last reading/color until the new result arrives.
     status.textContent = 'Fetching weather and air quality…';
     const results = await Promise.allSettled([
       json(`https://api.open-meteo.com/v1/forecast?${params}`, controller.signal),
