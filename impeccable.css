@@ -147,6 +147,19 @@ select {
   letter-spacing: -0.018em;
   line-height: 1.25;
 }
+.task-date-heading time {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15em 0.4em;
+  max-width: 100%;
+}
+.task-date-weekday {
+  color: var(--muted);
+  font: 500 0.74em/1.45 "DM Sans", ui-sans-serif, sans-serif;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
 .task-date {
   margin-top: 3px;
   color: var(--accent-dark);

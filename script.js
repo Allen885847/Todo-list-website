@@ -259,6 +259,10 @@ function createDateHeading(date) {
     const time = document.createElement("time");
     time.dateTime = toIsoDate(date);
     time.textContent = formatDate(date);
+    const weekday = document.createElement("span");
+    weekday.className = "task-date-weekday";
+    weekday.textContent = `· ${new Intl.DateTimeFormat("en", { weekday: "long" }).format(new Date(date.year, date.month - 1, date.day))}`;
+    time.append(weekday);
     item.append(time);
   } else {
     item.textContent = "No due date";
