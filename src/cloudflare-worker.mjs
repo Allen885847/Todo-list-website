@@ -1,6 +1,7 @@
 import { createAuth, getAuthenticatedUser, getAuthReadiness } from "./cloudflare-auth.mjs";
 import { handleDataRequest } from "./cloudflare-data.mjs";
 import { handleAiRequest } from "./cloudflare-ai.mjs";
+import { handleLocalAi } from "./local-ai.mjs";
 import { handleDesktopDownload } from "./desktop-downloads.mjs";
 
 const jsonHeaders = {
@@ -45,6 +46,9 @@ export default {
     if (["/data", "/data.html"].includes(url.pathname)) {
       return Response.redirect(new URL(url.searchParams.has("embedded") ? `/desktop${url.search}` : "/app#data", url), 302);
     }
+
+    const localAi = await handleLocalAi(request, env);
+    if (localAi) return localAi;
 
     const desktopDownload = await handleDesktopDownload(request, env);
     if (desktopDownload) return desktopDownload;

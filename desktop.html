@@ -24,15 +24,15 @@
     <main class="data-shell"><section class="data-card" aria-labelledby="desktop-title">
       <a class="data-back" href="index.html" onclick="if (window.parent !== window && window.parent.todoShellNavigate) { window.parent.todoShellNavigate('todo'); return false; }">← Todo List</a>
       <h1 id="desktop-title">Desktop App</h1>
-      <p class="data-intro">Your familiar To-Do List in Google Chrome, with a desktop Shortcut and a private local save file. No account is needed for local use.</p>
+      <p class="data-intro">Your familiar To-Do List in Google Chrome, with a desktop Shortcut and private local saving. No account is needed for local use.</p>
       <div id="desktop-computer-content" data-desktop-only>
         <section class="desktop-section" aria-labelledby="download-heading">
           <h2 id="download-heading">Download for Mac</h2>
-          <p>Includes the Shortcut, its supporting files, and the same icon as the existing local version. Tasks and Calendar work offline. AI, weather, and optional website sync need internet.</p>
+          <p>Includes the Shortcut, its supporting files, and the same icon as the existing local version. Open once online to cache the workspace; core tasks and Calendar then work offline. AI, weather, and optional website sync need internet.</p>
           <div id="desktop-downloads" class="desktop-actions"><span>Checking downloads…</span></div>
           <p id="download-note" class="desktop-note"></p>
-          <ol><li>Download the package for your Mac and unzip it.</li><li>Double-click <strong>Install.command</strong>. The installer creates <strong>Todo List Local</strong> in Applications and a desktop Shortcut.</li><li>Open <strong>Todo List Local</strong>. For AI and voice, add your own API keys under Data → AI connection.</li></ol>
-          <p class="desktop-note">Requires Google Chrome. Installing or updating this package does not replace your existing AI Todo List Shortcut or its data. Your save file stays in Application Support when application files are updated.</p>
+          <ol><li>Download the Mac Shortcut and unzip it.</li><li>Drag <strong>Todo List Local.crwebloc</strong> to your Desktop.</li><li>Double-click it to open Google Chrome. AI and voice use the hosted backend; no API key or login is needed.</li></ol>
+          <p class="desktop-note">Requires Google Chrome. No installer or Terminal commands. Your existing AI Todo List Shortcut and its data stay untouched. The new workspace saves in this Chrome profile, separately from Online accounts. Use Data → Choose backup folder for an independent file copy. Keep a backup before clearing browser data.</p>
         </section>
         <section class="desktop-section" aria-labelledby="import-heading">
           <h2 id="import-heading">Import local data into Online</h2>

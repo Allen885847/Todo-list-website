@@ -73,3 +73,4 @@ await Promise.all(vendorAssets.map(async ([source, destination]) => {
   await cp(resolve(root, source), target);
 }));
 console.log(`Prepared ${assets.length} app assets and ${vendorAssets.length} scanner assets in ${output}.`);
+await import('./build-browser-local.mjs');

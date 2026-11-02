@@ -6,7 +6,7 @@ export async function handleDesktopDownload(request, env) {
     return Response.json({ version: manifest.version, files: manifest.files.map(({ arch, filename, size, sha256, url }) => ({ arch, filename, size, sha256, url })) }, { headers: { 'Cache-Control': 'no-cache' } });
   }
   if (!url.pathname.startsWith('/downloads/')) return null;
-  const file = manifest.files.find(file => url.pathname === file.url);
+  const file = [...manifest.files, ...(manifest.legacyFiles || [])].find(file => url.pathname === file.url);
   if (!file || !['GET','HEAD'].includes(request.method)) return new Response('Download not found.', { status: 404 });
   const object = await env.BUCKET.get(file.objectKey);
   if (!object) return new Response('This download is temporarily unavailable. Please try again.', { status: 503 });

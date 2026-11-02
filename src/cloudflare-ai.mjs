@@ -287,6 +287,7 @@ async function transcribe(env, audio) {
 }
 
 async function logMessage(env, userId, type, inputMethod, userContent, result, status, errorCode = null) {
+  if (!userId) return; // Local AI input is processed without adding private account messages.
   try {
     await env.DB.prepare(`INSERT INTO messages
       (id, user_id, conversation_type, input_method, user_content, assistant_content, provider, model, status, error_code, created_at)

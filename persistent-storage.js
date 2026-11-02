@@ -12,6 +12,7 @@
     "todo-task-timers-v1",
     "todo-data-schema",
     "todo-data-backup-before-v2.5",
+    ...(window.TodoBrowserStorage ? ["todo-weather-enabled-v1"] : []),
   ];
   const nativeSetItem = Storage.prototype.setItem;
   const nativeRemoveItem = Storage.prototype.removeItem;
@@ -25,6 +26,7 @@
   async function saveNow({ keepalive = false, strict = false } = {}) {
     clearTimeout(saveTimer);
     try {
+      if (window.TodoBrowserStorage) return await window.TodoBrowserStorage.save(collect());
       const cloudMode = location.protocol === "https:" || location.hostname === "localhost";
       const response = await fetch(cloudMode ? "/api/storage" : "/api/local-data", {
         method: cloudMode ? "PUT" : "POST",
@@ -35,7 +37,7 @@
       if (!response.ok && (strict || response.status !== 401)) throw new Error(`Save failed (${response.status}).`);
     } catch (error) {
       console.warn("Local file backup could not be updated.", error);
-      if (strict) throw new Error("Your data could not be saved to the local file. Check disk space and try again before continuing.");
+      if (strict) throw new Error("Your data could not be saved. Check available storage and try again before continuing.");
     }
   }
 
@@ -63,9 +65,12 @@
   async function restore() {
     let serverPayload;
     try {
-      const cloudMode = location.protocol === "https:" || location.hostname === "localhost";
-      const response = await fetch(cloudMode ? "/api/storage" : "/api/local-data", { cache: "no-store" });
-      if (response.ok) serverPayload = await response.json();
+      if (window.TodoBrowserStorage) serverPayload = await window.TodoBrowserStorage.load();
+      else {
+        const cloudMode = location.protocol === "https:" || location.hostname === "localhost";
+        const response = await fetch(cloudMode ? "/api/storage" : "/api/local-data", { cache: "no-store" });
+        if (response.ok) serverPayload = await response.json();
+      }
     } catch (error) {
       console.warn("Local file backup could not be loaded.", error);
     }

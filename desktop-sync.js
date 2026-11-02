@@ -3,7 +3,8 @@
   const origin = params.get('origin'), nonce = params.get('nonce');
   const status = document.querySelector('#sync-status'), save = document.querySelector('#sync-save');
   let user, incoming, snapshot, choices = {}, busy = false;
-  const valid = /^http:\/\/127\.0\.0\.1:[1-9]\d{3,4}$/.test(origin || '') && Number(new URL(origin).port) <= 65535 && /^[a-f0-9]{32}$/.test(nonce || '') && window.opener;
+  const browserLocal = params.get('mode') === 'browser-local' && origin === location.origin;
+  const valid = (browserLocal || /^http:\/\/127\.0\.0\.1:[1-9]\d{3,4}$/.test(origin || '') && Number(new URL(origin).port) <= 65535) && /^[a-f0-9]{32}$/.test(nonce || '') && window.opener;
   const message = (text, type = '') => { status.textContent = text; status.dataset.type = type; };
   const send = data => window.opener?.postMessage({ ...data, nonce }, origin);
   async function api(path, options = {}) {

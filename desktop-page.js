@@ -66,10 +66,10 @@
     try {
       const manifest = await api('/api/desktop-downloads'); downloads.replaceChildren();
       for (const file of manifest.files || []) {
-        const link = document.createElement('a'); link.className = 'desktop-primary'; link.href = file.url; link.textContent = `Download for ${file.arch === 'arm64' ? 'Apple silicon' : 'Intel'} Mac`; link.download = file.filename; downloads.append(link);
+        const link = document.createElement('a'); link.className = 'desktop-primary'; link.href = file.url; link.textContent = file.arch === 'universal' ? 'Download Mac Shortcut' : `Download for ${file.arch === 'arm64' ? 'Apple silicon' : 'Intel'} Mac`; link.download = file.filename; downloads.append(link);
       }
       if (!downloads.childElementCount) downloads.textContent = 'The Shortcut download is being prepared. Please check again shortly.';
-      document.querySelector('#download-note').textContent = manifest.files?.length ? `Version ${manifest.version}. Each download includes everything needed to run the local server; Node.js does not need to be installed separately.` : '';
+      document.querySelector('#download-note').textContent = manifest.files?.length ? `Version ${manifest.version}. Works on Apple silicon and Intel Macs with Google Chrome. No installation script or API keys needed.` : '';
     } catch { downloads.textContent = 'Downloads are temporarily unavailable. Please try again.'; }
   }
   initialize();

@@ -1,31 +1,33 @@
-# Todo List Local
+# Todo List Local — Chrome Shortcut
 
-1. Unzip the download. Keep `Install.command` and `Todo List Local.app` together.
-2. Double-click **Install.command**. It installs to your personal Applications folder and adds a desktop Shortcut.
-3. Open **Todo List Local**. It starts the included local server and opens Google Chrome. No Node.js installation or website login is required.
+1. Download the ZIP and unzip it.
+2. Drag **Todo List Local.crwebloc** to your Desktop.
+3. Double-click the Shortcut. Google Chrome opens your local workspace without a login.
 
-Use the Apple silicon download for M-series Macs and the Intel download for Intel Macs. Requires macOS 13.5 or later and Google Chrome. These are shell-based Shortcut bundles and supporting files, not a native application or App Store installer.
+Requires Google Chrome on Mac. One download works on Apple silicon and Intel. The Shortcut uses Chrome’s registered shortcut-file format and your existing Todo List icon. It is not a native application. There is no installer, Terminal command, Node.js requirement, or Apple Developer ID requirement. Your system’s default browser is unchanged.
 
-## AI and voice
+## First opening and AI
 
-Open **Data → AI connection** and add your own DeepSeek API key. For voice, also add your Doubao Speech Recognition key and enable that service in its project. You can use the AI without signing in to the website. No shared API keys are included in this download. Keys stay in a separate private file and are excluded from portable backups and synchronization.
+Open once while connected to the internet so the workspace can be cached. After that, core tasks, Calendar, manual entry, timers, and appearance can work offline. AI, voice recognition, weather, and optional Sync to Website require internet.
 
-Tasks, Calendar, manual entry, completion states, labels, task timers, progress, appearance, backup, and restoration work without internet. AI, speech recognition, weather, and Sync to Website require internet. The user must grant location permission for weather.
+AI uses todolist.uno’s hosted DeepSeek and Doubao backend; users do not need API keys. Keys stay on the server. A secure connection check and usage limits protect the service. Only descriptions/audio deliberately submitted to AI are sent for processing; the saved list is not uploaded automatically.
 
-## Local saves and updates
+## Where data is saved
 
-The save file is `~/Library/Application Support/Todo List Local/data/state.json`, with an automatically retained previous file. Updates replace application files only, keep the same local address (`http://127.0.0.1:4196`), and retain the independent data directory and Chrome storage. Before a version change, the launcher creates an additional recovery snapshot. The installer retains the previous application bundle as well.
+Tasks, events, holidays, labels, completion states, settings, and progress save automatically in the Chrome profile on this computer, in a separate local namespace and IndexedDB database. The Online account remains independent, even in the same browser. Use the same Chrome profile when reopening.
 
-This is independent of the existing **AI Todo List** Shortcut, its port, its application folder, and its saved data. It never imports that Shortcut's data automatically. To bring data over, export a backup from its Data page and review the import in the new local version.
+For a separate file copy, open **Data → Choose backup folder**. Chrome asks for permission to write a local JSON save file. Automatic folder copies pause when permission expires; use **Reconnect folder** to resume them. A previous file copy is retained daily in “Todo List backups”. Folder problems do not stop the browser save.
 
-## Backup and recovery
+Do not clear Chrome site data or delete this browser profile without exporting a backup first. Browser storage can be removed by the user or browser; choosing a backup folder protects against that. The Shortcut does not read any existing local application’s files automatically.
 
-Use **Data → Download backup** for a portable JSON copy. **Choose backup** shows a merge preview; resolve differing records before confirming. The complete previous local state is backed up before the restore is applied. Matching task/event records are not duplicated, including on repeat imports.
+## Backup, restore, and updates
 
-For file recovery, close local tabs and stop this download's local server (the process ID is in the support folder's `server.pid`). Keep a copy of the current state, then restore a snapshot from `data/backups/` to `data/state.json` and reopen the Shortcut. Do not delete the Application Support folder when updating.
+**Data → Download backup** creates a portable JSON copy. **Choose backup** accepts a previous Todo List backup or local state.json file, previews additions and differences, and merges only after confirmation. Recovery copies are kept before restoration, and repeat imports do not duplicate matching records.
 
-## Sync to Website
+Web application updates keep the same local address and storage namespace, independent of replaceable application files. The existing AI Todo List Shortcut, its application folder, local server, and saved data are not changed by this download. To bring its data into this workspace, export a backup from that version and review it using Choose backup.
 
-Open **Data → Sync to Website**. Sign in on todolist.uno, return to the local tab, and confirm sending a copy. Review the merge on the website and choose which version to keep wherever saved details differ, then confirm **Merge into my account**. No records are uploaded before your local confirmation, and no Online changes are saved before your final review. The website checks for concurrent changes and asks for a fresh review when needed. A recovery snapshot of the Online account is retained before the import.
+## Optional Sync to Website
 
-This is a manual copy-and-merge action, not automatic background synchronization. Records present in only one copy are retained. Deleting a local record does not automatically delete the corresponding Online record. The local copy and the website can continue to be used independently.
+Choose **Data → Sync to Website** only when you want to copy data to an Online account. Sign in on todolist.uno, return to the local tab, and confirm the transfer. Review additions and resolve differences on the website before saving. A recovery snapshot is kept before the Online merge.
+
+Nothing is uploaded before confirmation. Both copies remain available. This is a manual merge, not background synchronization, and local deletions do not delete Online records. Using Online separately does not overwrite this local workspace.

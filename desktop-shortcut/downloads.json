@@ -1,7 +1,16 @@
 {
   "version": "3.2.0",
-  "nodeVersion": "v24.22.2",
   "files": [
+    {
+      "arch": "universal",
+      "filename": "todo-list-chrome-launcher-macos.zip",
+      "size": 1698784,
+      "sha256": "47991743141681c808b55e0050dd1c60338c1a8e3b8808879cd556073b23d326",
+      "url": "/downloads/todo-list-chrome-launcher-macos.zip",
+      "objectKey": "desktop-downloads/3.2.0/todo-list-chrome-launcher-macos.zip"
+    }
+  ],
+  "legacyFiles": [
     {
       "arch": "arm64",
       "filename": "todo-list-local-macos-arm64.zip",

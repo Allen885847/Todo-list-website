@@ -4,6 +4,8 @@
   let config, popup, nonce, transfer, incoming, choices = {}, busy = false;
   const review = document.querySelector('#local-review'), save = document.querySelector('#local-save');
   async function api(path, options = {}) {
+    if (window.TodoBrowserStorage && path === '/api/desktop/config') return { website: location.origin, hostedAi: true };
+    if (window.TodoBrowserStorage && path === '/api/desktop/backup') return TodoBrowserStorage.backup();
     const response = await fetch(path, { ...options, cache: 'no-store' }); const body = await response.json();
     if (!response.ok) throw new Error(body.error || 'The request could not be completed.'); return body;
   }
@@ -38,6 +40,7 @@
     if (!config || busy) return;
     nonce = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2,'0')).join('');
     const params = new URLSearchParams({ origin: location.origin, nonce });
+    if (window.TodoBrowserLocal) params.set('mode', 'browser-local');
     popup = window.open(`${config.website}/desktop-sync?${params}`, 'todo-website-sync-' + nonce);
     if (!popup) { message('Allow this tab to open the website, then try Sync to Website again.', 'error'); return; }
     transfer = null; message('Sign in on the website. Return here to confirm sending your data. Nothing has been uploaded.');
@@ -65,13 +68,13 @@
     } catch (error) { document.querySelector('#local-sync-error').textContent = error.message; message(error.message, 'error'); } finally { busy = false; document.querySelector('#local-sync-send').disabled = false; }
   });
   document.querySelector('#local-sync-dismiss').addEventListener('click', () => { if (!busy) { document.querySelector('#local-sync-confirm').close(); message('Transfer cancelled. No local data was sent.'); } });
-  document.querySelector('#local-ai-form').addEventListener('submit', async event => {
+  document.querySelector('#local-ai-form')?.addEventListener('submit', async event => {
     event.preventDefault(); const form = event.currentTarget; const button = form.querySelector('button'); button.disabled = true;
     try {
       await api('/api/desktop/ai-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ DEEPSEEK_API_KEY: form.elements.deepseek.value.trim(), DOUBAO_SPEECH_API_KEY: form.elements.doubao.value.trim() }) });
       form.reset(); config = await api('/api/desktop/config'); showAI(); message('AI connection saved on this computer. You can use AI without signing in.', 'success');
     } catch (error) { message(error.message, 'error'); } finally { button.disabled = false; }
   });
-  function showAI() { document.querySelector('#local-ai-state').textContent = `DeepSeek: ${config.deepseekConfigured ? 'configured' : 'not configured'} · Voice: ${config.voiceConfigured ? 'configured' : 'not configured'}`; }
+  function showAI() { if(config.hostedAi) { document.querySelector('#local-ai-state').textContent = 'Connected to the website’s hosted DeepSeek and Doubao services. No API key or account is needed.'; return; } document.querySelector('#local-ai-state').textContent = `DeepSeek: ${config.deepseekConfigured ? 'configured' : 'not configured'} · Voice: ${config.voiceConfigured ? 'configured' : 'not configured'}`; }
   api('/api/desktop/config').then(result => { config = result; showAI(); message('Your data is saved locally. Website sync is off unless you choose it.'); }).catch(error => message(error.message, 'error'));
 })();
