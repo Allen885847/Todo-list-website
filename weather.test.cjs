@@ -22,7 +22,13 @@ const fixture = (networkFails = false, options = {}) => {
   const events = {};
   const doc = { hidden: false, getElementById: () => widget, addEventListener: (name, handler) => { events[name] = handler; } };
   const result = { current: { temperature_2m: 20.6, weather_code: 2 }, daily: { time: ['2026-11-01','2026-11-02','2026-11-03','2026-11-04'], weather_code: [2,61,0,3], temperature_2m_max: [24,22,25,21], temperature_2m_min: [17,16,18,15], precipitation_probability_max: [10,80,0,40] } };
-  const context = { localStorage: { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key,value) }, document: doc, window: { isSecureContext: true, addEventListener() {} }, navigator: { ...(permission ? { permissions: { query: async () => permission } } : {}), geolocation: { getCurrentPosition: (success,error) => { locationRequests++; locationRequest = { success,error }; } } }, matchMedia: () => ({ matches: false }), Intl, URLSearchParams, AbortController, Date, setTimeout: () => 1, clearTimeout() {}, fetch: async (url) => { calls.push(url); if (networkFails) throw new Error('Offline'); return { ok: true, json: async () => url.includes('open-meteo') ? result : { address: { city: 'Test city' } } }; } };
+  const context = { localStorage: { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key,value) }, document: doc, window: { isSecureContext: true, addEventListener() {} }, navigator: { ...(permission ? { permissions: { query: async () => permission } } : {}), geolocation: { getCurrentPosition: (success,error) => { locationRequests++; locationRequest = { success,error }; } } }, matchMedia: () => ({ matches: false }), Intl, URL, URLSearchParams, AbortController, Date, setTimeout: () => 1, clearTimeout() {}, fetch: async (url) => {
+    calls.push(url);
+    if (networkFails || (options.airFails && url.includes('air-quality-api')) || (options.weatherFails && url.includes('/v1/forecast'))) throw new Error('Offline');
+    return { ok: true, json: async () => url.includes('air-quality-api')
+      ? { current: { us_aqi: Object.hasOwn(options, 'aqi') ? options.aqi : 42 } }
+      : url.includes('open-meteo') ? result : { address: { city: 'Test city' } } };
+  } };
   vm.runInNewContext(fs.readFileSync('weather.js','utf8'), context);
   return { widget, days, calls, saved, permission, changePermission(state) { permission.state = state; permissionHandlers.change?.(); }, get locationRequests() { return locationRequests; }, get location() { return locationRequest; } };
 };
@@ -34,6 +40,9 @@ const settle = async () => { for (let i=0;i<4;i++) await new Promise(resolve => 
   assert.equal(f.location,undefined, 'No automatic geolocation prompt');
   assert.equal(get('.weather-city').textContent,'—');
   assert.equal(get('.weather-current-temp').textContent,'—');
+  assert.equal(get('.weather-aqi-compact').textContent,'—');
+  assert.equal(get('.weather-aqi-value').textContent,'—');
+  assert.equal(get('.weather-aqi-category').textContent,'—');
   assert(f.days.every(day => day.querySelector('.weather-day-condition').textContent === '—'));
   get('.weather-toggle').click();
   assert.equal(get('.weather-toggle').getAttribute('aria-expanded'),'true');
@@ -46,18 +55,30 @@ const settle = async () => { for (let i=0;i<4;i++) await new Promise(resolve => 
   const success = f.location.success;
   await success({ coords: { latitude: 51.5074, longitude: -0.1278 } });
   await settle();
-  assert.equal(f.calls.length,2);
+  assert.equal(f.calls.length,3);
   assert.match(f.calls[0],/latitude=51.51/);
   assert.equal(get('.weather-city').textContent,'Test city');
   assert.equal(get('.weather-current-temp').textContent,'21°');
+  assert.equal(get('.weather-aqi-compact').textContent,'42');
+  assert.equal(get('.weather-aqi-value').textContent,'42');
+  assert.equal(get('.weather-aqi-category').textContent,'Good');
+  assert.match(get('.weather-aqi-status').textContent,/US AQI/);
+  assert.match(get('.weather-toggle').getAttribute('aria-label'),/US AQI 42/);
+  const weatherURL = new URL(f.calls[0]), airURL = new URL(f.calls[2]);
+  assert.equal(airURL.hostname,'air-quality-api.open-meteo.com');
+  for (const key of ['latitude','longitude','timezone']) assert.equal(airURL.searchParams.get(key),weatherURL.searchParams.get(key));
+  assert.equal(airURL.searchParams.get('current'),'us_aqi');
   assert.equal(f.days[1].querySelector('.weather-day-condition').textContent,'Rain');
   assert.equal(f.days[1].querySelector('.weather-rain').textContent,'80%');
   get('.weather-disable').click();
   assert.equal(get('.weather-city').textContent,'—');
   assert.equal(get('.weather-current-temp').textContent,'—');
+  assert.equal(get('.weather-aqi-compact').textContent,'—');
+  assert.equal(get('.weather-aqi-value').textContent,'—');
+  assert.equal(get('.weather-aqi-category').textContent,'—');
   assert(f.days.every(day => day.querySelector('.weather-high').textContent === '—'));
   await success({ coords: { latitude: 51.5074, longitude: -0.1278 } });
-  assert.equal(f.calls.length,2, 'Stale location callbacks cannot re-enable weather');
+  assert.equal(f.calls.length,3, 'Stale location callbacks cannot re-enable weather');
   const offline = fixture(true);
   await offline.widget.querySelector('.weather-enable').click();
   await offline.location.success({ coords: { latitude: 51.5074, longitude: -0.1278 } });
@@ -77,7 +98,7 @@ const settle = async () => { for (let i=0;i<4;i++) await new Promise(resolve => 
   await settle();
   assert.equal(revisit.locationRequests, 1, 'Granted location automatically refreshes on a remembered visit');
   await revisit.location.success({ coords: { latitude: 51.5074, longitude: -0.1278 } });
-  assert.equal(revisit.calls.length, 2);
+  assert.equal(revisit.calls.length, 3);
   assert.equal(remembered.get(key), 'enabled');
   assert.equal(remembered.size, 1, 'Store only preference, never coordinates');
   revisit.changePermission('prompt');
@@ -103,6 +124,25 @@ const settle = async () => { for (let i=0;i<4;i++) await new Promise(resolve => 
   const existingGrant = fixture(false, { permission: 'granted' });
   await settle();
   assert.equal(existingGrant.locationRequests, 1, 'Existing browser grants migrate without prompting');
+  const noAir = fixture(false, { airFails: true });
+  await noAir.widget.querySelector('.weather-enable').click();
+  await noAir.location.success({ coords: { latitude: 51.5074, longitude: -0.1278 } });
+  assert.equal(noAir.widget.querySelector('.weather-current-temp').textContent,'21°','Air quality failure does not hide weather');
+  assert.equal(noAir.widget.querySelector('.weather-aqi-value').textContent,'—');
+  assert.equal(noAir.widget.querySelector('.weather-enable').hidden,false);
+  assert.equal(noAir.widget.querySelector('.weather-enable').getAttribute('data-short-label'),'Retry');
+  const airOnly = fixture(false, { weatherFails: true });
+  await airOnly.widget.querySelector('.weather-enable').click();
+  await airOnly.location.success({ coords: { latitude: 51.5074, longitude: -0.1278 } });
+  assert.equal(airOnly.widget.querySelector('.weather-aqi-value').textContent,'42','Weather failure does not hide available air quality');
+  assert.equal(airOnly.widget.querySelector('.weather-current-temp').textContent,'—');
+  for (const [aqi, label] of [[0,'Good'],[50,'Good'],[51,'Moderate'],[100,'Moderate'],[101,'Unhealthy for sensitive groups'],[150,'Unhealthy for sensitive groups'],[151,'Unhealthy'],[200,'Unhealthy'],[201,'Very unhealthy'],[300,'Very unhealthy'],[301,'Hazardous'],[null,'—'],[-1,'—'],[Infinity,'—']]) {
+    const sample=fixture(false,{aqi});
+    await sample.widget.querySelector('.weather-enable').click();
+    await sample.location.success({coords:{latitude:51.5074,longitude:-0.1278}});
+    assert.equal(sample.widget.querySelector('.weather-aqi-category').textContent,label,`AQI boundary ${aqi}`);
+  }
+  console.log('Air quality checks passed: consent gating, same coordinates, current US AQI, categories, zero/missing/invalid data, reset/revocation, partial failures and retry.');
   console.log('Weather preference checks passed: remembered grants, expired/denied permission, revocation race, opt-out, no coordinate storage.');
   console.log('Weather checks passed: disabled default, no requests before consent, collapse, denial, permission-based data, 4 days, disable/reset, stale callbacks, timeout.');
 })();

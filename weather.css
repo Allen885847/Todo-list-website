@@ -4,6 +4,13 @@
 .weather-toggle { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; min-height: 38px; padding: 6px 8px; background: transparent; border: 0; border-radius: 8px; color: inherit; font: inherit; cursor: pointer; text-align: left; }
 .weather-toggle:hover { background: var(--soft-accent); }
 .weather-city { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.weather-aqi-summary { flex: 0 0 auto; padding: 2px 5px; border-radius: 5px; background: var(--soft-accent); color: var(--accent-dark); font-size: .67rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.5; white-space: nowrap; }
+.weather-air-quality { margin: 0 12px; padding: 12px 0 10px; }
+.weather-air-quality-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-weight: 600; }
+.weather-air-quality-heading small { margin-left: 4px; color: var(--muted); font-size: .68rem; font-weight: 500; white-space: nowrap; }
+.weather-aqi-value { color: var(--accent-dark); font-size: 1.45rem; font-variant-numeric: tabular-nums; line-height: 1.25; }
+.weather-aqi-category { margin: 3px 0 0; color: var(--ink); line-height: 1.45; overflow-wrap: anywhere; }
+.weather-aqi-status { margin: 4px 0 0; color: var(--muted); font-size: .68rem; line-height: 1.5; }
 .weather-current-temp { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .weather-icon { width: 22px; height: 22px; display: inline-flex; flex: 0 0 22px; align-items: center; justify-content: center; color: var(--accent-dark); }
 .weather-icon svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
@@ -34,9 +41,10 @@
   .weather-widget { width: 100%; min-width: 0; }
   .weather-day { grid-template-columns: minmax(62px, .8fr) minmax(0,1.4fr) auto; }
   .weather-expansion { width: min(340px, calc(100vw - 40px)); right: auto; left: 0; }
-  .weather-toggle { gap: 4px; padding-inline: 5px; }
+  .weather-toggle { flex-wrap: wrap; gap: 3px 4px; padding-inline: 5px; }
+  .weather-aqi-summary { order: 1; flex: 0 0 100%; max-width: 100%; box-sizing: border-box; font-size: .65rem; }
   .weather-summary { gap: 2px; padding-inline: 3px; }
   .weather-enable { font-size: 0; padding-inline: 7px; }
-  .weather-enable::after { content: "Enable"; font-size: .68rem; }
+  .weather-enable::after { content: attr(data-short-label); font-size: .68rem; }
 }
 @media (prefers-reduced-motion: reduce) { .weather-expansion, .weather-chevron { transition: none; } }
