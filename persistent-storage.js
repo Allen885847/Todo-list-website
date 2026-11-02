@@ -22,7 +22,7 @@
     return Object.fromEntries(keys.map((key) => [key, localStorage.getItem(key)]));
   }
 
-  async function saveNow({ keepalive = false } = {}) {
+  async function saveNow({ keepalive = false, strict = false } = {}) {
     clearTimeout(saveTimer);
     try {
       const cloudMode = location.protocol === "https:" || location.hostname === "localhost";
@@ -32,9 +32,10 @@
         body: JSON.stringify({ schemaVersion: 1, data: collect() }),
         keepalive,
       });
-      if (!response.ok && response.status !== 401) throw new Error(`Save failed (${response.status}).`);
+      if (!response.ok && (strict || response.status !== 401)) throw new Error(`Save failed (${response.status}).`);
     } catch (error) {
       console.warn("Local file backup could not be updated.", error);
+      if (strict) throw new Error("Your data could not be saved to the local file. Check disk space and try again before continuing.");
     }
   }
 

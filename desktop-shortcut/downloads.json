@@ -1,0 +1,22 @@
+{
+  "version": "3.2.0",
+  "nodeVersion": "v24.22.2",
+  "files": [
+    {
+      "arch": "arm64",
+      "filename": "todo-list-local-macos-arm64.zip",
+      "size": 41889891,
+      "sha256": "ce948da58ff4e5ac0d1222b90bc1d9e032c712c12570b382a8917e9c1bdb3004",
+      "url": "/downloads/todo-list-local-macos-arm64.zip",
+      "objectKey": "desktop-downloads/3.2.0/todo-list-local-macos-arm64.zip"
+    },
+    {
+      "arch": "x64",
+      "filename": "todo-list-local-macos-x64.zip",
+      "size": 43244722,
+      "sha256": "84fab13c4be66e7cbbaee1b4196b8860a12c8881aa73b880053be2ff6c3dea23",
+      "url": "/downloads/todo-list-local-macos-x64.zip",
+      "objectKey": "desktop-downloads/3.2.0/todo-list-local-macos-x64.zip"
+    }
+  ]
+}

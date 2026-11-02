@@ -1,0 +1,53 @@
+#!/bin/zsh
+set -u
+RESOURCES="${0:A:h:h}/Resources"
+APP_CODE="$RESOURCES/application"
+NODE="$RESOURCES/runtime/bin/node"
+SUPPORT="${TODO_USER_DATA_DIR:-${HOME}/Library/Application Support/Todo List Local}"
+LOCAL_PORT="${TODO_LOCAL_PORT:-4196}"
+APP_URL="http://127.0.0.1:${LOCAL_PORT}/app.html#todo"
+HEALTH_URL="http://127.0.0.1:${LOCAL_PORT}/api/desktop/health"
+VERSION="$("$NODE" -p 'require(process.argv[1]).version' "$APP_CODE/package.json")"
+mkdir -p "$SUPPORT/data/backups" "$SUPPORT/logs"
+chmod 700 "$SUPPORT" "$SUPPORT/data"
+
+show_error() {
+  /usr/bin/osascript -e 'on run argv' -e 'display alert "Todo List Local could not start" message (item 1 of argv) buttons {"OK"}' -e 'end run' "$1"
+}
+healthy() {
+  /usr/bin/curl --fail --silent --max-time 2 "$HEALTH_URL" | "$NODE" -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{try {const h=JSON.parse(s);process.exit(h.service==="todo-list-local-shortcut"&&h.version===process.argv[1]?0:1)}catch{process.exit(1)}})' "$VERSION"
+}
+open_local() { /usr/bin/open -a "Google Chrome" "$APP_URL"; }
+if [[ ! -d "/Applications/Google Chrome.app" && ! -d "${HOME}/Applications/Google Chrome.app" ]]; then
+  show_error "Install Google Chrome from google.com/chrome, then open this Shortcut again."
+  exit 1
+fi
+if healthy; then open_local; exit 0; fi
+if ! mkdir "$SUPPORT/launch.lock" 2>/dev/null; then
+  for attempt in {1..40}; do
+    if healthy; then open_local; exit 0; fi
+    /bin/sleep 0.25
+  done
+  show_error "Another launch is still in progress. If no local server is running, remove the launch.lock folder inside Application Support/Todo List Local and try again."
+  exit 1
+fi
+trap 'rmdir "$SUPPORT/launch.lock" 2>/dev/null' EXIT
+if [[ -f "$SUPPORT/server.pid" ]]; then
+  OLD_PID="$(cat "$SUPPORT/server.pid")"
+  OLD_COMMAND="$(/bin/ps -p "$OLD_PID" -o command= 2>/dev/null || true)"
+  if [[ "$OLD_COMMAND" == *"$APP_CODE/server.js"* ]]; then /bin/kill "$OLD_PID" 2>/dev/null || true; fi
+fi
+PREVIOUS_VERSION="$(cat "$SUPPORT/installed-version" 2>/dev/null || true)"
+if [[ "$PREVIOUS_VERSION" != "$VERSION" && -f "$SUPPORT/data/state.json" ]]; then
+  /bin/cp "$SUPPORT/data/state.json" "$SUPPORT/data/backups/before-update-$(date -u +%Y%m%dT%H%M%SZ).json"
+fi
+printf '%s\n' "$VERSION" > "$SUPPORT/installed-version"
+cd "$APP_CODE" || exit 1
+/usr/bin/nohup /usr/bin/env PORT="$LOCAL_PORT" TODO_SHORTCUT_MODE=1 TODO_DATA_DIR="$SUPPORT/data" "$NODE" "$APP_CODE/server.js" >> "$SUPPORT/logs/server.log" 2>&1 &
+printf '%s\n' "$!" > "$SUPPORT/server.pid"
+for attempt in {1..40}; do
+  if healthy; then open_local; exit 0; fi
+  /bin/sleep 0.25
+done
+show_error "The local server did not become ready. Check Application Support/Todo List Local/logs/server.log. Another program may be using port ${LOCAL_PORT}."
+exit 1

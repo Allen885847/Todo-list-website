@@ -6,8 +6,7 @@ const zlib = require("node:zlib");
 const WebSocket = require("ws");
 
 const PORT = Number(process.env.PORT) || 4173;
-const API_KEY = process.env.DEEPSEEK_API_KEY;
-const DOUBAO_SPEECH_API_KEY = process.env.DOUBAO_SPEECH_API_KEY;
+
 const DOUBAO_SPEECH_RESOURCE_ID = process.env.DOUBAO_SPEECH_RESOURCE_ID || "volc.seedasr.sauc.duration";
 const ROOT = __dirname;
 const PACKAGE_CONFIG = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
@@ -34,7 +33,16 @@ const LOCAL_DATA_KEYS = new Set([
   "todo-data-schema",
   "todo-data-backup-before-v2.5",
 ]);
+const shortcutSupport = process.env.TODO_SHORTCUT_MODE === "1"
+  ? require("./desktop-shortcut/local-support.cjs").createSupport({ dataDirectory: LOCAL_DATA_DIR, version: APP_VERSION, readLocalData }) : null;
+const apiKey = name => shortcutSupport?.apiKey(name) || process.env[name] || "";
 const STATIC_FILES = new Map([
+  ["/desktop-theme.js", ["desktop-theme.js", "text/javascript; charset=utf-8"]],
+  ["/backup-merge.js", ["backup-merge.js", "text/javascript; charset=utf-8"]],
+  ["/merge-review.js", ["merge-review.js", "text/javascript; charset=utf-8"]],
+  ["/desktop-page.css", ["desktop-page.css", "text/css; charset=utf-8"]],
+  ["/local-data.js", ["local-data.js", "text/javascript; charset=utf-8"]],
+  ["/fonts.css", ["fonts.css", "text/css; charset=utf-8"]],
   ["/flip-clock.css", ["flip-clock.css", "text/css; charset=utf-8"]],
   ["/weather.js", ["weather.js", "text/javascript; charset=utf-8"]],
   ["/weather.css", ["weather.css", "text/css; charset=utf-8"]],
@@ -231,7 +239,7 @@ function transcribeWithDoubao(audio) {
     const requestId = crypto.randomUUID();
     const socket = new WebSocket("wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_nostream", {
       headers: {
-        "X-Api-Key": DOUBAO_SPEECH_API_KEY,
+        "X-Api-Key": apiKey("DOUBAO_SPEECH_API_KEY"),
         "X-Api-Resource-Id": DOUBAO_SPEECH_RESOURCE_ID,
         "X-Api-Request-Id": requestId,
         "X-Api-Connect-Id": requestId,
@@ -474,7 +482,7 @@ async function parseTasks(input, timeZone, { fromUpload = false } = {}) {
   const apiResponse = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${API_KEY}`,
+      Authorization: `Bearer ${apiKey("DEEPSEEK_API_KEY")}`,
       "Content-Type": "application/json",
     },
     signal: AbortSignal.timeout(60_000),
@@ -538,7 +546,7 @@ async function parseEvents(input, timeZone) {
   const apiResponse = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${API_KEY}`,
+      Authorization: `Bearer ${apiKey("DEEPSEEK_API_KEY")}`,
       "Content-Type": "application/json",
     },
     signal: AbortSignal.timeout(60_000),
@@ -587,8 +595,15 @@ Rules:
   return normalizeGeneratedEvents(JSON.parse(content));
 }
 
-const server = http.createServer(async (request, response) => {
+function createServer() {
+return http.createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
+  if (shortcutSupport) {
+    const expectedHost = `127.0.0.1:${request.socket.localPort}`;
+    if (request.headers.host !== expectedHost || (request.headers.origin && request.headers.origin !== `http://${expectedHost}`)) { sendJson(response, 403, { error: "Open this page through the local Shortcut." }); return; }
+    if (request.method === "POST" && url.pathname !== "/api/transcribe" && !String(request.headers["content-type"] || "").startsWith("application/json")) { sendJson(response, 415, { error: "Use JSON for local data requests." }); return; }
+    if (await shortcutSupport.handle(request, response, url, readJson, sendJson)) return;
+  }
 
   if (request.method === "GET" && url.pathname === "/api/local-data") {
     sendJson(response, 200, readLocalData());
@@ -608,7 +623,7 @@ const server = http.createServer(async (request, response) => {
   }
 
   if (request.method === "POST" && url.pathname === "/api/transcribe") {
-    if (!DOUBAO_SPEECH_API_KEY) {
+    if (!apiKey("DOUBAO_SPEECH_API_KEY")) {
       sendJson(response, 503, { error: "Doubao speech recognition is not configured on this computer." });
       return;
     }
@@ -638,7 +653,7 @@ const server = http.createServer(async (request, response) => {
   }
 
   if (request.method === "POST" && url.pathname === "/api/parse-tasks") {
-    if (!API_KEY) {
+    if (!apiKey("DEEPSEEK_API_KEY")) {
       sendJson(response, 503, { error: "DeepSeek is not configured on this computer." });
       return;
     }
@@ -671,7 +686,7 @@ const server = http.createServer(async (request, response) => {
   }
 
   if (request.method === "POST" && url.pathname === "/api/parse-event") {
-    if (!API_KEY) {
+    if (!apiKey("DEEPSEEK_API_KEY")) {
       sendJson(response, 503, { error: "DeepSeek is not configured on this computer. Use manual event entry instead." });
       return;
     }
@@ -710,6 +725,11 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === "GET" && /^\/fonts\/[a-zA-Z0-9_.-]+\.ttf$/.test(url.pathname)) {
+    const fontPath = path.join(ROOT, url.pathname.slice(1));
+    if (fs.existsSync(fontPath)) { response.writeHead(200, { "Content-Type": "font/ttf", "Cache-Control": "public, max-age=86400" }); fs.createReadStream(fontPath).pipe(response); return; }
+  }
+
   if (request.method === "GET" && VENDOR_FILES.has(url.pathname)) {
     const [filename, contentType] = VENDOR_FILES.get(url.pathname);
     response.writeHead(200, {
@@ -724,6 +744,8 @@ const server = http.createServer(async (request, response) => {
   response.end("Not found");
 });
 
-server.listen(PORT, "127.0.0.1", () => {
-  console.log(`Todo List running at http://127.0.0.1:${PORT}`);
-});
+}
+if (require.main === module) {
+  createServer().listen(PORT, "127.0.0.1", () => { console.log(`Todo List running at http://127.0.0.1:${PORT}`); });
+}
+module.exports = { createServer, readLocalData, writeLocalData };

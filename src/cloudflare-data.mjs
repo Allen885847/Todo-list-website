@@ -1,3 +1,5 @@
+import BackupMerge from "../backup-merge.js";
+
 function json(data, status = 200) {
   return Response.json(data, {
     status,
@@ -66,6 +68,49 @@ async function getSnapshot(env, userId) {
   return { exists: true, schemaVersion: record.schema_version, data, updatedAt: record.updated_at };
 }
 
+async function revision(data) {
+  const bytes = new TextEncoder().encode(BackupMerge.canonical(data));
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function mergeDesktopSnapshot(request, env, userId) {
+  const origin = request.headers.get("Origin");
+  if (origin && origin !== new URL(request.url).origin) return json({ error: "Open this import on the Todo List website." }, 403);
+  try {
+    const body = await readJson(request);
+    if (body.accountId !== userId) return json({ error: "The signed-in account changed. Start the import again and confirm the correct account.", code: "ACCOUNT_CHANGED" }, 409);
+    if (body.confirmed !== true) return json({ error: "Confirm the merge before uploading desktop data." }, 400);
+    const current = await getSnapshot(env, userId);
+    if (typeof body.revision !== "string" || body.revision !== await revision(current.data)) {
+      return json({ error: "Your Online data changed. Review the updated merge before saving.", code: "MERGE_CHANGED" }, 409);
+    }
+    const result = BackupMerge.preview(current.data, body.data, { choices: body.choices, owner: userId });
+    if (!result.canSave) return json({ error: "Choose which version to keep for each difference.", code: "MERGE_REVIEW_REQUIRED" }, 422);
+    const updatedAt = new Date().toISOString();
+    // Keep the complete previous snapshot before any mutation, including conflicting versions.
+    await env.BUCKET.put(`accounts/${userId}/import-backups/${updatedAt}-${crypto.randomUUID()}.json`, JSON.stringify(current), {
+      httpMetadata: { contentType: "application/json" }, customMetadata: { owner: userId, purpose: "before-desktop-merge" },
+    });
+    const previous = current.exists && !current.recoveredFromBackup ? JSON.stringify(current.data) : null;
+    const saved = await env.DB.prepare(`
+      INSERT INTO user_snapshots (user_id, schema_version, data_json, updated_at) VALUES (?, 1, ?, ?)
+      ON CONFLICT(user_id) DO UPDATE SET data_json = excluded.data_json, updated_at = excluded.updated_at
+      WHERE user_snapshots.data_json = ?
+    `).bind(userId, JSON.stringify(result.data), updatedAt, previous).run();
+    if (saved.meta?.changes !== 1) return json({ error: "Your Online data changed. Review the updated merge before saving.", code: "MERGE_CHANGED" }, 409);
+    let backupWarning = false;
+    try {
+      await env.BUCKET.put(`accounts/${userId}/latest.json`, JSON.stringify({ schemaVersion: 1, data: result.data, updatedAt }), {
+        httpMetadata: { contentType: "application/json" }, customMetadata: { owner: userId, purpose: "account-recovery" },
+      });
+    } catch { backupWarning = true; }
+    return json({ ok: true, data: result.data, counts: result.counts, revision: await revision(result.data), backupWarning });
+  } catch (error) {
+    return json({ error: error.message === "PAYLOAD_TOO_LARGE" ? "This backup is too large." : "The merge could not be saved. Your local copy is unchanged. Check the backup and try again." }, 400);
+  }
+}
+
 async function putSnapshot(request, env, userId) {
   const body = await readJson(request);
   const data = cleanSnapshotData(body.data);
@@ -116,7 +161,8 @@ export async function handleDataRequest(request, env, userId) {
     return json(await bootstrapUserData(env, userId));
   }
   if (url.pathname === "/api/storage" && request.method === "GET") {
-    return json(await getSnapshot(env, userId));
+    const snapshot = await getSnapshot(env, userId);
+    return json({ ...snapshot, revision: await revision(snapshot.data) });
   }
   if (url.pathname === "/api/storage" && request.method === "PUT") {
     try {
@@ -128,5 +174,6 @@ export async function handleDataRequest(request, env, userId) {
       return json({ error: "The saved data is invalid.", code: "INVALID_DATA" }, 400);
     }
   }
+  if (url.pathname === "/api/desktop/merge" && request.method === "POST") return mergeDesktopSnapshot(request, env, userId);
   return json({ error: "The cloud data route is not available yet.", code: "ROUTE_NOT_FOUND" }, 404);
 }

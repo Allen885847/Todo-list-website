@@ -17,3 +17,7 @@ state.previous.json
 dist/
 .impeccable/review/
 .taste-skill/
+
+# Downloadable Shortcut build artifacts (never user data or API connections)
+.desktop-build/
+desktop-downloads/

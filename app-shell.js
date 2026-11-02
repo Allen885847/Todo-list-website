@@ -5,7 +5,7 @@
   const routes = {
     todo: { src: "index.html?embedded=1", title: "Todo List" },
     calendar: { src: "calendar.html?embedded=1", title: "Calendar · Todo List" },
-    data: { src: "data.html?embedded=1", title: "Data · Todo List" },
+    data: { src: "desktop.html?embedded=1", title: "Desktop App · Todo List" },
   };
   let currentFrame = null;
   let currentRoute = null;

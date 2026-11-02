@@ -256,7 +256,7 @@
         </div>
 
         <footer class="list-tools" aria-label="List tools">
-          <a class="data-link" href="data.html" onclick="if (window.parent !== window && typeof window.parent.todoShellNavigate === 'function') { window.parent.todoShellNavigate('data'); return false; }">Data</a>
+          <a class="data-link" data-desktop-only href="desktop.html" onclick="if (window.parent !== window && typeof window.parent.todoShellNavigate === 'function') { window.parent.todoShellNavigate('data'); return false; }">Desktop App</a>
           <button id="copy-list" class="copy-list" type="button" hidden>Copy</button>
           <div class="list-tools-actions">
             <label class="appearance-picker" for="appearance-select">
@@ -321,6 +321,7 @@
     <script src="flip-clock.js"></script>
     <script src="weather.js"></script>
     <script src="task-timer-bindings.js"></script>
+    <script src="desktop-availability.js"></script>
     <script src="page-transition.js"></script>
   </body>
 </html>

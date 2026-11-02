@@ -1,6 +1,7 @@
 import { createAuth, getAuthenticatedUser, getAuthReadiness } from "./cloudflare-auth.mjs";
 import { handleDataRequest } from "./cloudflare-data.mjs";
 import { handleAiRequest } from "./cloudflare-ai.mjs";
+import { handleDesktopDownload } from "./desktop-downloads.mjs";
 
 const jsonHeaders = {
   "Content-Type": "application/json; charset=utf-8",
@@ -40,6 +41,13 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const executionContext = ctx || { waitUntil: (promise) => promise.catch(console.error) };
+
+    if (["/data", "/data.html"].includes(url.pathname)) {
+      return Response.redirect(new URL(url.searchParams.has("embedded") ? `/desktop${url.search}` : "/app#data", url), 302);
+    }
+
+    const desktopDownload = await handleDesktopDownload(request, env);
+    if (desktopDownload) return desktopDownload;
 
     if (url.pathname === "/api/health" && request.method === "GET") {
       return health(env);

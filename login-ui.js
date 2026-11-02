@@ -203,6 +203,12 @@
   }
 
   function startApplication(user) {
+    const syncReturn = sessionStorage.getItem("todo-desktop-sync-return");
+    if (syncReturn && syncReturn.startsWith("/desktop-sync?") && !syncReturn.startsWith("//")) {
+      sessionStorage.removeItem("todo-desktop-sync-return");
+      location.replace(syncReturn);
+      return;
+    }
     window.todoAccountId = String(user.id);
     authStage.hidden = true;
     resetStage.hidden = true;

@@ -453,3 +453,8 @@ body.recording .record-button { background: var(--accent); box-shadow: 0 0 0 6px
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
+
+/* Desktop downloads are intentionally absent from touch/mobile navigation. */
+@media (hover: none) and (pointer: coarse) { [data-desktop-only] { display: none !important; } }
+
+.is-mobile-device [data-desktop-only], [data-desktop-only][hidden] { display: none !important; }

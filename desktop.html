@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Back up or restore Todo List data." />
+    <title>Desktop App · Todo List</title>
+    <script>
+      (() => {
+        const saved = localStorage.getItem("todo-appearance") || "system";
+        const mode = ["light", "dark", "system"].includes(saved) ? saved : "system";
+        document.documentElement.dataset.appearance = mode;
+        document.documentElement.dataset.theme = mode === "system"
+          ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+          : mode;
+      })();
+    </script>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="data.css" />
+    <link rel="stylesheet" href="impeccable.css" />
+    <link rel="stylesheet" href="desktop-page.css" />
+  </head>
+  <body class="desktop-page">
+    <main class="data-shell"><section class="data-card" aria-labelledby="desktop-title">
+      <a class="data-back" href="index.html" onclick="if (window.parent !== window && window.parent.todoShellNavigate) { window.parent.todoShellNavigate('todo'); return false; }">← Todo List</a>
+      <h1 id="desktop-title">Desktop App</h1>
+      <p class="data-intro">Your familiar To-Do List in Google Chrome, with a desktop Shortcut and a private local save file. No account is needed for local use.</p>
+      <div id="desktop-computer-content" data-desktop-only>
+        <section class="desktop-section" aria-labelledby="download-heading">
+          <h2 id="download-heading">Download for Mac</h2>
+          <p>Includes the Shortcut, its supporting files, and the same icon as the existing local version. Tasks and Calendar work offline. AI, weather, and optional website sync need internet.</p>
+          <div id="desktop-downloads" class="desktop-actions"><span>Checking downloads…</span></div>
+          <p id="download-note" class="desktop-note"></p>
+          <ol><li>Download the package for your Mac and unzip it.</li><li>Double-click <strong>Install.command</strong>. The installer creates <strong>Todo List Local</strong> in Applications and a desktop Shortcut.</li><li>Open <strong>Todo List Local</strong>. For AI and voice, add your own API keys under Data → AI connection.</li></ol>
+          <p class="desktop-note">Requires Google Chrome. Installing or updating this package does not replace your existing AI Todo List Shortcut or its data. Your save file stays in Application Support when application files are updated.</p>
+        </section>
+        <section class="desktop-section" aria-labelledby="import-heading">
+          <h2 id="import-heading">Import local data into Online</h2>
+          <p>Choose a backup exported from the local version. Review new records and any differences before saving. Your local file remains unchanged, and a recovery copy of your Online data is kept.</p>
+          <div class="desktop-actions"><button id="choose-desktop-backup" class="desktop-secondary" type="button">Choose desktop backup</button><input id="desktop-backup-file" type="file" accept="application/json,.json,.txt" hidden></div>
+        </section>
+        <section id="desktop-merge-review" class="desktop-review" hidden>
+          <h2>Review before importing</h2><div id="merge-content"></div>
+          <div class="desktop-actions"><button id="confirm-desktop-merge" class="desktop-primary" type="button" disabled>Import to Online</button><button id="cancel-desktop-merge" class="desktop-secondary" type="button">Cancel</button></div>
+        </section>
+        <section class="desktop-section"><h2>Online backup</h2><p>Download a portable copy of the tasks, events, holidays, labels, completion states, and settings in this account.</p><div class="desktop-actions"><button id="export-online-backup" class="desktop-secondary" type="button">Download Online backup</button><button id="export-before-import" class="desktop-secondary" type="button" hidden>Download pre-import recovery copy</button></div></section>
+      </div>
+      <p id="desktop-mobile-note" hidden>Open this section on a computer to download the desktop Shortcut or import a local backup.</p>
+      <p id="desktop-status" class="desktop-status" role="status" aria-live="polite">Checking your account…</p>
+    </section></main>
+    <script src="desktop-availability.js"></script><script src="desktop-theme.js"></script><script src="backup-merge.js"></script><script src="merge-review.js"></script><script src="desktop-page.js"></script>
+  </body>
+</html>
