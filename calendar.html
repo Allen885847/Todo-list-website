@@ -104,16 +104,32 @@
     <dialog id="stats-dialog" class="editor-dialog stats-dialog" aria-labelledby="stats-title">
       <section class="dialog-card stats-card">
         <div class="dialog-heading">
-          <div><h2 id="stats-title">Task stats</h2><p class="stats-intro">A look at when you finish and the extra work you get done.</p></div>
-          <button class="dialog-close" type="button" data-close-dialog aria-label="Close stats"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg></button>
+          <h2 id="stats-title">Task stats</h2>
+          <div class="stats-heading-actions">
+            <button id="stats-info-toggle" class="stats-info-button" type="button" aria-label="About task stats" aria-expanded="false" aria-controls="stats-info"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg></button>
+            <button class="dialog-close" type="button" data-close-dialog aria-label="Close stats"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg></button>
+          </div>
+        </div>
+        <div id="stats-info" class="stats-info" hidden>
+          <p><strong>Finish Time:</strong> The last completion time for regular tasks due on each local date. Gaps mean unfinished tasks, no tasks due, or an exact time that wasn’t recorded.</p>
+          <p><strong>Extra &amp; Early:</strong> Extra tasks and tasks finished before their due date, counted on the actual completion day. Each task counts once per day, even if it qualifies both ways or is unchecked and completed again.</p>
+          <p><strong>Completion Rate:</strong> Regular tasks due on each local date, including those finished early. Extra tasks are excluded. Today updates live; saved daily totals are sealed at midnight or when the app next opens. Late completions never change an earlier day’s rate. Dates with no eligible tasks or no tracking record stay blank.</p>
+          <p id="stats-history-note" class="stats-history-note"></p>
+          <p id="stats-rate-note" class="stats-history-note"></p>
         </div>
         <div class="stats-controls"><div class="stats-range" role="group" aria-label="Stats period"><button type="button" data-stats-range="7" aria-pressed="true">Last 7 days</button><button type="button" data-stats-range="30" aria-pressed="false">Last 30 days</button></div><p id="stats-period" class="stats-period"></p></div>
-        <div class="stats-charts">
-          <section class="stats-chart"><h3 id="stats-finish-title">All Tasks Finished</h3><p>Last completion time for regular tasks due on each date. Gaps mean unfinished tasks, no tasks due, or a time that wasn’t recorded.</p><svg id="stats-finish-chart" role="img" aria-labelledby="stats-finish-title"></svg><p id="stats-finish-empty" class="stats-empty" hidden>No recorded finish times in this period.</p></section>
-          <section class="stats-chart"><h3 id="stats-bonus-title">Extra &amp; Early Tasks Completed</h3><p>Extra tasks and tasks finished before their due date. Each task counts once per completion day.</p><svg id="stats-bonus-chart" role="img" aria-labelledby="stats-bonus-title"></svg><p id="stats-bonus-empty" class="stats-empty" hidden>No completion history recorded in this period.</p></section>
+        <div class="stats-tabs" role="tablist" aria-label="Task statistic">
+          <button id="stats-finish-tab" type="button" role="tab" data-stats-tab="finish" aria-selected="true" aria-controls="stats-finish-panel">Finish Time</button>
+          <button id="stats-bonus-tab" type="button" role="tab" data-stats-tab="bonus" aria-selected="false" aria-controls="stats-bonus-panel" tabindex="-1">Extra &amp; Early</button>
+          <button id="stats-rate-tab" type="button" role="tab" data-stats-tab="rate" aria-selected="false" aria-controls="stats-rate-panel" tabindex="-1">Completion Rate</button>
         </div>
-        <details class="stats-data"><summary>View data</summary><div class="stats-table-wrap" tabindex="0" role="region" aria-label="Daily task statistics"><table><thead><tr><th scope="col">Date</th><th scope="col">Finish time</th><th scope="col">Extra &amp; Early</th></tr></thead><tbody id="stats-table-body"></tbody></table></div></details>
-        <p id="stats-history-note" class="stats-history-note" role="status"></p>
+        <div class="stats-charts">
+          <section id="stats-finish-panel" class="stats-chart" role="tabpanel" aria-labelledby="stats-finish-tab"><h3 id="stats-finish-title">All Tasks Finished</h3><svg id="stats-finish-chart" role="img" aria-labelledby="stats-finish-title"></svg><p id="stats-finish-empty" class="stats-empty" hidden>No recorded finish times in this period.</p></section>
+          <section id="stats-bonus-panel" class="stats-chart" role="tabpanel" aria-labelledby="stats-bonus-tab" hidden><h3 id="stats-bonus-title">Extra &amp; Early Tasks Completed</h3><svg id="stats-bonus-chart" role="img" aria-labelledby="stats-bonus-title"></svg><p id="stats-bonus-empty" class="stats-empty" hidden>No completion history recorded in this period.</p></section>
+          <section id="stats-rate-panel" class="stats-chart" role="tabpanel" aria-labelledby="stats-rate-tab" hidden><h3 id="stats-rate-title">Completion Rate</h3><p id="stats-rate-summary" class="stats-rate-summary" aria-live="polite"></p><svg id="stats-rate-chart" role="img" aria-labelledby="stats-rate-title"></svg><p id="stats-rate-empty" class="stats-empty" hidden>No completion-rate history for eligible tasks in this period.</p></section>
+        </div>
+        <details class="stats-data"><summary>View data</summary><div class="stats-table-wrap" tabindex="0" role="region" aria-label="Daily task statistics"><table><thead><tr><th scope="col">Date</th><th scope="col">Finish time</th><th scope="col">Extra &amp; Early</th><th scope="col">Completion rate</th></tr></thead><tbody id="stats-table-body"></tbody></table></div></details>
+        <p id="stats-status" class="stats-history-note" role="status" hidden></p>
       </section>
     </dialog>
 

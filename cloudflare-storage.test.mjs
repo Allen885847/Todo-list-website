@@ -49,3 +49,11 @@ const combined = await (await handleDataRequest(get(),env,'account-a')).json();
 assert.deepEqual(History.read(combined.data[History.KEY]).days[day].bonus,['device-a','device-b']);
 console.log('Completion history cloud persistence passed: older clients preserve history, concurrent saves retry and union counts, account isolation and private R2 recovery.');
 console.log('Account snapshots passed: task/event/holiday/settings/timer round trip, private per-account storage, allowlist, and R2 recovery.');
+
+// An older history-aware client omits only the new optional rate fields.
+const oldHistory=JSON.parse(combined.data[History.KEY]);delete oldHistory.rateStarted;
+Object.values(oldHistory.days).forEach(entry=>{delete entry.rate;entry.updatedAt=new Date(now.getTime()+3600000).toISOString()});
+assert.equal((await handleDataRequest(new Request('https://test.invalid/api/storage',{method:'PUT',body:JSON.stringify({data:{...combined.data,[History.KEY]:JSON.stringify(oldHistory)}})}),env,'account-a')).status,200);
+const withRate=History.read((await (await handleDataRequest(get(),env,'account-a')).json()).data[History.KEY]);
+assert.deepEqual(withRate.days[day].rate,History.read(combined.data[History.KEY]).days[day].rate,'A newer old-client write preserves the independently timestamped rate');
+assert.ok(withRate.rateStarted);

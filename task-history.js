@@ -1,6 +1,6 @@
 (() => {
   const history = window.TodoCompletionHistory;
-  let ready = false, pending = [], lastError = '';
+  let ready = false, pending = [], lastError = '', lastTasks, pendingFlush = false;
   const tasks = () => { try { return JSON.parse(localStorage.getItem('todo-list-mvp'))?.tasks || []; } catch { return []; } };
   function record(items, transition = null, now = new Date()) {
     if (!ready) {
@@ -10,13 +10,20 @@
     }
     try {
       const previous = localStorage.getItem(history.KEY);
-      const next = JSON.stringify(history.update(previous,items,{transition,now}));
+      const snapshot = JSON.stringify(items);
+      const taskMutation = lastTasks !== undefined && snapshot !== lastTasks;
+      const next = JSON.stringify(history.update(previous,items,{transition,now,taskMutation}));
       if (next !== previous) localStorage.setItem(history.KEY,next);
+      lastTasks = snapshot;
       lastError = '';
     } catch (error) { lastError = 'Completion history could not be saved. Export a backup and check available storage.'; console.warn(lastError,error); }
     window.dispatchEvent(new CustomEvent('todo-history-changed'));
   }
   function observe() { record(tasks()); }
+  function flush() {
+    if (!ready) { pendingFlush = true; return; }
+    window.TodoLocalPersistence?.saveNow();
+  }
   window.TodoTaskHistory = {record,observe,read:() => history.read(localStorage.getItem(history.KEY)),get error(){return lastError}};
   Promise.resolve(window.TodoLocalPersistence?.ready).then(() => {
     ready = true;
@@ -27,12 +34,28 @@
       if (task && Boolean(task.completed) === item.transition.after && (!saved || saved.updatedAt <= item.now.toISOString())) record(hydrated,item.transition,item.now);
     });
     observe();
+    if (pendingFlush) { pendingFlush = false; flush(); }
   });
-  let day = history.localDay(new Date());
+  let day = history.localDay(new Date()), midnightTimer;
+  function scheduleMidnight() {
+    window.clearTimeout(midnightTimer);
+    const now = new Date(), next = new Date(now.getFullYear(),now.getMonth(),now.getDate()+1);
+    midnightTimer = window.setTimeout(() => {
+      day = history.localDay(new Date());
+      observe();
+      flush();
+      scheduleMidnight();
+    },Math.max(1,next.getTime()-now.getTime()));
+  }
+  scheduleMidnight();
   window.setInterval(() => {
     const today = history.localDay(new Date());
-    if (today !== day) { day = today; observe(); }
+    if (today !== day) { day = today; observe(); scheduleMidnight(); }
   },15000);
-  document.addEventListener('visibilitychange',() => {if (!document.hidden) observe()});
+  document.addEventListener('visibilitychange',() => {
+    observe();
+    if (document.hidden) flush();
+    else scheduleMidnight();
+  });
   window.addEventListener('pageshow',observe);
 })();

@@ -16,11 +16,15 @@
     if (!value || !iso(value.at) || !validDay(value.day) || !Number.isFinite(value.minutes) || value.minutes < 0 || value.minutes >= 1440) return null;
     return {at:value.at,day:value.day,minutes:value.minutes,zone:String(value.zone || 'local').slice(0,80),offset:Number.isFinite(value.offset)?value.offset:0};
   }
+  function cleanRate(value) {
+    if (!value || !Number.isInteger(value.total) || value.total < 0 || !Number.isInteger(value.completed) || value.completed < 0 || value.completed > value.total || !iso(value.updatedAt)) return null;
+    return {total:value.total,completed:value.completed,updatedAt:value.updatedAt,finalized:value.finalized === true};
+  }
   function read(value) {
     if (typeof value === 'string' && value) value = JSON.parse(value);
-    if (value == null || value === '') return {schemaVersion:1,started:null,completions:Object.create(null),days:Object.create(null)};
+    if (value == null || value === '') return {schemaVersion:1,started:null,rateStarted:null,completions:Object.create(null),days:Object.create(null)};
     if (value.schemaVersion !== 1 || !value.days || typeof value.days !== 'object' || !value.completions || typeof value.completions !== 'object') throw new Error('Completion history is not a supported format.');
-    const result = {schemaVersion:1,started:cleanStamp(value.started),completions:Object.create(null),days:Object.create(null)};
+    const result = {schemaVersion:1,started:cleanStamp(value.started),rateStarted:cleanStamp(value.rateStarted),completions:Object.create(null),days:Object.create(null)};
     for (const [id,entry] of Object.entries(value.completions)) {
       if (!validId(id) || !iso(entry?.updatedAt)) continue;
       result.completions[id] = {updatedAt:entry.updatedAt,completion:cleanStamp(entry.completion)};
@@ -28,7 +32,7 @@
     for (const [day,entry] of Object.entries(value.days)) {
       if (!validDay(day) || !iso(entry?.updatedAt) || !Number.isInteger(entry.regularTotal) || entry.regularTotal < 0 || !Number.isInteger(entry.regularIncomplete) || entry.regularIncomplete < 0 || entry.regularIncomplete > entry.regularTotal) continue;
       const finish = cleanStamp(entry.finish);
-      result.days[day] = {updatedAt:entry.updatedAt,regularTotal:entry.regularTotal,regularIncomplete:entry.regularIncomplete,finish:finish && finish.day <= day ? finish : null,reason:['finished','incomplete','no-tasks','missing-time'].includes(entry.reason)?entry.reason:'missing-time',bonus:[...new Set((Array.isArray(entry.bonus)?entry.bonus:[]).filter(validId))].sort()};
+      result.days[day] = {updatedAt:entry.updatedAt,regularTotal:entry.regularTotal,regularIncomplete:entry.regularIncomplete,finish:finish && finish.day <= day ? finish : null,reason:['finished','incomplete','no-tasks','missing-time'].includes(entry.reason)?entry.reason:'missing-time',bonus:[...new Set((Array.isArray(entry.bonus)?entry.bonus:[]).filter(validId))].sort(),rate:cleanRate(entry.rate)};
     }
     return result;
   }
@@ -36,6 +40,7 @@
     const current = read(left), incoming = read(right);
     const remap = id => typeof idMap.get === 'function' ? idMap.get(id) || id : Object.hasOwn(idMap,id) ? idMap[id] : id;
     if (incoming.started && (!current.started || incoming.started.at < current.started.at)) current.started = incoming.started;
+    if (incoming.rateStarted && (!current.rateStarted || incoming.rateStarted.at < current.rateStarted.at)) current.rateStarted = incoming.rateStarted;
     for (const [source,entry] of Object.entries(incoming.completions)) {
       const id = remap(source); if (!validId(id)) continue;
       if (!current.completions[id] || entry.updatedAt > current.completions[id].updatedAt) current.completions[id] = entry;
@@ -43,15 +48,27 @@
     for (const [day,entry] of Object.entries(incoming.days)) {
       const existing = current.days[day];
       const bonus = [...new Set([...(existing?.bonus || []),...entry.bonus.map(remap).filter(validId)])].sort();
-      current.days[day] = {...(!existing || entry.updatedAt > existing.updatedAt ? entry : existing),bonus};
+      // Rate observations have their own timestamp: older clients and later-day
+      // finalization must not replace a newer daily count with a stale snapshot.
+      const oldRate = existing?.rate, newRate = entry.rate;
+      let rate = !oldRate || (newRate && newRate.updatedAt > oldRate.updatedAt) ? newRate : oldRate;
+      if (rate && oldRate && newRate && oldRate.updatedAt === newRate.updatedAt && oldRate.total === newRate.total && oldRate.completed === newRate.completed) rate = {...rate,finalized:oldRate.finalized || newRate.finalized};
+      current.days[day] = {...(!existing || entry.updatedAt > existing.updatedAt ? entry : existing),bonus,rate:rate || null};
     }
     return current;
   }
   const dueDay = task => task?.date ? `${task.date.year}-${String(task.date.month).padStart(2,'0')}-${String(task.date.day).padStart(2,'0')}` : '';
   const isExtra = task => String(task?.label || '').trim().toLowerCase() === 'extra';
-  function update(value, tasks, {now = new Date(), transition = null} = {}) {
+  function update(value, tasks, {now = new Date(), transition = null, taskMutation = false} = {}) {
     const history = read(value), time = stamp(now), today = time.day;
     history.started ||= time;
+    history.rateStarted ||= time;
+    // Every task change checkpoints today's totals. On rollover/reopening seal
+    // those saved observations before active-list cleanup; never rebuild old days
+    // from today's edited, removed, or late-completed tasks.
+    for (const [day,entry] of Object.entries(history.days)) {
+      if (day < today && entry.rate) entry.rate.finalized = true;
+    }
     const list = Array.isArray(tasks) ? tasks : [];
     const changed = transition && typeof transition.before === 'boolean' && typeof transition.after === 'boolean' && transition.before !== transition.after;
     const target = changed && list.find(task => String(task.id) === String(transition.id) && Boolean(task.completed) === transition.after);
@@ -72,8 +89,11 @@
     if (regular.length && !incomplete && known.every(time => time && time.day <= today && time.at <= now.toISOString())) {
       finish = known.reduce((latest,time) => !latest || time.at > latest.at ? time : latest,null); reason = 'finished';
     }
-    const entry = {regularTotal:regular.length,regularIncomplete:incomplete,finish,reason,bonus:[...bonus].sort()};
     const old = history.days[today];
+    const completed = regular.filter(task => task.completed && (!validDay(task.completedOn) || task.completedOn <= today)).length;
+    const rateUnchanged = !taskMutation && !changed && old?.rate && old.rate.total === regular.length && old.rate.completed === completed && !old.rate.finalized;
+    const rate = {total:regular.length,completed,updatedAt:rateUnchanged ? old.rate.updatedAt : time.at,finalized:false};
+    const entry = {regularTotal:regular.length,regularIncomplete:incomplete,finish,reason,bonus:[...bonus].sort(),rate};
     const same = old && JSON.stringify({...old,updatedAt:undefined}) === JSON.stringify({...entry,updatedAt:undefined});
     history.days[today] = {...entry,updatedAt:same ? old.updatedAt : time.at};
     return read(history);
@@ -82,7 +102,7 @@
     const history = read(value), size = range === 30 ? 30 : 7, result = [];
     for (let ago = size-1; ago >= 0; ago--) {
       const date = new Date(now.getFullYear(),now.getMonth(),now.getDate()-ago,12), day = localDay(date), record = history.days[day];
-      result.push({day,finish:record?.finish || null,count:record ? record.bonus.length : null,reason:record?.reason || 'unrecorded',regularTotal:record?.regularTotal ?? null});
+      result.push({day,finish:record?.finish || null,count:record ? record.bonus.length : null,reason:record?.reason || 'unrecorded',regularTotal:record?.regularTotal ?? null,rate:record?.rate?.total > 0 ? {...record.rate,percent:Math.round(record.rate.completed / record.rate.total * 100)} : null});
     }
     return result;
   }
