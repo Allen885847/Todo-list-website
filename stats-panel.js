@@ -5,7 +5,31 @@
   const tabs = [...dialog.querySelectorAll('[data-stats-tab]')], info = document.querySelector('#stats-info-toggle');
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const ns = 'http://www.w3.org/2000/svg';
-  let range = 7, activeTab = 'finish', panelAnimation;
+  let range = 7, activeTab = 'finish', panelAnimation, tooltipTarget;
+  const tooltip = document.createElement('div');
+  tooltip.id = 'stats-finish-tooltip'; tooltip.className = 'stats-tooltip';
+  tooltip.setAttribute('role','tooltip'); tooltip.hidden = true;
+  const finishPanel = document.querySelector('#stats-finish-chart').parentElement;
+  finishPanel.append(tooltip);
+  function hideTooltip() {
+    tooltipTarget?.removeAttribute('aria-describedby');
+    tooltipTarget = null; tooltip.hidden = true;
+  }
+  function showTooltip(target,label) {
+    hideTooltip(); tooltipTarget = target; tooltip.textContent = label; tooltip.hidden = false;
+    target.setAttribute('aria-describedby',tooltip.id);
+    const host = finishPanel.getBoundingClientRect(), point = target.getBoundingClientRect();
+    const box = tooltip.getBoundingClientRect();
+    const left = Math.max(4,Math.min(host.width-box.width-4,point.left+point.width/2-host.left-box.width/2));
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${Math.max(0,point.top-host.top-box.height-10)}px`;
+  }
+  dialog.addEventListener('pointerdown',event=>{
+    if (tooltipTarget && !tooltipTarget.contains(event.target)) hideTooltip();
+  });
+  dialog.addEventListener('keydown',event=>{
+    if(event.key==='Escape' && tooltipTarget) { event.preventDefault(); event.stopPropagation(); hideTooltip(); }
+  });
   const dateLabel = (day,options={month:'short',day:'numeric'}) => new Date(`${day}T12:00:00`).toLocaleDateString('en',options);
   function clock(time) {
     const hour = Math.floor(time.minutes/60), minute = Math.floor(time.minutes%60);
@@ -22,6 +46,7 @@
     const width = Math.max(210,svg.clientWidth || 700), height = width < 480 ? 260 : 300;
     const left = type === 'finish'?74:44, right = 24, top = 22, bottom = 38;
     const w = width-left-right, h = height-top-bottom;
+    hideTooltip();
     svg.setAttribute('viewBox',`0 0 ${width} ${height}`); svg.replaceChildren();
     const maxCount = Math.max(0,...rows.map(row=>row.count || 0));
     const max = type === 'finish'?1440:type === 'rate'?100:Math.max(4,Math.ceil(maxCount/4)*4);
@@ -59,7 +84,21 @@
       if (value === undefined) return;
       const label = type === 'rate' ? `${dateLabel(row.day)} · ${rateLabel(row.rate)}`
         : `${dateLabel(row.day)} · Finished ${dateLabel(row.finish.day)} at ${clock(row.finish)} (${row.finish.zone})`;
-      const dot = element('circle',{cx:x(index),cy:y(value),r:4,class:'stats-point stats-mark',tabindex:0,'aria-label':label}); dot.append(element('title',{},label)); svg.append(dot);
+      const dot = element('circle',{cx:x(index),cy:y(value),r:4,class:'stats-point'});
+      if (type === 'finish') {
+        const text = `${dateLabel(row.day)} · ${clock(row.finish)}`;
+        const target = element('g',{class:'stats-finish-target stats-mark',tabindex:0,role:'img','aria-label':label});
+        target.append(element('ellipse',{cx:x(index),cy:y(value),rx:Math.max(4,Math.min(14,w/rows.length/2)),ry:14,class:'stats-point-hit'}),dot);
+        target.addEventListener('pointerenter',event=>{if(event.pointerType!=='touch')showTooltip(target,text)});
+        target.addEventListener('pointerleave',event=>{if(event.pointerType!=='touch')hideTooltip()});
+        target.addEventListener('focus',()=>showTooltip(target,text));
+        target.addEventListener('blur',hideTooltip);
+        target.addEventListener('click',()=>showTooltip(target,text));
+        svg.append(target);
+      } else {
+        dot.setAttribute('tabindex','0'); dot.setAttribute('aria-label',label);
+        dot.classList.add('stats-mark'); dot.append(element('title',{},label)); svg.append(dot);
+      }
     });
   }
   function render() {
@@ -122,7 +161,7 @@
   });
   ranges.forEach(control=>control.addEventListener('click',()=>{range=Number(control.dataset.statsRange)===30?30:7;ranges.forEach(b=>b.setAttribute('aria-pressed',String(b===control)));render()}));
   dialog.addEventListener('cancel',event=>{event.preventDefault();closeDialogAnimated(dialog)});
-  dialog.addEventListener('close',()=>dialog.classList.remove('is-closing','is-opening'));
+  dialog.addEventListener('close',()=>{hideTooltip();dialog.classList.remove('is-closing','is-opening')});
   dialog.addEventListener('click',event=>{if(event.target===dialog)closeDialogAnimated(dialog)});
   window.addEventListener('storage',event=>{if(event.key===H.KEY)render()});
   window.addEventListener('todo-history-changed',render);
