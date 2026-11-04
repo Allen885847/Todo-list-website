@@ -271,10 +271,35 @@ function createDateHeading(date) {
   return item;
 }
 
-function createSubjectHeading(subject) {
+function createSubjectHeading(subject, dateKey) {
   const item = document.createElement("li");
   item.className = "task-subject-heading";
-  item.textContent = subject;
+  item.dataset.dateKey = dateKey;
+  item.dataset.subject = subject;
+  const label = document.createElement("span");
+  label.textContent = subject;
+  const handle = document.createElement("button");
+  handle.type = "button";
+  handle.className = "subject-drag-handle";
+  handle.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 7h12M4 13h12"/></svg>';
+  handle.setAttribute("aria-label", `Reorder ${subject} subject group`);
+  handle.setAttribute("aria-keyshortcuts", "ArrowUp ArrowDown");
+  handle.title = "Drag within this date. Use arrow keys to move the subject group.";
+  handle.addEventListener("pointerdown", event => beginSubjectDrag(event, item, handle));
+  handle.addEventListener("lostpointercapture", event => {
+    if (pointerDrag?.kind === "subject" && pointerDrag.pointerId === event.pointerId && !pointerDrag.settling) cancelPointerDrag(event);
+  });
+  handle.addEventListener("keydown", event => {
+    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+    event.preventDefault();
+    const groups = subjectBlocks(dateKey), position = groups.findIndex(group => group.heading === item);
+    const next = position + (event.key === "ArrowUp" ? -1 : 1);
+    if (!groups[next] || pointerDrag) return;
+    const positions = captureSubjectPositions();
+    moveSubjectGroup(dateKey, subject, groups[next].subject, next > position);
+    animateSubjectPositions(positions);
+  });
+  item.append(label, handle);
   return item;
 }
 
@@ -380,6 +405,7 @@ function createTaskElement(todo, index) {
   const item = document.createElement("li");
   item.className = `task-item${todo.completed ? " completed" : ""}`;
   item.dataset.index = String(index);
+  item.dataset.taskId = todo.id;
   item.dataset.group = taskGroupKey(todo);
 
   const dragHandle = document.createElement("button");
@@ -571,6 +597,7 @@ function activatePointerDrag(drag) {
 function updatePointerDrag(event) {
   const drag = pointerDrag;
   if (!drag || drag.pointerId !== event.pointerId || drag.settling) return;
+  if (drag.kind === "subject") return updateSubjectDrag(event);
   event.preventDefault();
   drag.clientX = event.clientX;
   drag.clientY = event.clientY;
@@ -647,12 +674,15 @@ function cleanUpPointerDrag(drag) {
   drag.placeholder?.remove();
   drag.source.classList.remove("drag-source");
   document.body.classList.remove("is-reordering");
+  drag.nodes?.forEach(node => node.classList.remove("subject-drag-source"));
+  cancelAnimationFrame(drag.scrollFrame);
   pointerDrag = null;
 }
 
 function finishPointerDrag(event) {
   const drag = pointerDrag;
   if (!drag || drag.pointerId !== event.pointerId || drag.settling) return;
+  if (drag.kind === "subject") return finishSubjectDrag(event);
   event.preventDefault();
   if (!drag.active) {
     pointerDrag = null;
@@ -679,6 +709,162 @@ function cancelPointerDrag(event) {
   cleanUpPointerDrag(drag);
 }
 
+// Subject ordering uses the existing task array and save path, including hidden records.
+function reorderSubjectTasks(items, dateKey, subject, targetSubject, after = false) {
+  const key = task => task.date ? toIsoDate(task.date) : "undated";
+  const groups = new Map();
+  items.filter(task => key(task) === dateKey).forEach(task => {
+    if (!groups.has(task.subject)) groups.set(task.subject, []);
+    groups.get(task.subject).push(task);
+  });
+  if (subject === targetSubject || !groups.has(subject) || !groups.has(targetSubject)) return items;
+  const order = [...groups.keys()].filter(name => name !== subject);
+  order.splice(order.indexOf(targetSubject) + Number(after), 0, subject);
+  const reordered = order.flatMap(name => groups.get(name));
+  let index = 0;
+  return items.map(task => key(task) === dateKey ? reordered[index++] : task);
+}
+
+function subjectBlocks(dateKey) {
+  return [...taskList.querySelectorAll(".task-subject-heading")]
+    .filter(heading => heading.dataset.dateKey === dateKey)
+    .map(heading => {
+      const nodes = [heading];
+      let node = heading.nextElementSibling;
+      while (node?.classList.contains("task-item")) { nodes.push(node); node = node.nextElementSibling; }
+      return { heading, nodes, subject: heading.dataset.subject };
+    });
+}
+
+function subjectPositionKey(node) {
+  return node.classList.contains("task-item") ? JSON.stringify(["task", node.dataset.taskId])
+    : JSON.stringify(["subject", node.dataset.dateKey, node.dataset.subject]);
+}
+
+function captureSubjectPositions() {
+  const nodes = [...taskList.querySelectorAll(".task-subject-heading,.task-item")]
+    .filter(node => !node.classList.contains("subject-drag-source"));
+  const positions = new Map(nodes.map(node => [subjectPositionKey(node), node.getBoundingClientRect().top]));
+  // Preserve the visual position first, then remove prior transforms before layout changes.
+  nodes.forEach(node => taskLayoutAnimations.get(node)?.cancel());
+  return positions;
+}
+
+function animateSubjectPositions(positions) {
+  if (prefersReducedMotion) return;
+  taskList.querySelectorAll(".task-subject-heading,.task-item").forEach(node => {
+    if (node.classList.contains("subject-drag-source")) return;
+    const previous = positions.get(subjectPositionKey(node));
+    taskLayoutAnimations.get(node)?.cancel();
+    const distance = previous === undefined ? 0 : previous - node.getBoundingClientRect().top;
+    if (!distance) return;
+    taskLayoutAnimations.set(node, node.animate(
+      [{ transform: `translateY(${distance}px)` }, { transform: "translateY(0)" }],
+      { duration: 190, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
+    ));
+  });
+}
+
+function subjectLayoutTop(node) {
+  const top = node.getBoundingClientRect().top, transform = getComputedStyle(node).transform;
+  return top - (taskLayoutAnimations.has(node) && transform !== "none" ? new DOMMatrixReadOnly(transform).m42 : 0);
+}
+
+function moveSubjectGroup(dateKey, subject, targetSubject, after) {
+  state.tasks = reorderSubjectTasks(state.tasks, dateKey, subject, targetSubject, after);
+  state.orderMode = "manual";
+  saveState();
+  renderTasks();
+  showPageNotice("Subject order updated.", "success");
+  const heading = [...taskList.querySelectorAll(".task-subject-heading")]
+    .find(node => node.dataset.dateKey === dateKey && node.dataset.subject === subject);
+  heading?.querySelector(".subject-drag-handle")?.focus({ preventScroll: true });
+}
+
+function beginSubjectDrag(event, source, handle) {
+  if (event.button !== 0 || pointerDrag) return;
+  event.preventDefault();
+  handle.focus({ preventScroll: true });
+  handle.setPointerCapture(event.pointerId);
+  const block = subjectBlocks(source.dataset.dateKey).find(group => group.heading === source);
+  pointerDrag = { kind: "subject", pointerId: event.pointerId, source, handle, nodes: block.nodes,
+    dateKey: source.dataset.dateKey, subject: source.dataset.subject, startX: event.clientX,
+    startY: event.clientY, clientX: event.clientX, clientY: event.clientY, active: false, settling: false };
+}
+
+function activateSubjectDrag(drag) {
+  const first = drag.source.getBoundingClientRect(), last = drag.nodes.at(-1).getBoundingClientRect();
+  const height = last.bottom - first.top + parseFloat(getComputedStyle(drag.nodes.at(-1)).marginBottom || 0);
+  const origin = { left: first.left, top: first.top, width: first.width, height };
+  const placeholder = document.createElement("li");
+  placeholder.className = "subject-placeholder";
+  placeholder.setAttribute("aria-hidden", "true");
+  placeholder.style.height = `${height}px`;
+  placeholder.style.marginTop = getComputedStyle(drag.source).marginTop;
+  const ghost = document.createElement("ul");
+  ghost.className = "task-list drag-ghost subject-drag-ghost";
+  ghost.inert = true; ghost.setAttribute("aria-hidden", "true");
+  drag.nodes.forEach(node => ghost.append(node.cloneNode(true)));
+  Object.assign(ghost.style, { left: `${origin.left}px`, top: `${origin.top}px`, width: `${origin.width}px`, height: `${height}px` });
+  drag.source.before(placeholder);
+  drag.nodes.forEach(node => node.classList.add("subject-drag-source"));
+  document.body.append(ghost);
+  document.body.classList.add("is-reordering");
+  Object.assign(drag, { active: true, origin, ghost, placeholder });
+  const scroll = () => {
+    if (pointerDrag !== drag || drag.settling) return;
+    const edge = 72, speed = drag.clientY < edge ? -12 : drag.clientY > window.innerHeight - edge ? 12 : 0;
+    if (speed) { window.scrollBy(0, speed); placeSubjectPlaceholder(drag); }
+    drag.scrollFrame = requestAnimationFrame(scroll);
+  };
+  drag.scrollFrame = requestAnimationFrame(scroll);
+}
+
+function placeSubjectPlaceholder(drag) {
+  const groups = subjectBlocks(drag.dateKey).filter(group => group.subject !== drag.subject);
+  if (!groups.length) return;
+  const target = groups.find(group => {
+    const first = subjectLayoutTop(group.heading), last = group.nodes.at(-1);
+    return drag.clientY < first + (subjectLayoutTop(last) + last.offsetHeight - first) / 2;
+  });
+  const anchor = target ? target.heading : groups.at(-1).nodes.at(-1).nextElementSibling;
+  if (drag.placeholder.nextElementSibling === anchor) return;
+  const positions = captureSubjectPositions();
+  taskList.insertBefore(drag.placeholder, anchor);
+  drag.targetSubject = (target || groups.at(-1)).subject;
+  drag.after = !target;
+  animateSubjectPositions(positions);
+}
+
+function updateSubjectDrag(event) {
+  const drag = pointerDrag;
+  event.preventDefault();
+  drag.clientX = event.clientX; drag.clientY = event.clientY;
+  if (!drag.active) {
+    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 4) return;
+    activateSubjectDrag(drag);
+  }
+  drag.ghost.style.transform = `translate3d(${event.clientX - drag.startX}px, ${event.clientY - drag.startY}px, 0) scale(1.005)`;
+  placeSubjectPlaceholder(drag);
+}
+
+function finishSubjectDrag(event) {
+  const drag = pointerDrag;
+  event.preventDefault();
+  if (!drag.active) { cleanUpPointerDrag(drag); return; }
+  drag.settling = true;
+  cancelAnimationFrame(drag.scrollFrame);
+  const target = drag.placeholder.getBoundingClientRect();
+  drag.ghost.classList.add("settling");
+  drag.ghost.getBoundingClientRect();
+  drag.ghost.style.transform = `translate3d(${target.left - drag.origin.left}px, ${target.top - drag.origin.top}px, 0) scale(1)`;
+  window.setTimeout(() => {
+    if (pointerDrag !== drag) return;
+    cleanUpPointerDrag(drag);
+    if (drag.targetSubject) moveSubjectGroup(drag.dateKey, drag.subject, drag.targetSubject, drag.after);
+  }, prefersReducedMotion ? 0 : 190);
+}
+
 function calculateTodayProgress(tasks, today = TodoTaskRules.localDateIso()) {
   const regularToday = tasks.filter(task => !TodoTaskRules.isExtraTask(task) && TodoTaskRules.dueDateIso(task) === today);
   const total = regularToday.length;
@@ -698,6 +884,7 @@ function renderTodayProgress(today) {
 }
 
 function renderTasks() {
+  if (pointerDrag?.kind === "subject") cancelPointerDrag();
   const content = [];
   groupTasks(state.tasks).forEach((dateGroup) => {
     const visibleSubjects = dateGroup.subjects
@@ -709,7 +896,7 @@ function renderTasks() {
     if (visibleSubjects.length === 0) return;
     content.push(createDateHeading(dateGroup.date));
     visibleSubjects.forEach((subjectGroup) => {
-      content.push(createSubjectHeading(subjectGroup.subject));
+      content.push(createSubjectHeading(subjectGroup.subject, dateGroup.date ? toIsoDate(dateGroup.date) : "undated"));
       subjectGroup.tasks.forEach(({ task, index }) => content.push(createTaskElement(task, index)));
     });
   });

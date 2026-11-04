@@ -84,6 +84,10 @@ Voice input works best in the latest Google Chrome. The backend keeps the Doubao
 - After deploying, check the version/assets and authenticated API guard, compare data before/after, launch the existing Shortcut, and verify task/calendar persistence after reopening. Keep backups available. No database schema migration is needed for this release.
 - Recovery: stop the local server, restore the backed-up application and `state.json`, then relaunch the unchanged origin. Keep the upgraded copy before restoring. For production rollback, deploy the previous application version; D1/R2 are not replaced during normal deployments. Restore SQL only as a deliberate disaster recovery action, since it replaces newer account changes.
 
+## Subject group ordering
+
+Use the two-line handle at the right of a subject heading to drag its entire group within the same date, using a mouse or touch. The existing six-dot handles still reorder individual tasks within their subject. Arrow Up/Down on the subject handle provides keyboard reordering. Group moves preserve every task’s details and internal order, including hidden records. The existing saved task array stores the subject order, so Online snapshots, desktop saves, backups and calendar edits retain it without a new data format.
+
 ## Calendar Stats
 
 Calendar’s **Stats** button opens a responsive 7-day/30-day panel. The finish-time chart covers regular tasks due on each local date, independently of the celebration eligibility rules. A day without due tasks, with unfinished work, or with an unrecorded exact completion time has a gap. Early finishes retain their actual completion date in the data table and tooltip. Today follows the current due-date cohort; prior daily summaries are retained when later tasks are edited, deleted, or hidden by midnight cleanup.
