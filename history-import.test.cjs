@@ -1,0 +1,17 @@
+const assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),H=require('./completion-history');
+const now=new Date(),day=H.localDay(now),date={year:now.getFullYear(),month:now.getMonth()+1,day:now.getDate()};
+const task=id=>({id,task:'Same worksheet',subject:'Math',date,label:'Extra',completed:true,completedOn:day});
+const makeHistory=id=>H.update(null,[task(id)],{now,transition:{id,before:false,after:true}});
+const values=new Map([['todo-list-mvp',JSON.stringify({title:'Local',tasks:[task('local')],orderMode:'date'})],['todo-calendar-events','[]'],[H.KEY,JSON.stringify(makeHistory('local'))]]);
+const storage={getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)};
+const window={TodoCompletionHistory:H};
+vm.runInNewContext(fs.readFileSync('data-migration.js','utf8'),{window,localStorage:storage,location:{origin:'http://local.invalid'},Date,JSON,console});
+const payload={format:'ai-todo-list-backup',schemaVersion:1,data:{'todo-list-mvp':JSON.stringify({title:'Local',tasks:[task('incoming')]}),'todo-calendar-events':'[]',[H.KEY]:JSON.stringify(makeHistory('incoming'))}};
+window.TodoDataMigration.importBackup(payload);window.TodoDataMigration.importBackup(payload);
+assert.equal(JSON.parse(values.get('todo-list-mvp')).tasks.length,1);
+assert.deepEqual(H.read(values.get(H.KEY)).days[day].bonus,['local'],'Task identity deduplication must also deduplicate stats');
+assert.ok(Object.hasOwn(window.TodoDataMigration.snapshot().data,H.KEY),'Portable backups must include history');
+const beforeTask=values.get('todo-list-mvp'),beforeEvent=values.get('todo-calendar-events');
+assert.throws(()=>window.TodoDataMigration.importBackup({...payload,data:{...payload.data,'todo-list-mvp':JSON.stringify({tasks:[{...task('new'),task:'Different task'}]}),[H.KEY]:'{"schemaVersion":999,"days":{},"completions":{}}'}}),/not a supported format/);
+assert.equal(values.get('todo-list-mvp'),beforeTask,'Invalid history must fail before task mutation');assert.equal(values.get('todo-calendar-events'),beforeEvent);
+console.log('History backup/restore passed: included in exports, task IDs remapped without duplicate counts, repeat imports safe, malformed history rejected before mutations.');

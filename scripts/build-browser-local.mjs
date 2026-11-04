@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 const root=resolve(import.meta.dirname,'..'), out=join(root,'dist/local'), cache=join(root,'.desktop-build');
 await mkdir(out,{recursive:true});await mkdir(cache,{recursive:true});
-const assets=['index.html','style.css','impeccable.css','script.js','flip-clock.js','flip-clock.css','weather.js','weather.css','task-timer-engine.js','task-timer-alarm.js','task-timer.js','task-timer.css','task-timer-bindings.js','app-shell.css','app-shell.js','calendar.html','calendar.css','calendar.js','data.css','persistent-storage.js','data-migration.js','task-rules.js','task-file-scanner.js','voice-input.js','page-transition.js','backup-merge.js','merge-review.js','desktop-page.css','desktop-theme.js'];
+const assets=['index.html','style.css','impeccable.css','script.js','flip-clock.js','flip-clock.css','weather.js','weather.css','task-timer-engine.js','task-timer-alarm.js','task-timer.js','task-timer.css','task-timer-bindings.js','app-shell.css','app-shell.js','calendar.html','calendar.css','calendar.js','data.css','persistent-storage.js','data-migration.js','task-rules.js','completion-history.js','task-history.js','stats-panel.js','stats-panel.css','task-file-scanner.js','voice-input.js','page-transition.js','backup-merge.js','merge-review.js','desktop-page.css','desktop-theme.js'];
 for(const name of assets)await cp(join(root,'dist',name),join(out,name));
 await cp(join(root,'dist/vendor'),join(out,'vendor'),{recursive:true});
 await cp(join(root,'desktop/app.html'),join(out,'app.html'));

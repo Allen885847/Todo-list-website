@@ -49,7 +49,7 @@
     if (!config || event.origin !== config.website || event.source !== popup || event.data?.nonce !== nonce) return;
     if (event.data.type === 'todo-sync-ready') {
       if (transfer || document.querySelector('#local-sync-confirm').open) return;
-      document.querySelector('#local-sync-account').textContent = `Send a copy of your local tasks, events, holidays, labels, completion states, and settings to ${event.data.email} at ${new URL(config.website).hostname}? You will review any differences on the website before saving. Your local copy will stay on this computer.`;
+      document.querySelector('#local-sync-account').textContent = `Send a copy of your local tasks, events, holidays, labels, completion states, completion history, and settings to ${event.data.email} at ${new URL(config.website).hostname}? You will review any differences on the website before saving. Your local copy will stay on this computer.`;
       document.querySelector('#local-sync-error').textContent = '';
       document.querySelector('#local-sync-confirm').showModal();
     } else if (event.data.type === 'todo-sync-saved') { transfer = null; message('Sync complete. Your records are available Online, and your local copy is unchanged.', 'success'); }

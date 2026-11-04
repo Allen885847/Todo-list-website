@@ -9,6 +9,7 @@
   const BACKUP_KEY = "todo-data-backup-before-v2.5";
   const MIGRATION_KEY = "todo-data-schema";
   const TIMER_KEY = "todo-task-timers-v1";
+  const HISTORY_KEY = "todo-completion-history-v1";
   const SCHEMA_VERSION = 1;
 
   function parseJson(value, fallback) {
@@ -17,7 +18,7 @@
   }
 
   function snapshot(label = "manual") {
-    const keys = [TASK_KEY, EVENT_KEY, ...LEGACY_EVENT_KEYS, APPEARANCE_KEY, ...VIEW_KEYS, TIMER_KEY, MIGRATION_KEY];
+    const keys = [TASK_KEY, EVENT_KEY, ...LEGACY_EVENT_KEYS, APPEARANCE_KEY, ...VIEW_KEYS, TIMER_KEY, HISTORY_KEY, MIGRATION_KEY];
     return {
       format: "ai-todo-list-backup",
       schemaVersion: SCHEMA_VERSION,
@@ -98,6 +99,17 @@
     const currentTasks = Array.isArray(currentTaskState?.tasks) ? currentTaskState.tasks : [];
     const importedTasks = Array.isArray(importedTaskState?.tasks) ? importedTaskState.tasks : [];
     const tasks = mergeUnique([currentTasks, importedTasks], taskFingerprint);
+    // Validate and remap history before changing any task or event data.
+    let mergedHistory = null;
+    if (payload.data[HISTORY_KEY] || localStorage.getItem(HISTORY_KEY)) {
+      if (!window.TodoCompletionHistory) throw new Error("Reopen the app before restoring completion history.");
+      const idMap = new Map();
+      importedTasks.forEach((task) => {
+        const existing = tasks.find((candidate) => taskFingerprint(candidate) === taskFingerprint(task));
+        if (task.id != null && existing?.id != null) idMap.set(String(task.id), String(existing.id));
+      });
+      mergedHistory = JSON.stringify(window.TodoCompletionHistory.merge(localStorage.getItem(HISTORY_KEY), payload.data[HISTORY_KEY], idMap));
+    }
     const taskState = {
       ...currentTaskState,
       title: currentTasks.length > 0
@@ -122,6 +134,7 @@
         localStorage.setItem(key, payload.data[key]);
       }
     });
+    if (mergedHistory) localStorage.setItem(HISTORY_KEY, mergedHistory);
     localStorage.setItem(MIGRATION_KEY, JSON.stringify({ version: SCHEMA_VERSION, migratedAt: new Date().toISOString() }));
     return { tasks: tasks.length, events: events.length };
   }

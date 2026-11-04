@@ -1,5 +1,5 @@
 (function(root) {
-  const keys = ['todo-list-mvp','todo-calendar-events','todo-calendar-events-v2.5','todo-calendar-events-v2.4','todo-appearance','todo-calendar-view','todo-calendar-view-v2.5','todo-task-timers-v1','todo-data-schema','todo-data-backup-before-v2.5','todo-weather-enabled-v1'];
+  const keys = ['todo-list-mvp','todo-calendar-events','todo-calendar-events-v2.5','todo-calendar-events-v2.4','todo-appearance','todo-calendar-view','todo-calendar-view-v2.5','todo-task-timers-v1','todo-completion-history-v1','todo-data-schema','todo-data-backup-before-v2.5','todo-weather-enabled-v1'];
   function create({ storage, indexedDB, now = () => new Date().toISOString(), chooseDirectory } = {}) {
     let databasePromise, queue = Promise.resolve();
     const collect = () => Object.fromEntries(keys.map(key => [key, storage.getItem(key)]));

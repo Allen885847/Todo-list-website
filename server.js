@@ -4,6 +4,7 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const zlib = require("node:zlib");
 const WebSocket = require("ws");
+const CompletionHistory = require("./completion-history.js");
 
 const PORT = Number(process.env.PORT) || 4173;
 
@@ -30,6 +31,7 @@ const LOCAL_DATA_KEYS = new Set([
   "todo-calendar-view",
   "todo-calendar-view-v2.5",
   "todo-task-timers-v1",
+  "todo-completion-history-v1",
   "todo-data-schema",
   "todo-data-backup-before-v2.5",
 ]);
@@ -37,6 +39,10 @@ const shortcutSupport = process.env.TODO_SHORTCUT_MODE === "1"
   ? require("./desktop-shortcut/local-support.cjs").createSupport({ dataDirectory: LOCAL_DATA_DIR, version: APP_VERSION, readLocalData }) : null;
 const apiKey = name => shortcutSupport?.apiKey(name) || process.env[name] || "";
 const STATIC_FILES = new Map([
+  ["/completion-history.js", ["completion-history.js", "text/javascript; charset=utf-8"]],
+  ["/task-history.js", ["task-history.js", "text/javascript; charset=utf-8"]],
+  ["/stats-panel.js", ["stats-panel.js", "text/javascript; charset=utf-8"]],
+  ["/stats-panel.css", ["stats-panel.css", "text/css; charset=utf-8"]],
   ["/desktop-theme.js", ["desktop-theme.js", "text/javascript; charset=utf-8"]],
   ["/backup-merge.js", ["backup-merge.js", "text/javascript; charset=utf-8"]],
   ["/merge-review.js", ["merge-review.js", "text/javascript; charset=utf-8"]],
@@ -135,6 +141,8 @@ function writeLocalData(input) {
     if (!LOCAL_DATA_KEYS.has(key)) return;
     if (value === null || (typeof value === "string" && value.length <= MAX_LOCAL_DATA_SIZE)) data[key] = value;
   });
+  const previousHistory = readLocalData().data?.[CompletionHistory.KEY];
+  if (previousHistory || data[CompletionHistory.KEY]) data[CompletionHistory.KEY] = JSON.stringify(CompletionHistory.merge(previousHistory, data[CompletionHistory.KEY]));
   fs.mkdirSync(LOCAL_DATA_DIR, { recursive: true });
   if (fs.existsSync(LOCAL_DATA_FILE)) fs.copyFileSync(LOCAL_DATA_FILE, LOCAL_DATA_BACKUP);
   const tempFile = path.join(LOCAL_DATA_DIR, `state-${process.pid}.tmp`);
@@ -614,7 +622,7 @@ return http.createServer(async (request, response) => {
     try {
       const body = await readJson(request, MAX_LOCAL_DATA_SIZE);
       const saved = writeLocalData(body?.data);
-      sendJson(response, 200, { saved: true, updatedAt: saved.updatedAt });
+      sendJson(response, 200, { saved: true, updatedAt: saved.updatedAt, completionHistory: saved.data[CompletionHistory.KEY] || null });
     } catch (error) {
       console.error("Local data could not be saved:", error.message);
       sendJson(response, 400, { error: "Local data could not be saved." });

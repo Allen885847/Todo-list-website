@@ -1,4 +1,5 @@
 import BackupMerge from "../backup-merge.js";
+import CompletionHistory from "../completion-history.js";
 
 function json(data, status = 200) {
   return Response.json(data, {
@@ -20,6 +21,7 @@ const SNAPSHOT_KEYS = new Set([
   "todo-calendar-view",
   "todo-calendar-view-v2.5",
   "todo-task-timers-v1",
+  "todo-completion-history-v1",
   "todo-data-schema",
   "todo-data-backup-before-v2.5",
 ]);
@@ -113,19 +115,31 @@ async function mergeDesktopSnapshot(request, env, userId) {
 
 async function putSnapshot(request, env, userId) {
   const body = await readJson(request);
-  const data = cleanSnapshotData(body.data);
+  const incomingData = cleanSnapshotData(body.data);
+  let data;
   const schemaVersion = Number.isInteger(body.schemaVersion) && body.schemaVersion > 0
     ? Math.min(body.schemaVersion, 1000)
     : 1;
   const updatedAt = new Date().toISOString();
-  await env.DB.prepare(`
-    INSERT INTO user_snapshots (user_id, schema_version, data_json, updated_at)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT(user_id) DO UPDATE SET
-      schema_version = excluded.schema_version,
-      data_json = excluded.data_json,
-      updated_at = excluded.updated_at
-  `).bind(userId, schemaVersion, JSON.stringify(data), updatedAt).run();
+  let saved = false;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const current = await getSnapshot(env, userId);
+    data = { ...incomingData };
+    const historyKey = CompletionHistory.KEY;
+    if (current.data[historyKey] || data[historyKey]) data[historyKey] = JSON.stringify(CompletionHistory.merge(current.data[historyKey], data[historyKey]));
+    const previous = current.exists && !current.recoveredFromBackup ? JSON.stringify(current.data) : null;
+    const result = await env.DB.prepare(`
+      INSERT INTO user_snapshots (user_id, schema_version, data_json, updated_at)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(user_id) DO UPDATE SET
+        schema_version = excluded.schema_version,
+        data_json = excluded.data_json,
+        updated_at = excluded.updated_at
+      WHERE user_snapshots.data_json = ?
+    `).bind(userId, schemaVersion, JSON.stringify(data), updatedAt, previous).run();
+    if (result.meta?.changes === 1) { saved = true; break; }
+  }
+  if (!saved) return json({error:"Your data changed during saving. Please retry.",code:"STORAGE_CHANGED"},409);
   await env.BUCKET.put(`accounts/${userId}/latest.json`, JSON.stringify({
     schemaVersion,
     data,
@@ -134,7 +148,7 @@ async function putSnapshot(request, env, userId) {
     httpMetadata: { contentType: "application/json" },
     customMetadata: { owner: userId, purpose: "account-recovery" },
   });
-  return json({ ok: true, schemaVersion, updatedAt });
+  return json({ ok: true, schemaVersion, updatedAt, completionHistory: data[CompletionHistory.KEY] || null });
 }
 
 export async function bootstrapUserData(env, userId) {

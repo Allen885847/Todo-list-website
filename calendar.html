@@ -41,6 +41,7 @@
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="calendar.css" />
     <link rel="stylesheet" href="impeccable.css" />
+    <link rel="stylesheet" href="stats-panel.css" />
     <link rel="stylesheet" href="task-timer.css" />
   </head>
   <body class="calendar-page">
@@ -55,7 +56,10 @@
             <h1>Calendar</h1>
           </div>
         </div>
+        <div class="calendar-header-actions">
+          <button id="open-stats" class="stats-button" type="button" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4v16h16M8 15v-4m5 4V7m5 8v-6"/></svg>Stats</button>
         <button id="add-event" class="add-event-button" type="button">Add Event</button>
+        </div>
       </header>
 
       <section class="calendar-toolbar" aria-label="Calendar controls">
@@ -96,6 +100,22 @@
         </label>
       </footer>
     </main>
+
+    <dialog id="stats-dialog" class="editor-dialog stats-dialog" aria-labelledby="stats-title">
+      <section class="dialog-card stats-card">
+        <div class="dialog-heading">
+          <div><h2 id="stats-title">Task stats</h2><p class="stats-intro">A look at when you finish and the extra work you get done.</p></div>
+          <button class="dialog-close" type="button" data-close-dialog aria-label="Close stats"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg></button>
+        </div>
+        <div class="stats-controls"><div class="stats-range" role="group" aria-label="Stats period"><button type="button" data-stats-range="7" aria-pressed="true">Last 7 days</button><button type="button" data-stats-range="30" aria-pressed="false">Last 30 days</button></div><p id="stats-period" class="stats-period"></p></div>
+        <div class="stats-charts">
+          <section class="stats-chart"><h3 id="stats-finish-title">All Tasks Finished</h3><p>Last completion time for regular tasks due on each date. Gaps mean unfinished tasks, no tasks due, or a time that wasn’t recorded.</p><svg id="stats-finish-chart" role="img" aria-labelledby="stats-finish-title"></svg><p id="stats-finish-empty" class="stats-empty" hidden>No recorded finish times in this period.</p></section>
+          <section class="stats-chart"><h3 id="stats-bonus-title">Extra &amp; Early Tasks Completed</h3><p>Extra tasks and tasks finished before their due date. Each task counts once per completion day.</p><svg id="stats-bonus-chart" role="img" aria-labelledby="stats-bonus-title"></svg><p id="stats-bonus-empty" class="stats-empty" hidden>No completion history recorded in this period.</p></section>
+        </div>
+        <details class="stats-data"><summary>View data</summary><div class="stats-table-wrap" tabindex="0" role="region" aria-label="Daily task statistics"><table><thead><tr><th scope="col">Date</th><th scope="col">Finish time</th><th scope="col">Extra &amp; Early</th></tr></thead><tbody id="stats-table-body"></tbody></table></div></details>
+        <p id="stats-history-note" class="stats-history-note" role="status"></p>
+      </section>
+    </dialog>
 
     <dialog id="event-dialog" class="editor-dialog">
       <form method="dialog" class="dialog-card" id="event-editor" novalidate>
@@ -200,11 +220,14 @@
       </form>
     </dialog>
 
+    <script src="completion-history.js"></script>
     <script src="persistent-storage.js"></script>
     <script src="data-migration.js"></script>
     <script src="task-rules.js"></script>
+    <script src="task-history.js"></script>
     <script src="voice-input.js"></script>
     <script src="calendar.js"></script>
+    <script src="stats-panel.js"></script>
     <script src="page-transition.js"></script>
     <script src="task-timer-bindings.js"></script>
   </body>

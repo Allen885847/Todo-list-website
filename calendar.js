@@ -178,6 +178,7 @@ function loadTaskState() {
 
 function saveTaskState() {
   localStorage.setItem(TASK_STORAGE_KEY, JSON.stringify(taskState));
+  window.TodoTaskHistory?.record(taskState.tasks);
 }
 
 function normalizeEvent(event) {
@@ -1257,9 +1258,11 @@ function saveTaskFromEditor() {
   task.subject = taskSubject.value.trim();
   task.label = taskLabel.value.trim().replace(/\s+/g, " ").slice(0, 40);
   task.date = taskDueDate.value ? dateObjectFromIso(taskDueDate.value) : null;
+  const previousCompleted = task.completed;
   if (task.completed !== taskCompleted.checked) {
     Object.assign(task, TodoTaskRules.withCompletion(task, taskCompleted.checked));
   }
+  window.TodoTaskHistory?.record(taskState.tasks, { id: task.id, before: previousCompleted, after: Boolean(taskCompleted.checked) });
   saveTaskState();
   taskDialog.close();
   renderCalendar();

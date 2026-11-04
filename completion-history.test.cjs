@@ -1,0 +1,52 @@
+const assert = require('node:assert/strict');
+const H = require('./completion-history');
+const at = (date,hour=12,minute=0) => new Date(`${date}T${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}:00`);
+const task = (id,due,extra=false) => ({id,date:due?{year:+due.slice(0,4),month:+due.slice(5,7),day:+due.slice(8,10)}:null,label:extra?'Extra':'',completed:false,completedOn:null});
+for (const timezone of ['Asia/Shanghai','America/Los_Angeles','Pacific/Kiritimati']) {
+ process.env.TZ=timezone;
+ let tasks=[task('today1','2026-11-04'),task('today2','2026-11-04'),task('past','2026-11-03'),task('future','2026-11-05'),task('extra','2026-11-04',true)];
+ let history=H.update(null,tasks,{now:at('2026-11-04',9)});
+ const change=(id,completed,date,hour,minute=0)=>{
+  const item=tasks.find(t=>t.id===id),before=item.completed;item.completed=completed;item.completedOn=completed?date:null;
+  history=H.update(history,tasks,{now:at(date,hour,minute),transition:{id,before,after:completed}});
+ };
+ change('today1',true,'2026-11-04',14);
+ assert.equal(history.days['2026-11-04'].finish,null);
+ change('today2',true,'2026-11-04',18,42);
+ assert.equal(history.days['2026-11-04'].finish.minutes,18*60+42,'Overdue/future/Extra do not block the finish-time metric');
+ change('extra',true,'2026-11-04',19);change('extra',false,'2026-11-04',19,1);change('extra',true,'2026-11-04',19,2);
+ assert.equal(history.days['2026-11-04'].bonus.length,1);
+ change('future',true,'2026-11-04',19,3);
+ assert.equal(history.days['2026-11-04'].bonus.length,2);assert.equal(tasks.find(t=>t.id==='future').label,'','Early completion must not change a label');
+ change('past',true,'2026-11-04',20);assert.equal(history.days['2026-11-04'].bonus.length,2);
+ change('today1',false,'2026-11-04',20,1);assert.equal(history.days['2026-11-04'].finish,null);
+ change('today1',true,'2026-11-04',20,2);assert.equal(history.days['2026-11-04'].finish.minutes,1202);
+ change('today1',true,'2026-11-04',20,3);assert.equal(history.days['2026-11-04'].finish.minutes,1202,'Duplicate no-op must not invent a new finish time');
+ const saved=JSON.parse(JSON.stringify(history));
+ const earlyNextDay=H.update(saved,tasks,{now:at('2026-11-05',9)});
+ assert.equal(earlyNextDay.days['2026-11-05'].finish.day,'2026-11-04','An early finish retains its actual recorded date');
+ assert.equal(earlyNextDay.days['2026-11-05'].finish.minutes,19*60+3);
+ history=H.update(saved,[],{now:at('2026-11-05',0)});
+ assert.equal(history.days['2026-11-04'].finish.minutes,1202,'Midnight cleanup must not erase yesterday');
+ assert.equal(history.days['2026-11-04'].bonus.length,2);
+ assert.equal(H.rows(history,{now:at('2026-11-05'),range:7}).length,7);
+ assert.equal(H.rows(history,{now:at('2026-11-05'),range:30}).length,30);
+ assert.equal(H.rows(history,{now:at('2026-11-05')})[0].count,null,'Do not fabricate zeroes before history exists');
+ assert.equal(history.days['2026-11-05'].finish,null,'No regular tasks means a gap');
+ const both=task('both','2026-11-06',true);both.completed=true;both.completedOn='2026-11-05';
+ history=H.update(history,[both],{now:at('2026-11-05',10),transition:{id:'both',before:false,after:true}});
+ assert.equal(history.days['2026-11-05'].bonus.length,1,'Extra and early is only one count');
+ both.completed=false;both.completedOn=null;history=H.update(history,[both],{now:at('2026-11-05',11),transition:{id:'both',before:true,after:false}});
+ both.completed=true;both.completedOn='2026-11-06';history=H.update(history,[both],{now:at('2026-11-06',11),transition:{id:'both',before:false,after:true}});
+ assert.equal(history.days['2026-11-06'].bonus.length,1,'The next actual completion day can count again');
+ const legacy=task('legacy','2026-11-06');legacy.completed=true;legacy.completedOn='2026-11-06';
+ let unknown=H.update(null,[legacy],{now:at('2026-11-06',17)});assert.equal(unknown.days['2026-11-06'].finish,null);assert.equal(unknown.days['2026-11-06'].reason,'missing-time');assert.equal(unknown.days['2026-11-06'].bonus.length,0);
+ // A due-day that was unfinished stays a gap after a late completion.
+ const late=task('late','2026-11-07');let lateHistory=H.update(null,[late],{now:at('2026-11-07',23)});
+ late.completed=true;late.completedOn='2026-11-08';lateHistory=H.update(lateHistory,[late],{now:at('2026-11-08',1),transition:{id:'late',before:false,after:true}});
+ assert.equal(lateHistory.days['2026-11-07'].finish,null);
+ const merged=H.merge(history,history);assert.deepEqual(JSON.parse(JSON.stringify(merged)),JSON.parse(JSON.stringify(history)),'Repeated merging must be idempotent');
+ const remapped=H.merge(null,history,new Map([['both','canonical-id']]));assert.ok(remapped.days['2026-11-05'].bonus.includes('canonical-id'));assert.ok(!remapped.days['2026-11-05'].bonus.includes('both'));
+ const days=H.rows(history,{now:at('2026-03-09'),range:7}).map(row=>row.day);assert.equal(new Set(days).size,7,'DST must not repeat or omit a local calendar date');
+}
+console.log('Completion history passed: local times, regular due-day finish, gaps, early/Extra daily deduplication, unchecking/rechecking, midnight/reload/deletion survival, missing historical times, late completions, ID remapping, repeat merges, 7/30 days and DST.');

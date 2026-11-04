@@ -10,6 +10,7 @@
     "todo-calendar-view",
     "todo-calendar-view-v2.5",
     "todo-task-timers-v1",
+    "todo-completion-history-v1",
     "todo-data-schema",
     "todo-data-backup-before-v2.5",
     ...(window.TodoBrowserStorage ? ["todo-weather-enabled-v1"] : []),
@@ -35,6 +36,14 @@
         keepalive,
       });
       if (!response.ok && (strict || response.status !== 401)) throw new Error(`Save failed (${response.status}).`);
+      if (response.ok && window.TodoCompletionHistory) {
+        const result = await response.json();
+        if (result.completionHistory) {
+          const key = window.TodoCompletionHistory.KEY;
+          nativeSetItem.call(localStorage, key, JSON.stringify(window.TodoCompletionHistory.merge(localStorage.getItem(key), result.completionHistory)));
+          window.dispatchEvent(new CustomEvent("todo-history-changed"));
+        }
+      }
     } catch (error) {
       console.warn("Local file backup could not be updated.", error);
       if (strict) throw new Error("Your data could not be saved. Check available storage and try again before continuing.");
@@ -120,6 +129,5 @@
   });
 
   window.addEventListener("pagehide", () => saveNow({ keepalive: true }));
-  window.TodoLocalPersistence = { collect, saveNow };
-  restore();
+  window.TodoLocalPersistence = { collect, saveNow, ready: restore() };
 })();

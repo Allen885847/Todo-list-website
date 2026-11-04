@@ -200,6 +200,7 @@ function loadState() {
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  window.TodoTaskHistory?.record(state.tasks);
 }
 
 function loadAppearance() {
@@ -451,7 +452,9 @@ function createTaskElement(todo, index) {
   checkbox.addEventListener("change", () => {
     const today = TodoTaskRules.localDateIso();
     const wereCurrentTasksComplete = TodoTaskRules.areCurrentTasksComplete(state.tasks, today);
+    const previousCompleted = state.tasks[index].completed;
     state.tasks[index] = TodoTaskRules.withCompletion(state.tasks[index], checkbox.checked, today);
+    window.TodoTaskHistory?.record(state.tasks, { id: state.tasks[index].id, before: previousCompleted, after: Boolean(checkbox.checked) });
     const completedTask = state.tasks[index];
     if (completedTask.completed) window.parent.TodoTimer?.stopTask(completedTask.id);
     const shouldCelebrate = checkbox.checked && TodoTaskRules.shouldCelebrateCurrentTasks(

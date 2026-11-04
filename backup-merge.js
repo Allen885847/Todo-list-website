@@ -1,10 +1,11 @@
 (function (root) {
   'use strict';
+  const History = typeof module === 'object' && module.exports ? require('./completion-history.js') : root.TodoCompletionHistory;
   const TASKS = 'todo-list-mvp';
   const EVENTS = 'todo-calendar-events';
   const EVENT_KEYS = [EVENTS, 'todo-calendar-events-v2.5', 'todo-calendar-events-v2.4'];
   const SETTINGS = ['todo-appearance', 'todo-calendar-view', 'todo-calendar-view-v2.5'];
-  const KEYS = [TASKS, ...EVENT_KEYS, ...SETTINGS, 'todo-task-timers-v1', 'todo-data-schema', 'todo-data-backup-before-v2.5'];
+  const KEYS = [TASKS, ...EVENT_KEYS, ...SETTINGS, 'todo-task-timers-v1', 'todo-completion-history-v1', 'todo-data-schema', 'todo-data-backup-before-v2.5'];
   const canonical = value => {
     if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']';
     if (value && typeof value === 'object') return '{' + Object.keys(value).sort().map(key => JSON.stringify(key) + ':' + canonical(value[key])).join(',') + '}';
@@ -120,6 +121,9 @@
     for (const key of SETTINGS) {
       if (!incoming[key]) continue;
       data[key] = current[key] && current[key] !== incoming[key] ? choose(`setting:${key}`, key.replace('todo-', '').replaceAll('-', ' '), 'setting', current[key], incoming[key]) : incoming[key];
+    }
+    if (current[History.KEY] || incoming[History.KEY]) {
+      data[History.KEY] = JSON.stringify(History.merge(current[History.KEY], incoming[History.KEY], incomingTaskIds));
     }
     const existingTimers = parse(current['todo-task-timers-v1'], {}, 'Timers');
     const importedTimers = parse(incoming['todo-task-timers-v1'], {}, 'Timers');
