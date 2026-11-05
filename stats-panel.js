@@ -5,7 +5,7 @@
   const tabs = [...dialog.querySelectorAll('[data-stats-tab]')], info = document.querySelector('#stats-info-toggle');
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const ns = 'http://www.w3.org/2000/svg';
-  let range = 7, activeTab = 'finish', panelAnimations = [], tooltipTarget, infoAnimation, updateAnimations = [], chartSnapshot;
+  let range = 7, activeTab = 'finish', tooltipTarget, infoAnimation, viewTransition, pendingView, pendingRender = false;
   const statsCard = dialog.querySelector('.stats-card');
   const bonusCard = document.querySelector('#stats-bonus-card'), bonusDetail = document.querySelector('#stats-bonus-detail');
   let bonusTarget, bonusRow, bonusHideTimer, detailInert = [];
@@ -85,23 +85,64 @@
     document.querySelector('#stats-bonus-detail-close').focus();
   });
   document.querySelector('#stats-bonus-detail-close').addEventListener('click',closeBonusDetail);
-  function stopChartUpdate() { updateAnimations.forEach(a=>a.cancel());updateAnimations=[];chartSnapshot?.remove();chartSnapshot=null; }
-  function changeRange(next,control) {
-    if(next===range)return;
-    stopCrossfade();stopChartUpdate();closeInfo();closeBonusDetail();hideBonus();
-    const svg=document.querySelector(`#stats-${activeTab}-chart`), snapshot=reducedMotion.matches?null:svg.cloneNode(true);
-    const top=svg.offsetTop, height=svg.clientHeight;
-    range=next;ranges.forEach(b=>b.setAttribute('aria-pressed',String(b===control)));render();
-    if(!snapshot)return;
-    snapshot.removeAttribute('id');snapshot.setAttribute('aria-hidden','true');snapshot.inert=true;
-    snapshot.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));
-    snapshot.querySelectorAll('[tabindex]').forEach(n=>n.removeAttribute('tabindex'));
-    snapshot.classList.add('stats-chart-snapshot');snapshot.style.top=`${top}px`;snapshot.style.height=`${height}px`;
-    svg.parentElement.append(snapshot);chartSnapshot=snapshot;
-    const options={duration:220,easing:'cubic-bezier(0.16,1,0.3,1)'};
-    const animations=[snapshot.animate([{opacity:1},{opacity:0}],options),svg.animate([{opacity:0},{opacity:1}],options)];updateAnimations=animations;
-    Promise.all(animations.map(a=>a.finished)).then(()=>{if(updateAnimations===animations)stopChartUpdate()}).catch(()=>{});
+  const chartStage = dialog.querySelector('.stats-charts');
+  function syncControls() {
+    tabs.forEach(tab=>{
+      const active=tab.dataset.statsTab===activeTab;
+      tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;
+      document.getElementById(tab.getAttribute('aria-controls')).hidden=!active;
+    });
+    ranges.forEach(control=>control.setAttribute('aria-pressed',String(Number(control.dataset.statsRange)===range)));
   }
+  function stopViewTransition() {
+    const transition=viewTransition;viewTransition=null;pendingView=null;pendingRender=false;
+    transition?.animation?.cancel();transition?.snapshot.remove();
+    tabs.forEach(tab=>document.getElementById(tab.getAttribute('aria-controls')).inert=false);
+    chartStage.removeAttribute('aria-busy');
+  }
+  function finishViewTransition(transition) {
+    if(viewTransition!==transition)return;
+    transition.snapshot.remove();transition.panel.inert=false;viewTransition=null;chartStage.removeAttribute('aria-busy');
+    const next=pendingView;pendingView=null;
+    if(next && (next.tab!==activeTab || next.range!==range)) requestView(next);
+    else if(pendingRender) {pendingRender=false;render();}
+  }
+  function requestView(change,animate=true) {
+    const next={tab:activeTab,range,...pendingView,...change};
+    if(viewTransition) {pendingView=next;return;}
+    if(next.tab===activeTab && next.range===range)return;
+    closeInfo();closeBonusDetail();hideBonus();hideTooltip();
+    const previous=document.getElementById(`stats-${activeTab}-panel`);
+    const snapshot=animate && !reducedMotion.matches ? previous.cloneNode(true) : null;
+    if(snapshot) {
+      snapshot.removeAttribute('id');snapshot.removeAttribute('hidden');snapshot.setAttribute('aria-hidden','true');snapshot.inert=true;
+      snapshot.querySelectorAll('[id]').forEach(node=>node.removeAttribute('id'));
+      snapshot.querySelectorAll('[tabindex]').forEach(node=>node.removeAttribute('tabindex'));
+      snapshot.querySelectorAll('.stats-tooltip').forEach(node=>node.remove());
+      snapshot.classList.add('stats-chart-snapshot');
+      // Mount an opaque copy before changing any live content. It is outside
+      // layout, so the old and new charts never compete for a grid track.
+      chartStage.append(snapshot);
+    }
+    const panel=document.getElementById(`stats-${next.tab}-panel`);
+    const transition=snapshot?{snapshot,panel,animation:null}:null;
+    viewTransition=transition;
+    activeTab=next.tab;range=next.range;syncControls();renderCurrent();
+    if(!transition)return;
+    panel.inert=true;chartStage.setAttribute('aria-busy','true');
+    // Give the new SVG two paint frames at its final, fixed dimensions. Keep
+    // the old chart fully visible throughout preparation, then dissolve it.
+    requestAnimationFrame(()=>{
+      if(viewTransition!==transition)return;
+      requestAnimationFrame(()=>{
+        if(viewTransition!==transition)return;
+        const animation=snapshot.animate([{opacity:1},{opacity:0}],{duration:260,easing:'cubic-bezier(0.4,0,0.2,1)',fill:'forwards'});
+        transition.animation=animation;
+        animation.finished.then(()=>finishViewTransition(transition)).catch(()=>{});
+      });
+    });
+  }
+  function changeRange(next) { requestView({range:next}); }
   dialog.addEventListener('pointerdown',event=>{
     if (bonusTarget && !bonusTarget.contains(event.target) && !bonusCard.contains(event.target)) hideBonus();
     if (!info.contains(event.target) && !infoPanel.contains(event.target)) closeInfo();
@@ -126,7 +167,7 @@
   }
   function chart(svg,rows,type) {
     const width = Math.max(210,svg.clientWidth || 700), height = Math.max(120,svg.clientHeight || (width < 480 ? 260 : 300));
-    const left = type === 'finish'?74:44, right = 24, top = 22, bottom = 38;
+    const left = 74, right = 24, top = 22, bottom = 38;
     const w = width-left-right, h = height-top-bottom;
     hideTooltip();
     svg.setAttribute('viewBox',`0 0 ${width} ${height}`); svg.replaceChildren();
@@ -198,9 +239,13 @@
     });
   }
   function render() {
+    if(viewTransition) {pendingRender=true;return;}
+    renderCurrent();
+  }
+  function renderCurrent() {
     if (!dialog.open) return;
     try {
-      stopChartUpdate();hideBonus();
+      hideBonus();
       const history = window.TodoTaskHistory.read(), rows = H.rows(history,{range});
       document.querySelector('#stats-period').textContent = `${dateLabel(rows[0].day)} – ${dateLabel(rows.at(-1).day,{month:'short',day:'numeric',year:'numeric'})}`;
       chart(document.querySelector(`#stats-${activeTab}-chart`),rows,activeTab);
@@ -231,35 +276,7 @@
       status.textContent = 'Completion history could not be read. Your tasks are unchanged. Keep a backup before trying to restore history.';
     }
   }
-  function stopCrossfade() {
-    panelAnimations.forEach(animation=>animation.cancel()); panelAnimations = [];
-    tabs.forEach(tab=>{
-      const panel = document.getElementById(tab.getAttribute('aria-controls'));
-      panel.classList.remove('is-leaving'); panel.inert = false; panel.removeAttribute('aria-hidden');
-    });
-  }
-  function selectTab(selected,animate=true) {
-    const previous = document.getElementById(tabs.find(tab=>tab.dataset.statsTab===activeTab)?.getAttribute('aria-controls'));
-    const changed = activeTab !== selected.dataset.statsTab;
-    stopChartUpdate();closeBonusDetail();hideBonus();
-    stopCrossfade(); activeTab = selected.dataset.statsTab;
-    tabs.forEach(tab=>{
-      const active = tab === selected;
-      tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;
-      document.getElementById(tab.getAttribute('aria-controls')).hidden = !active;
-    });
-    render();
-    const panel = document.getElementById(selected.getAttribute('aria-controls'));
-    if (changed && animate && !reducedMotion.matches) {
-      previous.classList.add('is-leaving'); previous.inert = true; previous.setAttribute('aria-hidden','true');
-      const options = {duration:200,easing:'cubic-bezier(0.16,1,0.3,1)'};
-      const animations = [previous.animate([{opacity:1},{opacity:0}],options),panel.animate([{opacity:0},{opacity:1}],options)];
-      panelAnimations = animations;
-      Promise.all(animations.map(animation=>animation.finished)).then(()=>{
-        if (panelAnimations === animations) stopCrossfade();
-      }).catch(()=>{});
-    }
-  }
+  function selectTab(selected,animate=true) { requestView({tab:selected.dataset.statsTab},animate); }
   tabs.forEach((tab,index)=>{
     tab.addEventListener('click',()=>selectTab(tab));
     tab.addEventListener('keydown',event=>{
@@ -271,15 +288,15 @@
     hideBonus();setInfo(info.getAttribute('aria-expanded') !== 'true');
   });
   button.addEventListener('click',()=>{
-    closeInfo(false);hideBonus();closeBonusDetail();stopChartUpdate(); dialog.querySelector('.stats-data').open = false; stopCrossfade();
+    closeInfo(false);hideBonus();closeBonusDetail();stopViewTransition(); dialog.querySelector('.stats-data').open = false;
     window.TodoTaskHistory.observe(); prepareDialogOpening(dialog); dialog.showModal(); render();
     requestAnimationFrame(()=>{render();tabs.find(tab=>tab.dataset.statsTab===activeTab)?.focus()});
   });
   ranges.forEach(control=>control.addEventListener('click',()=>changeRange(Number(control.dataset.statsRange)===30?30:7,control)));
   dialog.addEventListener('cancel',event=>{event.preventDefault();closeDialogAnimated(dialog)});
-  dialog.addEventListener('close',()=>{hideTooltip();hideBonus();closeBonusDetail();closeInfo(false);stopChartUpdate();stopCrossfade();dialog.classList.remove('is-closing','is-opening')});
+  dialog.addEventListener('close',()=>{hideTooltip();hideBonus();closeBonusDetail();closeInfo(false);stopViewTransition();dialog.classList.remove('is-closing','is-opening')});
   dialog.addEventListener('click',event=>{if(event.target===dialog)closeDialogAnimated(dialog)});
   window.addEventListener('storage',event=>{if(event.key===H.KEY)render()});
   window.addEventListener('todo-history-changed',render);
-  window.addEventListener('resize',render);
+  window.addEventListener('resize',()=>{const next=pendingView;stopViewTransition();if(next && (next.tab!==activeTab || next.range!==range))requestView(next,false);else render()});
 })();
