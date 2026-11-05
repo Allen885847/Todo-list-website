@@ -4,9 +4,9 @@ A responsive, AI-powered to-do list built with HTML, CSS, JavaScript, and a smal
 
 The Online application uses account-scoped Cloudflare D1/R2 storage and email/password authentication. The desktop Shortcut remains login-free and uses its existing local file and browser storage; these are separate applications.
 
-Release: **V3.2 — Focus, Time, and Weather**.
+Release: **V3.3 — Task Insights and Custom Ordering**.
 
-V3.2 adds task countdown timers, a flip clock, local weather, and today’s progress tracking. A cleaner, more organized layout helps you stay focused and complete tasks more efficiently.
+V3.3 adds three statistics charts: Extra & Early Tasks, Finish Time, and Completion Rate. It also supports custom ordering of individual tasks and entire subject groups, helping users organize their work more easily.
 
 ## Features
 
