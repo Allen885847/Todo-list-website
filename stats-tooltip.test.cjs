@@ -1,16 +1,17 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 class Node {
- constructor(){this.children=[];this.attrs={};this.events={};this.hidden=false;this.style={};this.clientWidth=375;this.classList={add(){}};}
- setAttribute(k,v){this.attrs[k]=String(v)} removeAttribute(k){delete this.attrs[k]}
+ constructor(){this.children=[];this.attrs={};this.events={};this.hidden=false;this.style={};this.clientWidth=375;this.classList={add(){},remove(){}};}
+ getAttribute(k){return this.attrs[k]}setAttribute(k,v){this.attrs[k]=String(v)} removeAttribute(k){delete this.attrs[k]}
  append(...nodes){this.children.push(...nodes)} replaceChildren(){this.children=[]}
  addEventListener(k,fn){this.events[k]=fn} contains(node){return this===node||this.children.some(n=>n.contains(node))}
  getBoundingClientRect(){return this.rect||{left:0,top:0,width:150,height:30}}
 }
-const dialog=new Node(),button=new Node(),info=new Node(),panel=new Node(),svg=new Node(),infoPanel=new Node();infoPanel.hidden=true;
+const dialog=new Node(),button=new Node(),info=new Node(),panel=new Node(),svg=new Node(),infoPanel=new Node();infoPanel.hidden=true;info.setAttribute('aria-expanded','false');
 panel.rect={left:100,top:100,width:375,height:400};svg.parentElement=panel;
 dialog.querySelectorAll=()=>[];
-const document={querySelector:s=>({'#stats-dialog':dialog,'#open-stats':button,'#stats-info-toggle':info,'#stats-info':infoPanel,'#stats-finish-chart':svg}[s]),createElement:()=>new Node(),createElementNS:()=>new Node()};
-const window={matchMedia:()=>({matches:false}),addEventListener(){}};
+const extras={};dialog.querySelector=()=>new Node();
+const document={querySelector:s=>({'#stats-dialog':dialog,'#open-stats':button,'#stats-info-toggle':info,'#stats-info':infoPanel,'#stats-finish-chart':svg}[s] || (extras[s]??=Object.assign(new Node(),{hidden:true}))),createElement:()=>new Node(),createElementNS:()=>new Node()};
+const window={clearTimeout,setTimeout,matchMedia:()=>({matches:false}),addEventListener(){}};
 const source=fs.readFileSync('stats-panel.js','utf8').replace(/\}\)\(\);\s*$/, 'window.testChart=chart;})();');
 vm.runInNewContext(source,{window,document,Date,Math,Set});
 const rows=[{day:'2026-11-04',finish:{day:'2026-11-04',minutes:1276,zone:'Asia/Shanghai'}}];

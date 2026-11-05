@@ -20,6 +20,19 @@
     if (!value || !Number.isInteger(value.total) || value.total < 0 || !Number.isInteger(value.completed) || value.completed < 0 || value.completed > value.total || !iso(value.updatedAt)) return null;
     return {total:value.total,completed:value.completed,updatedAt:value.updatedAt,finalized:value.finalized === true};
   }
+  const dayNumber = day => { const [y,m,d] = day.split('-').map(Number); return Date.UTC(y,m-1,d)/86400000; };
+  function cleanBonusDetails(value,day,ids) {
+    const result = Object.create(null);
+    for (const id of ids) {
+      const item = value?.[id];
+      if (!item || typeof item.title !== 'string' || !item.title.trim() || !iso(item.at)) continue;
+      const due = validDay(item.due) ? item.due : '';
+      const earlyDays = due ? Math.max(0,dayNumber(due)-dayNumber(day)) : 0;
+      if (item.extra !== true && !earlyDays) continue;
+      result[id] = {title:item.title.trim().slice(0,1000),at:item.at,due,extra:item.extra === true};
+    }
+    return result;
+  }
   function read(value) {
     if (typeof value === 'string' && value) value = JSON.parse(value);
     if (value == null || value === '') return {schemaVersion:1,started:null,rateStarted:null,completions:Object.create(null),days:Object.create(null)};
@@ -34,6 +47,7 @@
       const finish = cleanStamp(entry.finish);
       result.days[day] = {updatedAt:entry.updatedAt,regularTotal:entry.regularTotal,regularIncomplete:entry.regularIncomplete,finish:finish && finish.day <= day ? finish : null,reason:['finished','incomplete','no-tasks','missing-time'].includes(entry.reason)?entry.reason:'missing-time',bonus:[...new Set((Array.isArray(entry.bonus)?entry.bonus:[]).filter(validId))].sort(),rate:cleanRate(entry.rate)};
     }
+    for (const [day,entry] of Object.entries(result.days)) entry.bonusDetails = cleanBonusDetails(value.days[day].bonusDetails,day,entry.bonus);
     return result;
   }
   function merge(left, right, idMap = {}) {
@@ -53,7 +67,13 @@
       const oldRate = existing?.rate, newRate = entry.rate;
       let rate = !oldRate || (newRate && newRate.updatedAt > oldRate.updatedAt) ? newRate : oldRate;
       if (rate && oldRate && newRate && oldRate.updatedAt === newRate.updatedAt && oldRate.total === newRate.total && oldRate.completed === newRate.completed) rate = {...rate,finalized:oldRate.finalized || newRate.finalized};
-      current.days[day] = {...(!existing || entry.updatedAt > existing.updatedAt ? entry : existing),bonus,rate:rate || null};
+      const bonusDetails = {...existing?.bonusDetails};
+      for (const [source,item] of Object.entries(entry.bonusDetails)) {
+        const id = remap(source); if (!validId(id)) continue;
+        const old = bonusDetails[id];
+        if (!old || item.at < old.at || (item.at === old.at && JSON.stringify(item) < JSON.stringify(old))) bonusDetails[id] = item;
+      }
+      current.days[day] = {...(!existing || entry.updatedAt > existing.updatedAt ? entry : existing),bonus,bonusDetails,rate:rate || null};
     }
     return current;
   }
@@ -81,7 +101,14 @@
       if (saved?.completion && (!task.completed || task.completedOn !== saved.completion.day)) history.completions[id] = {updatedAt:time.at,completion:null};
     }
     const bonus = new Set(history.days[today]?.bonus || []);
-    if (target?.completed && !transition.before && (isExtra(target) || (validDay(dueDay(target)) && dueDay(target) > today))) bonus.add(String(target.id));
+    const bonusDetails = {...history.days[today]?.bonusDetails};
+    if (target?.completed && !transition.before && (isExtra(target) || (validDay(dueDay(target)) && dueDay(target) > today))) {
+      const id = String(target.id);
+      // Freeze details at the first qualifying completion. Later edits and rechecks
+      // must not rewrite what this historical daily count represents.
+      if (!bonus.has(id)) bonusDetails[id] = {title:String(target.task || '').trim(),at:time.at,due:dueDay(target),extra:isExtra(target)};
+      bonus.add(id);
+    }
     const regular = list.filter(task => !isExtra(task) && dueDay(task) === today);
     const incomplete = regular.filter(task => !task.completed).length;
     const known = regular.map(task => history.completions[String(task.id)]?.completion || null);
@@ -93,7 +120,7 @@
     const completed = regular.filter(task => task.completed && (!validDay(task.completedOn) || task.completedOn <= today)).length;
     const rateUnchanged = !taskMutation && !changed && old?.rate && old.rate.total === regular.length && old.rate.completed === completed && !old.rate.finalized;
     const rate = {total:regular.length,completed,updatedAt:rateUnchanged ? old.rate.updatedAt : time.at,finalized:false};
-    const entry = {regularTotal:regular.length,regularIncomplete:incomplete,finish,reason,bonus:[...bonus].sort(),rate};
+    const entry = {regularTotal:regular.length,regularIncomplete:incomplete,finish,reason,bonus:[...bonus].sort(),bonusDetails,rate};
     const same = old && JSON.stringify({...old,updatedAt:undefined}) === JSON.stringify({...entry,updatedAt:undefined});
     history.days[today] = {...entry,updatedAt:same ? old.updatedAt : time.at};
     return read(history);
@@ -102,7 +129,7 @@
     const history = read(value), size = range === 30 ? 30 : 7, result = [];
     for (let ago = size-1; ago >= 0; ago--) {
       const date = new Date(now.getFullYear(),now.getMonth(),now.getDate()-ago,12), day = localDay(date), record = history.days[day];
-      result.push({day,finish:record?.finish || null,count:record ? record.bonus.length : null,reason:record?.reason || 'unrecorded',regularTotal:record?.regularTotal ?? null,rate:record?.rate?.total > 0 ? {...record.rate,percent:Math.round(record.rate.completed / record.rate.total * 100)} : null});
+      result.push({day,finish:record?.finish || null,count:record ? record.bonus.length : null,bonusTasks:record ? record.bonus.filter(id=>record.bonusDetails[id]).map(id=>{const item=record.bonusDetails[id];return {id,...item,earlyDays:item.due?Math.max(0,dayNumber(item.due)-dayNumber(day)):0};}) : [],reason:record?.reason || 'unrecorded',regularTotal:record?.regularTotal ?? null,rate:record?.rate?.total > 0 ? {...record.rate,percent:Math.round(record.rate.completed / record.rate.total * 100)} : null});
     }
     return result;
   }

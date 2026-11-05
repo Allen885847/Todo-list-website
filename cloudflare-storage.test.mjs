@@ -39,7 +39,7 @@ assert.equal(recovered.recoveredFromBackup, true);
 assert.deepEqual(recovered.data, data);
 // A concurrent writer between read and CAS must not drop either device's counts.
 const now = new Date('2026-11-04T08:00:00Z'), day = History.localDay(now);
-const bonus = id => ({id,label:'Extra',completed:true,completedOn:day,date:null});
+const bonus = id => ({id,task:'Recorded '+id,label:'Extra',completed:true,completedOn:day,date:null});
 const leftHistory = History.update(null,[bonus('device-a')],{now,transition:{id:'device-a',before:false,after:true}});
 const rightHistory = History.update(null,[bonus('device-b')],{now,transition:{id:'device-b',before:false,after:true}});
 beforeWrite = () => records.set('account-a',{schema_version:1,data_json:JSON.stringify({...data,[History.KEY]:JSON.stringify(rightHistory)}),updated_at:now.toISOString()});
@@ -52,8 +52,11 @@ console.log('Account snapshots passed: task/event/holiday/settings/timer round t
 
 // An older history-aware client omits only the new optional rate fields.
 const oldHistory=JSON.parse(combined.data[History.KEY]);delete oldHistory.rateStarted;
-Object.values(oldHistory.days).forEach(entry=>{delete entry.rate;entry.updatedAt=new Date(now.getTime()+3600000).toISOString()});
+Object.values(oldHistory.days).forEach(entry=>{delete entry.rate;delete entry.bonusDetails;entry.updatedAt=new Date(now.getTime()+3600000).toISOString()});
 assert.equal((await handleDataRequest(new Request('https://test.invalid/api/storage',{method:'PUT',body:JSON.stringify({data:{...combined.data,[History.KEY]:JSON.stringify(oldHistory)}})}),env,'account-a')).status,200);
 const withRate=History.read((await (await handleDataRequest(get(),env,'account-a')).json()).data[History.KEY]);
 assert.deepEqual(withRate.days[day].rate,History.read(combined.data[History.KEY]).days[day].rate,'A newer old-client write preserves the independently timestamped rate');
 assert.ok(withRate.rateStarted);
+
+assert.equal(withRate.days[day].bonusDetails['device-a'].title,'Recorded device-a');
+assert.equal(withRate.days[day].bonusDetails['device-b'].title,'Recorded device-b');

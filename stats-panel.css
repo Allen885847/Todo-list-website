@@ -90,3 +90,26 @@ html[data-theme="dark"] .stats-range button[aria-pressed="true"] { color:#0c1528
 @media(prefers-reduced-motion:reduce) {
   .editor-dialog.stats-dialog[open] .stats-card { animation:none; }
 }
+
+.stats-bonus-target { cursor:pointer; }
+.stats-bonus-target:hover .stats-bar,.stats-bonus-target:focus-visible .stats-bar { fill:var(--accent); }
+.stats-bonus-card { position:absolute; z-index:4; width:320px; max-width:calc(100% - 24px); max-height:calc(100% - 84px); box-sizing:border-box; overflow:auto; padding:16px; border:1px solid var(--line); border-radius:12px; background:var(--paper); color:var(--ink); box-shadow:0 10px 28px rgba(0,0,0,.14); }
+.stats-bonus-card[hidden],.stats-bonus-detail[hidden] { display:none; }
+.stats-bonus-card h4,.stats-detail-heading h3 { margin:0; font-size:.95rem; line-height:1.5; }
+.stats-bonus-count { margin:3px 0 0; color:var(--muted); font-size:.8rem; line-height:1.5; }
+.stats-bonus-items { list-style:none; padding:0; margin:10px 0 0; }
+.stats-bonus-items li { display:grid; gap:5px; padding:10px 0; border-top:1px solid var(--line); }
+.stats-bonus-task-name { color:var(--ink); font-size:.86rem; font-weight:600; line-height:1.5; overflow-wrap:anywhere; }
+.stats-bonus-labels { display:flex; flex-wrap:wrap; gap:5px; }
+.stats-bonus-badge { padding:2px 7px; border-radius:6px; background:var(--soft-accent); color:var(--accent-dark); font-size:.72rem; line-height:1.5; }
+.stats-bonus-note { color:var(--muted); margin:10px 0; font-size:.78rem; line-height:1.6; }
+.stats-detail-button { min-height:36px; padding:6px 10px; border:1px solid var(--line); border-radius:8px; background:var(--soft-accent); color:var(--accent-dark); font:600 .8rem/1.5 "DM Sans",sans-serif; cursor:pointer; }
+.stats-detail-button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.stats-bonus-detail { position:absolute; z-index:6; inset:12px; display:flex; flex-direction:column; padding:18px; border:1px solid var(--line); border-radius:12px; background:var(--paper); }
+.stats-detail-heading { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; flex-shrink:0; }
+.stats-detail-scroll { min-height:0; overflow:auto; overscroll-behavior:contain; margin-top:12px; }
+.stats-chart svg.stats-chart-snapshot { grid-area:auto; position:absolute; left:0; width:100%; pointer-events:none; }
+@media(prefers-reduced-motion:no-preference) { .stats-bonus-card { animation:stats-card-in 140ms cubic-bezier(0.16,1,0.3,1); } }
+@keyframes stats-card-in { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+
+.stats-bonus-badge.is-extra { background:var(--extra-background); color:var(--extra-ink); }

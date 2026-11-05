@@ -128,6 +128,15 @@
           <section id="stats-bonus-panel" class="stats-chart" role="tabpanel" aria-labelledby="stats-bonus-tab" hidden><h3 id="stats-bonus-title">Extra &amp; Early Tasks Completed</h3><svg id="stats-bonus-chart" role="img" aria-labelledby="stats-bonus-title"></svg><p id="stats-bonus-empty" class="stats-empty" hidden>No completion history recorded in this period.</p></section>
           <section id="stats-rate-panel" class="stats-chart" role="tabpanel" aria-labelledby="stats-rate-tab" hidden><h3 id="stats-rate-title">Completion Rate</h3><p id="stats-rate-summary" class="stats-rate-summary" aria-live="polite"></p><svg id="stats-rate-chart" role="img" aria-labelledby="stats-rate-title"></svg><p id="stats-rate-empty" class="stats-empty" hidden>No completion-rate history for eligible tasks in this period.</p></section>
         </div>
+        <aside id="stats-bonus-card" class="stats-bonus-card" role="region" aria-label="Extra and early task details" hidden>
+          <h4 id="stats-bonus-card-title"></h4><p id="stats-bonus-card-count" class="stats-bonus-count"></p>
+          <ul id="stats-bonus-card-items" class="stats-bonus-items"></ul><p id="stats-bonus-card-note" class="stats-bonus-note" hidden></p>
+          <button id="stats-bonus-view-all" class="stats-detail-button" type="button">View all</button>
+        </aside>
+        <section id="stats-bonus-detail" class="stats-bonus-detail" role="region" aria-label="All extra and early tasks" hidden>
+          <div class="stats-detail-heading"><div><h3 id="stats-bonus-detail-title"></h3><p id="stats-bonus-detail-count" class="stats-bonus-count"></p></div><button id="stats-bonus-detail-close" class="stats-detail-button" type="button">Back to chart</button></div>
+          <div class="stats-detail-scroll"><ul id="stats-bonus-detail-items" class="stats-bonus-items"></ul><p id="stats-bonus-detail-note" class="stats-bonus-note" hidden></p></div>
+        </section>
         <details class="stats-data"><summary>View data</summary><div class="stats-table-wrap" tabindex="0" role="region" aria-label="Daily task statistics"><table><thead><tr><th scope="col">Date</th><th scope="col">Finish time</th><th scope="col">Extra &amp; Early</th><th scope="col">Completion rate</th></tr></thead><tbody id="stats-table-body"></tbody></table></div></details>
         <p id="stats-status" class="stats-history-note" role="status" hidden></p>
       </section>

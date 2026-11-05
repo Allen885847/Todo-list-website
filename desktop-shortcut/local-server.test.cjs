@@ -17,6 +17,7 @@ const path = require('node:path');
     let base=await start();
     const initial={ 'todo-list-mvp':JSON.stringify({title:'Local test',tasks:[{id:'a',task:'Homework',date:{day:2,month:11,year:2026},label:'Extra',completed:true,completedOn:'2026-11-02'}]}), 'todo-calendar-events':JSON.stringify([{id:'event',title:'Holiday',holiday:true,startDate:'2026-12-31',endDate:'2027-01-14',startTime:'15:00',endTime:'16:00'}]),'todo-appearance':'dark','todo-task-timers-v1':JSON.stringify({owner:'local',timers:{}}) };
     initial[H.KEY]=JSON.stringify(H.update(null,[{id:'rate',date:{year:2026,month:11,day:4},completed:true,completedOn:'2026-11-04',label:''}],{now:new Date('2026-11-04T18:00:00')}));
+    initial[H.KEY]=JSON.stringify(H.update(initial[H.KEY],[{id:'rate',date:{year:2026,month:11,day:4},completed:true,completedOn:'2026-11-04',label:''},{id:'detail',task:'Saved detail',label:'Extra',completed:true,completedOn:'2026-11-04'}],{now:new Date('2026-11-04T18:00:00'),transition:{id:'detail',before:false,after:true}}));
     const post=(route,body,extra={})=>fetch(base+route,{method:'POST',headers:{'Content-Type':'application/json',...extra},body:JSON.stringify(body)});
     assert.equal((await (await fetch(base+'/api/desktop/health')).json()).loginRequired,false);
     assert.equal((await post('/api/local-data',{data:initial})).status,200);
@@ -34,6 +35,9 @@ const path = require('node:path');
     assert.equal((await post('/api/local-data',{data:legacy})).status,200);
     const saved=(await (await fetch(base+'/api/local-data')).json()).data;
     assert.equal(H.read(saved[H.KEY]).days['2026-11-04'].rate.completed,1,'Local file and old-client saves must preserve rate history');
+    const older=JSON.parse(saved[H.KEY]);Object.values(older.days).forEach(entry=>delete entry.bonusDetails);
+    assert.equal((await post('/api/local-data',{data:{...saved,[H.KEY]:JSON.stringify(older)}})).status,200);
+    assert.equal(H.read((await (await fetch(base+'/api/local-data')).json()).data[H.KEY]).days['2026-11-04'].bonusDetails.detail.title,'Saved detail','Restart and old-client saves preserve task snapshots');
     assert.equal((await fetch(base+'/.env')).status,404);
     console.log('Local Shortcut server passed: no login, atomic save/reopen, all data types, local recovery backup, private AI setup, no key export, cross-origin and non-JSON write protection.');
   } finally {await stop();await fs.rm(directory,{recursive:true,force:true});}

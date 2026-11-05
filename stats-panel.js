@@ -5,7 +5,10 @@
   const tabs = [...dialog.querySelectorAll('[data-stats-tab]')], info = document.querySelector('#stats-info-toggle');
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const ns = 'http://www.w3.org/2000/svg';
-  let range = 7, activeTab = 'finish', panelAnimations = [], tooltipTarget;
+  let range = 7, activeTab = 'finish', panelAnimations = [], tooltipTarget, infoAnimation, updateAnimations = [], chartSnapshot;
+  const statsCard = dialog.querySelector('.stats-card');
+  const bonusCard = document.querySelector('#stats-bonus-card'), bonusDetail = document.querySelector('#stats-bonus-detail');
+  let bonusTarget, bonusRow, bonusHideTimer, detailInert = [];
   const tooltip = document.createElement('div');
   tooltip.id = 'stats-finish-tooltip'; tooltip.className = 'stats-tooltip';
   tooltip.setAttribute('role','tooltip'); tooltip.hidden = true;
@@ -25,12 +28,87 @@
     tooltip.style.top = `${Math.max(0,point.top-host.top-box.height-10)}px`;
   }
   const infoPanel = document.querySelector('#stats-info');
-  function closeInfo() { info.setAttribute('aria-expanded','false'); infoPanel.hidden = true; }
+  function setInfo(expanded,animate=true) {
+    if (animate && info.getAttribute('aria-expanded') === String(expanded)) return;
+    infoAnimation?.cancel(); infoAnimation = null;
+    info.setAttribute('aria-expanded',String(expanded)); infoPanel.inert = !expanded;
+    if (reducedMotion.matches || !animate) { infoPanel.hidden = !expanded; return; }
+    infoPanel.hidden = false;
+    const animation = infoPanel.animate(expanded ? [{opacity:0,transform:'translateY(-5px)'},{opacity:1,transform:'translateY(0)'}] : [{opacity:1,transform:'translateY(0)'},{opacity:0,transform:'translateY(-5px)'}],{duration:160,easing:'cubic-bezier(0.16,1,0.3,1)'});
+    infoAnimation = animation;
+    animation.finished.then(()=>{if(infoAnimation === animation){infoPanel.hidden = !expanded;infoAnimation=null}}).catch(()=>{});
+  }
+  function closeInfo(animate=true) { setInfo(false,animate); }
+  function hideBonus() {
+    window.clearTimeout(bonusHideTimer); bonusTarget?.setAttribute('aria-expanded','false');
+    bonusTarget = null; bonusRow = null; bonusCard.hidden = true;
+  }
+  function deferHideBonus() { window.clearTimeout(bonusHideTimer); bonusHideTimer=window.setTimeout(()=>{if(!bonusCard.contains(document.activeElement))hideBonus()},160); }
+  function populateBonus(prefix,row,all=false) {
+    document.querySelector(`#${prefix}-title`).textContent = dateLabel(row.day,{month:'short',day:'numeric',year:'numeric'});
+    document.querySelector(`#${prefix}-count`).textContent = `${row.count} ${row.count===1?'task':'tasks'} completed`;
+    const list = document.querySelector(`#${prefix}-items`); list.replaceChildren();
+    const tasks = row.bonusTasks || [];
+    for (const task of all ? tasks : tasks.slice(0,3)) {
+      const item = document.createElement('li'), title = document.createElement('span'), labels = document.createElement('span');
+      title.className='stats-bonus-task-name'; title.textContent=task.title; labels.className='stats-bonus-labels';
+      for (const text of [task.extra?'Extra':'',task.earlyDays?`Early · ${task.earlyDays} ${task.earlyDays===1?'day':'days'} early`:''].filter(Boolean)) {
+        const badge=document.createElement('span');badge.className=`stats-bonus-badge${text==='Extra'?' is-extra':''}`;badge.textContent=text;labels.append(badge);
+      }
+      item.append(title,labels);list.append(item);
+    }
+    const unknown = Math.max(0,row.count-tasks.length), note = document.querySelector(`#${prefix}-note`);
+    note.hidden = !unknown; note.textContent = unknown ? `Details were not recorded for ${unknown} ${unknown===1?'task':'tasks'}.` : '';
+  }
+  function showBonus(target,row) {
+    window.clearTimeout(bonusHideTimer); hideTooltip();
+    if (bonusTarget !== target) bonusTarget?.setAttribute('aria-expanded','false');
+    bonusTarget=target; bonusRow=row; target.setAttribute('aria-expanded','true');
+    populateBonus('stats-bonus-card',row); bonusCard.hidden=false;
+    document.querySelector('#stats-bonus-view-all').hidden = row.count<=3;
+    const host=statsCard.getBoundingClientRect(), point=target.getBoundingClientRect(), box=bonusCard.getBoundingClientRect();
+    bonusCard.style.left=`${Math.max(12,Math.min(host.width-box.width-12,point.left-host.left+point.width/2-box.width/2))}px`;
+    bonusCard.style.top=`${Math.max(72,Math.min(host.height-box.height-12,point.top-host.top-box.height-10))}px`;
+  }
+  function closeBonusDetail() {
+    const open = !bonusDetail.hidden; bonusDetail.hidden=true;
+    detailInert.forEach(node=>node.inert=false);detailInert=[];
+    if(open) tabs.find(tab=>tab.dataset.statsTab===activeTab)?.focus();
+  }
+  bonusCard.addEventListener('pointerenter',()=>window.clearTimeout(bonusHideTimer));
+  bonusCard.addEventListener('pointerleave',event=>{if(event.pointerType!=='touch')deferHideBonus()});
+  bonusCard.addEventListener('focusout',deferHideBonus);
+  document.querySelector('#stats-bonus-view-all').addEventListener('click',()=>{
+    if(!bonusRow)return; populateBonus('stats-bonus-detail',bonusRow,true); hideBonus(); bonusDetail.hidden=false;
+    detailInert=[...statsCard.children].filter(node=>node!==bonusDetail && !node.inert);detailInert.forEach(node=>node.inert=true);
+    if(!reducedMotion.matches)bonusDetail.animate([{opacity:0,transform:'translateY(5px)'},{opacity:1,transform:'translateY(0)'}],{duration:180,easing:'cubic-bezier(0.16,1,0.3,1)'});
+    document.querySelector('#stats-bonus-detail-close').focus();
+  });
+  document.querySelector('#stats-bonus-detail-close').addEventListener('click',closeBonusDetail);
+  function stopChartUpdate() { updateAnimations.forEach(a=>a.cancel());updateAnimations=[];chartSnapshot?.remove();chartSnapshot=null; }
+  function changeRange(next,control) {
+    if(next===range)return;
+    stopCrossfade();stopChartUpdate();closeInfo();closeBonusDetail();hideBonus();
+    const svg=document.querySelector(`#stats-${activeTab}-chart`), snapshot=reducedMotion.matches?null:svg.cloneNode(true);
+    const top=svg.offsetTop, height=svg.clientHeight;
+    range=next;ranges.forEach(b=>b.setAttribute('aria-pressed',String(b===control)));render();
+    if(!snapshot)return;
+    snapshot.removeAttribute('id');snapshot.setAttribute('aria-hidden','true');snapshot.inert=true;
+    snapshot.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));
+    snapshot.querySelectorAll('[tabindex]').forEach(n=>n.removeAttribute('tabindex'));
+    snapshot.classList.add('stats-chart-snapshot');snapshot.style.top=`${top}px`;snapshot.style.height=`${height}px`;
+    svg.parentElement.append(snapshot);chartSnapshot=snapshot;
+    const options={duration:220,easing:'cubic-bezier(0.16,1,0.3,1)'};
+    const animations=[snapshot.animate([{opacity:1},{opacity:0}],options),svg.animate([{opacity:0},{opacity:1}],options)];updateAnimations=animations;
+    Promise.all(animations.map(a=>a.finished)).then(()=>{if(updateAnimations===animations)stopChartUpdate()}).catch(()=>{});
+  }
   dialog.addEventListener('pointerdown',event=>{
+    if (bonusTarget && !bonusTarget.contains(event.target) && !bonusCard.contains(event.target)) hideBonus();
     if (!info.contains(event.target) && !infoPanel.contains(event.target)) closeInfo();
     if (tooltipTarget && !tooltipTarget.contains(event.target)) hideTooltip();
   });
   dialog.addEventListener('keydown',event=>{
+    if(event.key==='Escape' && (!bonusCard.hidden || !bonusDetail.hidden)) {event.preventDefault();event.stopPropagation();hideBonus();closeBonusDetail();return;}
     if(event.key==='Escape' && !infoPanel.hidden) { event.preventDefault(); event.stopPropagation(); closeInfo(); info.focus(); return; }
     if(event.key==='Escape' && tooltipTarget) { event.preventDefault(); event.stopPropagation(); hideTooltip(); }
   });
@@ -77,7 +155,15 @@
         if (row.count === null) return;
         const bw = Math.max(2,Math.min(30,w/rows.length*.64));
         const bar = element('rect',{x:x(index)-bw/2,y:y(row.count),width:bw,height:top+h-y(row.count),rx:3,class:'stats-bar stats-mark',tabindex:0,'aria-label':`${dateLabel(row.day)}: ${row.count} Extra and early tasks`});
-        bar.append(element('title',{},`${dateLabel(row.day)} · ${row.count} Extra & Early`)); svg.append(bar);
+        const target=element('g',{class:'stats-bonus-target stats-mark',tabindex:0,role:'button','aria-label':`${dateLabel(row.day)}: ${row.count} tasks completed. View details.`,'aria-expanded':'false','aria-controls':'stats-bonus-card'});
+        bar.removeAttribute('tabindex');bar.classList.remove('stats-mark');
+        target.append(element('rect',{x:x(index)-Math.max(bw,Math.min(28,w/rows.length))/2,y:Math.min(y(row.count),top+h-24),width:Math.max(bw,Math.min(28,w/rows.length)),height:Math.max(24,top+h-y(row.count)),class:'stats-point-hit'}),bar);
+        target.addEventListener('pointerenter',event=>{if(event.pointerType!=='touch')showBonus(target,row)});
+        target.addEventListener('pointerleave',event=>{if(event.pointerType!=='touch')deferHideBonus()});
+        target.addEventListener('focus',()=>showBonus(target,row));target.addEventListener('blur',deferHideBonus);
+        target.addEventListener('click',()=>showBonus(target,row));
+        target.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();showBonus(target,row);document.querySelector('#stats-bonus-view-all').hidden || document.querySelector('#stats-bonus-view-all').focus();}});
+        svg.append(target);
         if (range===7 || row.count>0) svg.append(element('text',{x:x(index),y:y(row.count)-7,'text-anchor':'middle',class:'stats-axis-label'},row.count));
       });
       return;
@@ -114,6 +200,7 @@
   function render() {
     if (!dialog.open) return;
     try {
+      stopChartUpdate();hideBonus();
       const history = window.TodoTaskHistory.read(), rows = H.rows(history,{range});
       document.querySelector('#stats-period').textContent = `${dateLabel(rows[0].day)} – ${dateLabel(rows.at(-1).day,{month:'short',day:'numeric',year:'numeric'})}`;
       chart(document.querySelector(`#stats-${activeTab}-chart`),rows,activeTab);
@@ -154,6 +241,7 @@
   function selectTab(selected,animate=true) {
     const previous = document.getElementById(tabs.find(tab=>tab.dataset.statsTab===activeTab)?.getAttribute('aria-controls'));
     const changed = activeTab !== selected.dataset.statsTab;
+    stopChartUpdate();closeBonusDetail();hideBonus();
     stopCrossfade(); activeTab = selected.dataset.statsTab;
     tabs.forEach(tab=>{
       const active = tab === selected;
@@ -180,16 +268,16 @@
     });
   });
   info.addEventListener('click',()=>{
-    const expanded = info.getAttribute('aria-expanded') !== 'true';info.setAttribute('aria-expanded',String(expanded));infoPanel.hidden = !expanded;
+    hideBonus();setInfo(info.getAttribute('aria-expanded') !== 'true');
   });
   button.addEventListener('click',()=>{
-    closeInfo(); dialog.querySelector('.stats-data').open = false; stopCrossfade();
+    closeInfo(false);hideBonus();closeBonusDetail();stopChartUpdate(); dialog.querySelector('.stats-data').open = false; stopCrossfade();
     window.TodoTaskHistory.observe(); prepareDialogOpening(dialog); dialog.showModal(); render();
     requestAnimationFrame(()=>{render();tabs.find(tab=>tab.dataset.statsTab===activeTab)?.focus()});
   });
-  ranges.forEach(control=>control.addEventListener('click',()=>{range=Number(control.dataset.statsRange)===30?30:7;ranges.forEach(b=>b.setAttribute('aria-pressed',String(b===control)));render()}));
+  ranges.forEach(control=>control.addEventListener('click',()=>changeRange(Number(control.dataset.statsRange)===30?30:7,control)));
   dialog.addEventListener('cancel',event=>{event.preventDefault();closeDialogAnimated(dialog)});
-  dialog.addEventListener('close',()=>{hideTooltip();closeInfo();stopCrossfade();dialog.classList.remove('is-closing','is-opening')});
+  dialog.addEventListener('close',()=>{hideTooltip();hideBonus();closeBonusDetail();closeInfo(false);stopChartUpdate();stopCrossfade();dialog.classList.remove('is-closing','is-opening')});
   dialog.addEventListener('click',event=>{if(event.target===dialog)closeDialogAnimated(dialog)});
   window.addEventListener('storage',event=>{if(event.key===H.KEY)render()});
   window.addEventListener('todo-history-changed',render);
