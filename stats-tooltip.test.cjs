@@ -6,10 +6,10 @@ class Node {
  addEventListener(k,fn){this.events[k]=fn} contains(node){return this===node||this.children.some(n=>n.contains(node))}
  getBoundingClientRect(){return this.rect||{left:0,top:0,width:150,height:30}}
 }
-const dialog=new Node(),button=new Node(),info=new Node(),panel=new Node(),svg=new Node();
+const dialog=new Node(),button=new Node(),info=new Node(),panel=new Node(),svg=new Node(),infoPanel=new Node();infoPanel.hidden=true;
 panel.rect={left:100,top:100,width:375,height:400};svg.parentElement=panel;
 dialog.querySelectorAll=()=>[];
-const document={querySelector:s=>({'#stats-dialog':dialog,'#open-stats':button,'#stats-info-toggle':info,'#stats-finish-chart':svg}[s]),createElement:()=>new Node(),createElementNS:()=>new Node()};
+const document={querySelector:s=>({'#stats-dialog':dialog,'#open-stats':button,'#stats-info-toggle':info,'#stats-info':infoPanel,'#stats-finish-chart':svg}[s]),createElement:()=>new Node(),createElementNS:()=>new Node()};
 const window={matchMedia:()=>({matches:false}),addEventListener(){}};
 const source=fs.readFileSync('stats-panel.js','utf8').replace(/\}\)\(\);\s*$/, 'window.testChart=chart;})();');
 vm.runInNewContext(source,{window,document,Date,Math,Set});

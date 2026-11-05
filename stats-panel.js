@@ -5,7 +5,7 @@
   const tabs = [...dialog.querySelectorAll('[data-stats-tab]')], info = document.querySelector('#stats-info-toggle');
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const ns = 'http://www.w3.org/2000/svg';
-  let range = 7, activeTab = 'finish', panelAnimation, tooltipTarget;
+  let range = 7, activeTab = 'finish', panelAnimations = [], tooltipTarget;
   const tooltip = document.createElement('div');
   tooltip.id = 'stats-finish-tooltip'; tooltip.className = 'stats-tooltip';
   tooltip.setAttribute('role','tooltip'); tooltip.hidden = true;
@@ -24,10 +24,14 @@
     tooltip.style.left = `${left}px`;
     tooltip.style.top = `${Math.max(0,point.top-host.top-box.height-10)}px`;
   }
+  const infoPanel = document.querySelector('#stats-info');
+  function closeInfo() { info.setAttribute('aria-expanded','false'); infoPanel.hidden = true; }
   dialog.addEventListener('pointerdown',event=>{
+    if (!info.contains(event.target) && !infoPanel.contains(event.target)) closeInfo();
     if (tooltipTarget && !tooltipTarget.contains(event.target)) hideTooltip();
   });
   dialog.addEventListener('keydown',event=>{
+    if(event.key==='Escape' && !infoPanel.hidden) { event.preventDefault(); event.stopPropagation(); closeInfo(); info.focus(); return; }
     if(event.key==='Escape' && tooltipTarget) { event.preventDefault(); event.stopPropagation(); hideTooltip(); }
   });
   const dateLabel = (day,options={month:'short',day:'numeric'}) => new Date(`${day}T12:00:00`).toLocaleDateString('en',options);
@@ -43,7 +47,7 @@
     return node;
   }
   function chart(svg,rows,type) {
-    const width = Math.max(210,svg.clientWidth || 700), height = width < 480 ? 260 : 300;
+    const width = Math.max(210,svg.clientWidth || 700), height = Math.max(120,svg.clientHeight || (width < 480 ? 260 : 300));
     const left = type === 'finish'?74:44, right = 24, top = 22, bottom = 38;
     const w = width-left-right, h = height-top-bottom;
     hideTooltip();
@@ -57,8 +61,14 @@
       const label = type === 'finish'?['12 AM','6 AM','12 PM','6 PM','12 AM (+1)'][tick]:`${value}${type === 'rate'?'%':''}`;
       svg.append(element('text',{x:left-9,y:y(value)+4,'text-anchor':'end',class:'stats-axis-label'},label));
     }
-    const ticks = Math.max(2,Math.min(rows.length,Math.floor(w/60)));
-    const tickIndices = new Set(Array.from({length:ticks},(_,index)=>Math.round(index*(rows.length-1)/(ticks-1))));
+    const ticks = Math.max(2,Math.min(rows.length,Math.floor(w/70)));
+    const step = Math.max(1,Math.ceil((rows.length-1)/(ticks-1)));
+    const indices = Array.from({length:Math.ceil(rows.length/step)},(_,index)=>index*step);
+    if (indices.at(-1) !== rows.length-1) {
+      if (rows.length-1-indices.at(-1) < step) indices.pop();
+      indices.push(rows.length-1);
+    }
+    const tickIndices = new Set(indices);
     rows.forEach((row,index) => {
       if (tickIndices.has(index)) svg.append(element('text',{x:x(index),y:height-12,'text-anchor':'middle',class:'stats-axis-label'},dateLabel(row.day)));
     });
@@ -134,16 +144,33 @@
       status.textContent = 'Completion history could not be read. Your tasks are unchanged. Keep a backup before trying to restore history.';
     }
   }
+  function stopCrossfade() {
+    panelAnimations.forEach(animation=>animation.cancel()); panelAnimations = [];
+    tabs.forEach(tab=>{
+      const panel = document.getElementById(tab.getAttribute('aria-controls'));
+      panel.classList.remove('is-leaving'); panel.inert = false; panel.removeAttribute('aria-hidden');
+    });
+  }
   function selectTab(selected,animate=true) {
-    activeTab = selected.dataset.statsTab;
+    const previous = document.getElementById(tabs.find(tab=>tab.dataset.statsTab===activeTab)?.getAttribute('aria-controls'));
+    const changed = activeTab !== selected.dataset.statsTab;
+    stopCrossfade(); activeTab = selected.dataset.statsTab;
     tabs.forEach(tab=>{
       const active = tab === selected;
       tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;
       document.getElementById(tab.getAttribute('aria-controls')).hidden = !active;
     });
-    panelAnimation?.cancel();render();
+    render();
     const panel = document.getElementById(selected.getAttribute('aria-controls'));
-    if (animate && !reducedMotion.matches) panelAnimation=panel.animate([{opacity:.6},{opacity:1}],{duration:160,easing:'cubic-bezier(0.16,1,0.3,1)'});
+    if (changed && animate && !reducedMotion.matches) {
+      previous.classList.add('is-leaving'); previous.inert = true; previous.setAttribute('aria-hidden','true');
+      const options = {duration:200,easing:'cubic-bezier(0.16,1,0.3,1)'};
+      const animations = [previous.animate([{opacity:1},{opacity:0}],options),panel.animate([{opacity:0},{opacity:1}],options)];
+      panelAnimations = animations;
+      Promise.all(animations.map(animation=>animation.finished)).then(()=>{
+        if (panelAnimations === animations) stopCrossfade();
+      }).catch(()=>{});
+    }
   }
   tabs.forEach((tab,index)=>{
     tab.addEventListener('click',()=>selectTab(tab));
@@ -153,15 +180,16 @@
     });
   });
   info.addEventListener('click',()=>{
-    const expanded = info.getAttribute('aria-expanded') !== 'true';info.setAttribute('aria-expanded',String(expanded));document.querySelector('#stats-info').hidden = !expanded;
+    const expanded = info.getAttribute('aria-expanded') !== 'true';info.setAttribute('aria-expanded',String(expanded));infoPanel.hidden = !expanded;
   });
   button.addEventListener('click',()=>{
+    closeInfo(); dialog.querySelector('.stats-data').open = false; stopCrossfade();
     window.TodoTaskHistory.observe(); prepareDialogOpening(dialog); dialog.showModal(); render();
     requestAnimationFrame(()=>{render();tabs.find(tab=>tab.dataset.statsTab===activeTab)?.focus()});
   });
   ranges.forEach(control=>control.addEventListener('click',()=>{range=Number(control.dataset.statsRange)===30?30:7;ranges.forEach(b=>b.setAttribute('aria-pressed',String(b===control)));render()}));
   dialog.addEventListener('cancel',event=>{event.preventDefault();closeDialogAnimated(dialog)});
-  dialog.addEventListener('close',()=>{hideTooltip();dialog.classList.remove('is-closing','is-opening')});
+  dialog.addEventListener('close',()=>{hideTooltip();closeInfo();stopCrossfade();dialog.classList.remove('is-closing','is-opening')});
   dialog.addEventListener('click',event=>{if(event.target===dialog)closeDialogAnimated(dialog)});
   window.addEventListener('storage',event=>{if(event.key===H.KEY)render()});
   window.addEventListener('todo-history-changed',render);

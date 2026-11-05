@@ -110,7 +110,7 @@
             <button class="dialog-close" type="button" data-close-dialog aria-label="Close stats"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg></button>
           </div>
         </div>
-        <div id="stats-info" class="stats-info" hidden>
+        <div id="stats-info" class="stats-info" role="region" aria-label="About task stats" tabindex="0" hidden>
           <p><strong>Finish Time:</strong> The last completion time for regular tasks due on each local date. Gaps mean unfinished tasks, no tasks due, or an exact time that wasn’t recorded.</p>
           <p><strong>Extra &amp; Early:</strong> Extra tasks and tasks finished before their due date, counted on the actual completion day. Each task counts once per day, even if it qualifies both ways or is unchecked and completed again.</p>
           <p><strong>Completion Rate:</strong> Regular tasks due on each local date, including those finished early. Extra tasks are excluded. Today updates live; saved daily totals are sealed at midnight or when the app next opens. Late completions never change an earlier day’s rate. Dates with no eligible tasks or no tracking record stay blank.</p>
