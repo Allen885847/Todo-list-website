@@ -124,7 +124,7 @@
           <button id="stats-rate-tab" type="button" role="tab" data-stats-tab="rate" aria-selected="false" aria-controls="stats-rate-panel" tabindex="-1">Completion Rate</button>
         </div>
         <div class="stats-charts">
-          <section id="stats-finish-panel" class="stats-chart" role="tabpanel" aria-labelledby="stats-finish-tab"><h3 id="stats-finish-title">All Tasks Finished</h3><svg id="stats-finish-chart" role="img" aria-labelledby="stats-finish-title"></svg><p id="stats-finish-empty" class="stats-empty" hidden>No recorded finish times in this period.</p></section>
+          <section id="stats-finish-panel" class="stats-chart" role="tabpanel" aria-labelledby="stats-finish-tab"><h3 id="stats-finish-title">All Tasks Finished</h3><svg id="stats-finish-chart" role="group" aria-labelledby="stats-finish-title"></svg><p id="stats-finish-empty" class="stats-empty" hidden>No recorded finish times in this period.</p></section>
           <section id="stats-bonus-panel" class="stats-chart" role="tabpanel" aria-labelledby="stats-bonus-tab" hidden><h3 id="stats-bonus-title">Extra &amp; Early Tasks Completed</h3><svg id="stats-bonus-chart" role="img" aria-labelledby="stats-bonus-title"></svg><p id="stats-bonus-empty" class="stats-empty" hidden>No completion history recorded in this period.</p></section>
           <section id="stats-rate-panel" class="stats-chart" role="tabpanel" aria-labelledby="stats-rate-tab" hidden><h3 id="stats-rate-title">Completion Rate</h3><p id="stats-rate-summary" class="stats-rate-summary" aria-live="polite"></p><svg id="stats-rate-chart" role="img" aria-labelledby="stats-rate-title"></svg><p id="stats-rate-empty" class="stats-empty" hidden>No completion-rate history for eligible tasks in this period.</p></section>
         </div>
@@ -140,6 +140,21 @@
         <details class="stats-data"><summary>View data</summary><div class="stats-table-wrap" tabindex="0" role="region" aria-label="Daily task statistics"><table><thead><tr><th scope="col">Date</th><th scope="col">Finish time</th><th scope="col">Extra &amp; Early</th><th scope="col">Completion rate</th></tr></thead><tbody id="stats-table-body"></tbody></table></div></details>
         <p id="stats-status" class="stats-history-note" role="status" hidden></p>
       </section>
+    </dialog>
+
+    <dialog id="stats-finish-editor" class="editor-dialog stats-finish-editor" aria-labelledby="stats-finish-edit-title">
+      <form id="stats-finish-form" class="dialog-card" novalidate>
+        <div class="dialog-heading"><h2 id="stats-finish-edit-title">Edit finish time</h2><button id="stats-finish-edit-close" class="dialog-close" type="button" aria-label="Close finish time editor"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg></button></div>
+        <p id="stats-finish-edit-context" class="stats-edit-context"></p>
+        <div class="stats-edit-fields">
+          <label for="stats-finish-edit-date">Finish date<input id="stats-finish-edit-date" type="date" required /></label>
+          <label for="stats-finish-edit-time">Finish time<input id="stats-finish-edit-time" type="time" step="1" required /></label>
+        </div>
+        <label class="stats-edit-checkbox"><input id="stats-finish-edit-label" type="checkbox" />Show Edited label</label>
+        <p id="stats-finish-edit-original" class="stats-edit-original"></p>
+        <p id="stats-finish-edit-status" class="stats-edit-status" role="alert" hidden></p>
+        <div class="dialog-actions"><button id="stats-finish-edit-cancel" class="dialog-secondary" type="button">Cancel</button><span class="dialog-spacer"></span><button id="stats-finish-edit-save" class="dialog-primary" type="submit">Save changes</button></div>
+      </form>
     </dialog>
 
     <dialog id="event-dialog" class="editor-dialog">

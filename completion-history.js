@@ -33,11 +33,37 @@
     }
     return result;
   }
+  function cleanFinishEdits(value) {
+    const result=Object.create(null);
+    for(const [day,entry] of Object.entries(value || {})) {
+      const original=cleanStamp(entry?.original),corrected=cleanStamp(entry?.corrected);
+      if(validDay(day) && original && corrected && iso(entry.updatedAt)) result[day]={original,corrected,showEdited:entry.showEdited===true,updatedAt:entry.updatedAt};
+    }
+    return result;
+  }
+  const timeInput = time => {
+    const seconds=Math.floor(time.minutes*60+0.000001);
+    return [Math.floor(seconds/3600),Math.floor(seconds/60)%60,seconds%60].map(value=>String(value).padStart(2,'0')).join(':');
+  };
+  function editFinish(value,day,{date,time,showEdited=false},{now=new Date()}={}) {
+    const history=read(value),entry=history.days[day];
+    if(!validDay(day) || !entry?.finish) throw new Error('This point no longer has a recorded finish time. Reopen Task stats and try again.');
+    if(!validDay(date) || !/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(time || '')) throw new Error('Enter a valid finish date and time.');
+    const [year,month,d]=date.split('-').map(Number),[hours,minutes,seconds=0]=time.split(':').map(Number);
+    const selected=new Date(year,month-1,d,hours,minutes,seconds);
+    if(localDay(selected)!==date || selected.getHours()!==hours || selected.getMinutes()!==minutes || selected.getSeconds()!==seconds) throw new Error('That local time does not exist because the clocks change. Choose another time.');
+    const previous=history.finishEdits[day],current=previous?.corrected || entry.finish;
+    const unchanged=current.day===date && timeInput(current)===(time.length===5?time+':00':time);
+    const corrected=unchanged?current:stamp(selected);
+    const updatedAt=new Date(Math.max(now.getTime(),previous?Date.parse(previous.updatedAt)+1:0)).toISOString();
+    history.finishEdits[day]={original:previous?.original || entry.finish,corrected,showEdited:showEdited===true,updatedAt};
+    return history;
+  }
   function read(value) {
     if (typeof value === 'string' && value) value = JSON.parse(value);
-    if (value == null || value === '') return {schemaVersion:1,started:null,rateStarted:null,completions:Object.create(null),days:Object.create(null)};
+    if (value == null || value === '') return {schemaVersion:1,started:null,rateStarted:null,finishEdits:Object.create(null),completions:Object.create(null),days:Object.create(null)};
     if (value.schemaVersion !== 1 || !value.days || typeof value.days !== 'object' || !value.completions || typeof value.completions !== 'object') throw new Error('Completion history is not a supported format.');
-    const result = {schemaVersion:1,started:cleanStamp(value.started),rateStarted:cleanStamp(value.rateStarted),completions:Object.create(null),days:Object.create(null)};
+    const result = {schemaVersion:1,started:cleanStamp(value.started),rateStarted:cleanStamp(value.rateStarted),finishEdits:cleanFinishEdits(value.finishEdits),completions:Object.create(null),days:Object.create(null)};
     for (const [id,entry] of Object.entries(value.completions)) {
       if (!validId(id) || !iso(entry?.updatedAt)) continue;
       result.completions[id] = {updatedAt:entry.updatedAt,completion:cleanStamp(entry.completion)};
@@ -55,6 +81,12 @@
     const remap = id => typeof idMap.get === 'function' ? idMap.get(id) || id : Object.hasOwn(idMap,id) ? idMap[id] : id;
     if (incoming.started && (!current.started || incoming.started.at < current.started.at)) current.started = incoming.started;
     if (incoming.rateStarted && (!current.rateStarted || incoming.rateStarted.at < current.rateStarted.at)) current.rateStarted = incoming.rateStarted;
+    // Manual corrections are independent of automatic day snapshots, so an
+    // older client or a midnight observation cannot erase them.
+    for(const [day,entry] of Object.entries(incoming.finishEdits)) {
+      const old=current.finishEdits[day];
+      if(!old || entry.updatedAt>old.updatedAt || (entry.updatedAt===old.updatedAt && JSON.stringify(entry)>JSON.stringify(old))) current.finishEdits[day]=entry;
+    }
     for (const [source,entry] of Object.entries(incoming.completions)) {
       const id = remap(source); if (!validId(id)) continue;
       if (!current.completions[id] || entry.updatedAt > current.completions[id].updatedAt) current.completions[id] = entry;
@@ -129,11 +161,11 @@
     const history = read(value), size = range === 30 ? 30 : 7, result = [];
     for (let ago = size-1; ago >= 0; ago--) {
       const date = new Date(now.getFullYear(),now.getMonth(),now.getDate()-ago,12), day = localDay(date), record = history.days[day];
-      result.push({day,finish:record?.finish || null,count:record ? record.bonus.length : null,bonusTasks:record ? record.bonus.filter(id=>record.bonusDetails[id]).map(id=>{const item=record.bonusDetails[id];return {id,...item,earlyDays:item.due?Math.max(0,dayNumber(item.due)-dayNumber(day)):0};}) : [],reason:record?.reason || 'unrecorded',regularTotal:record?.regularTotal ?? null,rate:record?.rate?.total > 0 ? {...record.rate,percent:Math.round(record.rate.completed / record.rate.total * 100)} : null});
+      result.push({day,finish:record?.finish ? history.finishEdits[day]?.corrected || record.finish : null,finishEdit:record?.finish ? history.finishEdits[day] || null : null,count:record ? record.bonus.length : null,bonusTasks:record ? record.bonus.filter(id=>record.bonusDetails[id]).map(id=>{const item=record.bonusDetails[id];return {id,...item,earlyDays:item.due?Math.max(0,dayNumber(item.due)-dayNumber(day)):0};}) : [],reason:record?.reason || 'unrecorded',regularTotal:record?.regularTotal ?? null,rate:record?.rate?.total > 0 ? {...record.rate,percent:Math.round(record.rate.completed / record.rate.total * 100)} : null});
     }
     return result;
   }
-  const api = {KEY,localDay,read,merge,update,rows,stamp};
+  const api = {KEY,localDay,read,merge,update,rows,stamp,editFinish,timeInput};
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.TodoCompletionHistory = api;
 })(globalThis);

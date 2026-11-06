@@ -1,11 +1,11 @@
 const assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),H=require('./completion-history');
 (async()=>{
- let release;const ready=new Promise(resolve=>release=resolve), values=new Map(), events={};let saves=0;
+ let release;const ready=new Promise(resolve=>release=resolve), values=new Map(), events={};let saves=0;const eventTypes=[];
  const task={id:'restored',task:'Sample',date:{year:2026,month:11,day:4},label:'',completed:false,completedOn:null};
  values.set('todo-list-mvp',JSON.stringify({tasks:[task]}));
- const window={TodoCompletionHistory:H,TodoLocalPersistence:{ready,saveNow(){saves++}},setInterval(){},setTimeout(){},clearTimeout(){},addEventListener:(name,fn)=>events[name]=fn,dispatchEvent(){}};
+ const window={TodoCompletionHistory:H,TodoLocalPersistence:{ready,saveNow(){saves++}},setInterval(){},setTimeout(){},clearTimeout(){},addEventListener:(name,fn)=>events[name]=fn,dispatchEvent(event){eventTypes.push(event.type)}};
  const storage={getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)};
- vm.runInNewContext(fs.readFileSync('task-history.js','utf8'),{window,document:{hidden:true,addEventListener:(name,fn)=>events[name]=fn},localStorage:storage,Date,JSON,console,CustomEvent:class{}});
+ vm.runInNewContext(fs.readFileSync('task-history.js','utf8'),{window,document:{hidden:true,addEventListener:(name,fn)=>events[name]=fn},localStorage:storage,Date,JSON,console,CustomEvent:class{constructor(type){this.type=type}}});
  events.visibilitychange();assert.equal(saves,0,"Lifecycle events must not save stale data before hydration");
  events.pageshow(); // A stale incomplete observation before hydration must be ignored.
  const now=new Date();task.completed=true;task.completedOn=H.localDay(now);
@@ -17,5 +17,9 @@ const assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('nod
  assert.equal(H.read(values.get(H.KEY)).completions.restored.completion.at,now.toISOString(),'A restored exact timestamp must survive stale startup observations');
  assert.equal(H.read(values.get(H.KEY)).days[H.localDay(now)].finish.at,now.toISOString());
  const before=values.get(H.KEY);window.TodoTaskHistory.observe();assert.equal(values.get(H.KEY),before,'Unchanged observation must not churn storage');
+ const beforeTasks=values.get('todo-list-mvp'),beforeCompletions=JSON.stringify(H.read(values.get(H.KEY)).completions),beforeSaves=saves;
+ eventTypes.length=0;await window.TodoTaskHistory.editFinish(H.localDay(now),{date:H.localDay(now),time:'20:15:00',showEdited:true});
+ assert.equal(values.get('todo-list-mvp'),beforeTasks);assert.equal(JSON.stringify(H.read(values.get(H.KEY)).completions),beforeCompletions);assert.equal(saves,beforeSaves+1);assert.deepEqual(eventTypes,['todo-history-changed'],'Corrections never emit task or celebration events');
+ assert.equal(H.read(values.get(H.KEY)).finishEdits[H.localDay(now)].showEdited,true);
  console.log('History startup passed: deferred persistence hydration cannot replay stale observations or erase restored timestamps.');
 })().catch(error=>{console.error(error);process.exitCode=1});

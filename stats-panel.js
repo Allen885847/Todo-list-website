@@ -27,6 +27,34 @@
     tooltip.style.left = `${left}px`;
     tooltip.style.top = `${Math.max(0,point.top-host.top-box.height-10)}px`;
   }
+  const finishEditor=document.querySelector('#stats-finish-editor'),finishForm=document.querySelector('#stats-finish-form');
+  const editDate=document.querySelector('#stats-finish-edit-date'),editTime=document.querySelector('#stats-finish-edit-time'),editLabel=document.querySelector('#stats-finish-edit-label'),editSave=document.querySelector('#stats-finish-edit-save'),editStatus=document.querySelector('#stats-finish-edit-status');
+  let editingDay=null,editorReturnFocus,finishSaving=false;
+  function openFinishEditor(row,target) {
+    if(!row.finish || viewTransition)return;
+    hideTooltip();hideBonus();closeInfo(false);editingDay=row.day;editorReturnFocus=target;
+    editDate.value=row.finish.day;editTime.value=H.timeInput(row.finish);editLabel.checked=row.finishEdit?.showEdited===true;editStatus.hidden=true;
+    document.querySelector('#stats-finish-edit-context').textContent=`Recorded finish for tasks due ${dateLabel(row.day,{month:'short',day:'numeric',year:'numeric'})}. Changes apply only to Task stats; the point stays under its tasks’ due date.`;
+    const original=row.finishEdit?.original || row.finish;
+    document.querySelector('#stats-finish-edit-original').textContent=`Original: ${dateLabel(original.day,{month:'short',day:'numeric',year:'numeric'})} · ${clock(original)} (${original.zone}). The original timestamp is retained.`;
+    prepareDialogOpening(finishEditor);finishEditor.showModal();editDate.focus();
+  }
+  function closeFinishEditor() {if(!finishSaving)closeDialogAnimated(finishEditor);}
+  document.querySelector('#stats-finish-edit-close').addEventListener('click',closeFinishEditor);
+  document.querySelector('#stats-finish-edit-cancel').addEventListener('click',closeFinishEditor);
+  finishEditor.addEventListener('cancel',event=>{event.preventDefault();closeFinishEditor()});
+  finishEditor.addEventListener('click',event=>{if(event.target===finishEditor)closeFinishEditor()});
+  finishEditor.addEventListener('close',()=>{editingDay=null;finishEditor.classList.remove('is-closing','is-opening');(editorReturnFocus?.isConnected?editorReturnFocus:tabs.find(tab=>tab.dataset.statsTab==='finish'))?.focus()});
+  finishForm.addEventListener('submit',async event=>{
+    event.preventDefault();if(finishSaving || !editingDay)return;
+    finishSaving=true;editSave.disabled=true;editSave.textContent='Saving…';editStatus.hidden=true;
+    editDate.disabled=editTime.disabled=editLabel.disabled=true;
+    try {
+      await window.TodoTaskHistory.editFinish(editingDay,{date:editDate.value,time:editTime.value,showEdited:editLabel.checked});
+      render();closeDialogAnimated(finishEditor);
+    } catch(error) {editStatus.textContent=error.message || 'The corrected finish time could not be saved. Please try again.';editStatus.hidden=false;}
+    finally {finishSaving=false;editSave.disabled=false;editSave.textContent='Save changes';editDate.disabled=editTime.disabled=editLabel.disabled=false;}
+  });
   const infoPanel = document.querySelector('#stats-info');
   function setInfo(expanded,animate=true) {
     if (animate && info.getAttribute('aria-expanded') === String(expanded)) return;
@@ -223,15 +251,20 @@
         : `${dateLabel(row.day)} · Finished ${dateLabel(row.finish.day)} at ${clock(row.finish)} (${row.finish.zone})`;
       const dot = element('circle',{cx:x(index),cy:y(value),r:4,class:'stats-point'});
       if (type === 'finish') {
-        const text = `${dateLabel(row.day)} · ${clock(row.finish)}`;
-        const target = element('g',{class:'stats-finish-target stats-mark',tabindex:0,role:'img','aria-label':label});
+        const text = `${dateLabel(row.finish.day)} · ${clock(row.finish)}${row.finish.day!==row.day?` · Tasks due ${dateLabel(row.day)}`:''}${row.finishEdit?.showEdited?' · Edited':''}`;
+        const target = element('g',{class:'stats-finish-target stats-mark',tabindex:0,role:'button','aria-label':`${label}. Edit recorded finish time.`,'aria-haspopup':'dialog','aria-controls':'stats-finish-editor'});
         target.append(element('ellipse',{cx:x(index),cy:y(value),rx:Math.max(4,Math.min(14,w/rows.length/2)),ry:14,class:'stats-point-hit'}),dot);
         target.addEventListener('pointerenter',event=>{if(event.pointerType!=='touch')showTooltip(target,text)});
         target.addEventListener('pointerleave',event=>{if(event.pointerType!=='touch')hideTooltip()});
         target.addEventListener('focus',()=>showTooltip(target,text));
         target.addEventListener('blur',hideTooltip);
-        target.addEventListener('click',()=>showTooltip(target,text));
+        target.addEventListener('click',()=>openFinishEditor(row,target));
+        target.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openFinishEditor(row,target)}});
         svg.append(target);
+        if(row.finishEdit?.showEdited) {
+          const nearEdge=x(index)>width-80;
+          svg.append(element('text',{x:x(index)+(nearEdge?-8:8),y:Math.max(14,y(value)-10),'text-anchor':nearEdge?'end':'start',class:'stats-edited-label'},'Edited'));
+        }
       } else {
         dot.setAttribute('tabindex','0'); dot.setAttribute('aria-label',label);
         dot.classList.add('stats-mark'); dot.append(element('title',{},label)); svg.append(dot);
@@ -261,6 +294,7 @@
         const finish = row.finish ? `${row.finish.day !== row.day ? dateLabel(row.finish.day)+' · ' : ''}${clock(row.finish)}` : '—';
         [dateLabel(row.day,{month:'short',day:'numeric',year:'numeric'}),finish,row.count===null?'—':String(row.count),row.rate?rateLabel(row.rate):'—'].forEach((text,index)=>{
           const td=document.createElement('td');td.textContent=text;
+          if(index===1&&row.finishEdit?.showEdited)td.textContent+=' · Edited';
           if(index===1&&!row.finish)td.title=reasons[row.reason]||'';
           if(index===3&&!row.rate)td.title='No eligible tasks or no completion-rate history recorded';
           tr.append(td);

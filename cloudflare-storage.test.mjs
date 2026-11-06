@@ -60,3 +60,12 @@ assert.ok(withRate.rateStarted);
 
 assert.equal(withRate.days[day].bonusDetails['device-a'].title,'Recorded device-a');
 assert.equal(withRate.days[day].bonusDetails['device-b'].title,'Recorded device-b');
+
+const regular={id:'regular-finish',date:{year:now.getFullYear(),month:now.getMonth()+1,day:now.getDate()},completed:true,completedOn:day};
+const finishHistory=History.update(withRate,[regular],{now,transition:{id:regular.id,before:false,after:true}});
+const correctedHistory=History.editFinish(finishHistory,day,{date:day,time:'20:15',showEdited:true},{now});
+assert.equal((await handleDataRequest(new Request('https://test.invalid/api/storage',{method:'PUT',body:JSON.stringify({data:{...combined.data,[History.KEY]:JSON.stringify(correctedHistory)}})}),env,'account-a')).status,200);
+const stripped=JSON.parse(JSON.stringify(correctedHistory));delete stripped.finishEdits;
+assert.equal((await handleDataRequest(new Request('https://test.invalid/api/storage',{method:'PUT',body:JSON.stringify({data:{...combined.data,[History.KEY]:JSON.stringify(stripped)}})}),env,'account-a')).status,200);
+const persistedEdit=History.read((await (await handleDataRequest(get(),env,'account-a')).json()).data[History.KEY]).finishEdits[day];
+assert.equal(persistedEdit.corrected.minutes,1215);assert.equal(persistedEdit.original.at,now.toISOString());assert(persistedEdit.showEdited);
