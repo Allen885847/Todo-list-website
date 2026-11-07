@@ -128,3 +128,14 @@ html[data-theme="dark"] .stats-range button[aria-pressed="true"] { color:#0c1528
 .stats-edit-status { color:var(--overdue-ink,var(--ink)); font-size:.82rem; line-height:1.6; }
 .stats-finish-editor button:disabled { opacity:.6; cursor:wait; }
 @media(max-width:480px) { .stats-edit-fields { grid-template-columns:minmax(0,1fr); } }
+
+.editor-dialog.stats-rate-editor { width:min(620px,calc(100vw - 32px)); }
+.stats-rate-edit-tasks { max-height:42svh; overflow:auto; overscroll-behavior:contain; margin:14px 0; }
+.stats-rate-task { display:flex; align-items:flex-start; gap:12px; padding:12px 0; border-top:1px solid var(--line); color:var(--ink); font-size:.86rem; line-height:1.6; cursor:pointer; }
+.stats-rate-task input { flex:0 0 auto; width:18px; height:18px; margin:4px 0 0; accent-color:var(--accent); }
+.stats-rate-task > span { min-width:0; display:grid; gap:3px; overflow-wrap:anywhere; }
+.stats-rate-task small { color:var(--muted); font-size:.76rem; }
+.stats-data-action { display:block; max-width:100%; margin-top:4px; padding:3px 0; border:0; background:transparent; color:var(--accent-dark); text-align:left; font:600 .75rem/1.5 "DM Sans",sans-serif; cursor:pointer; overflow-wrap:anywhere; }
+.stats-data-action:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.stats-rate-target { cursor:pointer; }
+.stats-rate-target:hover { fill:var(--accent-dark); }

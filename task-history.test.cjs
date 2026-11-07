@@ -21,5 +21,11 @@ const assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('nod
  eventTypes.length=0;await window.TodoTaskHistory.editFinish(H.localDay(now),{date:H.localDay(now),time:'20:15:00',showEdited:true});
  assert.equal(values.get('todo-list-mvp'),beforeTasks);assert.equal(JSON.stringify(H.read(values.get(H.KEY)).completions),beforeCompletions);assert.equal(saves,beforeSaves+1);assert.deepEqual(eventTypes,['todo-history-changed'],'Corrections never emit task or celebration events');
  assert.equal(H.read(values.get(H.KEY)).finishEdits[H.localDay(now)].showEdited,true);
+ const pastDay='2026-11-04',pastTask={id:'forgotten',task:'Past worksheet',date:{year:2026,month:11,day:4},completed:false};
+ values.set('todo-list-mvp',JSON.stringify({tasks:[pastTask]}));values.set(H.KEY,JSON.stringify(H.update(null,[pastTask],{now:new Date(2026,10,4,20)})));
+ const originalTasks=values.get('todo-list-mvp');eventTypes.length=0;
+ await window.TodoTaskHistory.editRate(pastDay,['forgotten']);
+ assert.equal(values.get('todo-list-mvp'),originalTasks);assert.deepEqual(eventTypes,['todo-history-changed']);
+ const pastRow=H.rows(values.get(H.KEY),{now:new Date(2026,10,5,12)})[5];assert.equal(pastRow.rate.percent,100);assert.equal(pastRow.finish,null);
  console.log('History startup passed: deferred persistence hydration cannot replay stale observations or erase restored timestamps.');
 })().catch(error=>{console.error(error);process.exitCode=1});

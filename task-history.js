@@ -19,20 +19,28 @@
     } catch (error) { lastError = 'Completion history could not be saved. Export a backup and check available storage.'; console.warn(lastError,error); }
     window.dispatchEvent(new CustomEvent('todo-history-changed'));
   }
-  async function editFinish(day,values) {
-    if(!ready) throw new Error('Your saved history is still loading. Please try again in a moment.');
-    const next=history.editFinish(localStorage.getItem(history.KEY),day,values);
+  async function saveCorrection(next) {
     localStorage.setItem(history.KEY,JSON.stringify(next));
     window.dispatchEvent(new CustomEvent('todo-history-changed'));
     try { await window.TodoLocalPersistence?.saveNow({strict:true}); }
     catch { throw new Error('The correction is saved on this device, but could not be synced or backed up. Check your connection and try Save again.'); }
   }
+  async function editFinish(day,values) {
+    if(!ready) throw new Error('Your saved history is still loading. Please try again in a moment.');
+    const next=history.editFinish(localStorage.getItem(history.KEY),day,values);
+    return saveCorrection(next);
+  }
+  async function editRate(day,ids) {
+    if(!ready)throw new Error('Your saved history is still loading. Please try again in a moment.');
+    return saveCorrection(history.editRate(localStorage.getItem(history.KEY),day,ids,tasks()));
+  }
+
   function observe() { record(tasks()); }
   function flush() {
     if (!ready) { pendingFlush = true; return; }
     window.TodoLocalPersistence?.saveNow();
   }
-  window.TodoTaskHistory = {record,observe,editFinish,read:() => history.read(localStorage.getItem(history.KEY)),get error(){return lastError}};
+  window.TodoTaskHistory = {record,observe,editFinish,editRate,rateDetails:day=>history.rateDetails(localStorage.getItem(history.KEY),day,tasks()),read:() => history.read(localStorage.getItem(history.KEY)),get error(){return lastError}};
   Promise.resolve(window.TodoLocalPersistence?.ready).then(() => {
     ready = true;
     const queued = pending; pending = [];

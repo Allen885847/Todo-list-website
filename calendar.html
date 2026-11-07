@@ -123,7 +123,7 @@
         <div class="stats-charts">
           <section id="stats-finish-panel" class="stats-chart" role="tabpanel" aria-labelledby="stats-finish-tab"><h3 id="stats-finish-title">All Tasks Finished</h3><svg id="stats-finish-chart" role="group" aria-labelledby="stats-finish-title"></svg><p id="stats-finish-empty" class="stats-empty" hidden>No recorded finish times in this period.</p></section>
           <section id="stats-bonus-panel" class="stats-chart" role="tabpanel" aria-labelledby="stats-bonus-tab" hidden><h3 id="stats-bonus-title">Extra &amp; Early Tasks Completed</h3><svg id="stats-bonus-chart" role="img" aria-labelledby="stats-bonus-title"></svg><p id="stats-bonus-empty" class="stats-empty" hidden>No completion history recorded in this period.</p></section>
-          <section id="stats-rate-panel" class="stats-chart" role="tabpanel" aria-labelledby="stats-rate-tab" hidden><h3 id="stats-rate-title">Completion Rate</h3><p id="stats-rate-summary" class="stats-rate-summary" aria-live="polite"></p><svg id="stats-rate-chart" role="img" aria-labelledby="stats-rate-title"></svg><p id="stats-rate-empty" class="stats-empty" hidden>No completion-rate history for eligible tasks in this period.</p></section>
+          <section id="stats-rate-panel" class="stats-chart" role="tabpanel" aria-labelledby="stats-rate-tab" hidden><h3 id="stats-rate-title">Completion Rate</h3><p id="stats-rate-summary" class="stats-rate-summary" aria-live="polite"></p><svg id="stats-rate-chart" role="group" aria-labelledby="stats-rate-title"></svg><p id="stats-rate-empty" class="stats-empty" hidden>No completion-rate history for eligible tasks in this period.</p></section>
         </div>
         <aside id="stats-bonus-card" class="stats-bonus-card" role="region" aria-label="Extra and early task details" hidden>
           <h4 id="stats-bonus-card-title"></h4><p id="stats-bonus-card-count" class="stats-bonus-count"></p>
@@ -141,6 +141,18 @@
         </details>
         <p id="stats-status" class="stats-history-note" role="status" hidden></p>
       </section>
+    </dialog>
+
+    <dialog id="stats-rate-editor" class="editor-dialog stats-rate-editor" aria-labelledby="stats-rate-edit-title">
+      <form id="stats-rate-form" class="dialog-card" novalidate>
+        <div class="dialog-heading"><h2 id="stats-rate-edit-title">Correct Completion Rate</h2><button id="stats-rate-edit-close" class="dialog-close" type="button" aria-label="Close completion rate editor"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg></button></div>
+        <p id="stats-rate-edit-date" class="stats-edit-context"></p>
+        <p class="stats-edit-context">Confirm only tasks you actually finished by the end of that day, even if you never checked them off. Late check-offs are not counted automatically. These confirmations affect Task stats only.</p>
+        <p id="stats-rate-edit-count" class="stats-edit-context" aria-live="polite"></p>
+        <div id="stats-rate-edit-tasks" class="stats-rate-edit-tasks"></div>
+        <p id="stats-rate-edit-status" class="stats-edit-status" role="alert" hidden></p>
+        <div class="dialog-actions"><button id="stats-rate-edit-cancel" class="dialog-secondary" type="button">Cancel</button><span class="dialog-spacer"></span><button id="stats-rate-edit-save" class="dialog-primary" type="submit">Save confirmations</button></div>
+      </form>
     </dialog>
 
     <dialog id="stats-finish-editor" class="editor-dialog stats-finish-editor" aria-labelledby="stats-finish-edit-title">

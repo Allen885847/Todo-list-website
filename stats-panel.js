@@ -31,12 +31,12 @@
   const editDate=document.querySelector('#stats-finish-edit-date'),editTime=document.querySelector('#stats-finish-edit-time'),editLabel=document.querySelector('#stats-finish-edit-label'),editSave=document.querySelector('#stats-finish-edit-save'),editStatus=document.querySelector('#stats-finish-edit-status');
   let editingDay=null,editorReturnFocus,finishSaving=false;
   function openFinishEditor(row,target) {
-    if(!row.finish || viewTransition)return;
+    if((!row.finish && !row.regularTotal) || viewTransition)return;
     hideTooltip();hideBonus();closeInfo(false);editingDay=row.day;editorReturnFocus=target;
-    editDate.value=row.finish.day;editTime.value=H.timeInput(row.finish);editLabel.checked=row.finishEdit?.showEdited===true;editStatus.hidden=true;
+    editDate.value=row.finish?.day || row.day;editTime.value=row.finish?H.timeInput(row.finish):'';editLabel.checked=row.finishEdit?.showEdited===true;editStatus.hidden=true;
     document.querySelector('#stats-finish-edit-context').textContent=`Recorded finish for tasks due ${dateLabel(row.day,{month:'short',day:'numeric',year:'numeric'})}. Changes apply only to Task stats; the point stays under its tasks’ due date.`;
-    const original=row.finishEdit?.original || row.finish;
-    document.querySelector('#stats-finish-edit-original').textContent=`Original: ${dateLabel(original.day,{month:'short',day:'numeric',year:'numeric'})} · ${clock(original)} (${original.zone}). The original timestamp is retained.`;
+    const original=row.finishEdit?row.finishEdit.original:row.finish;
+    document.querySelector('#stats-finish-edit-original').textContent=original?`Original: ${dateLabel(original.day,{month:'short',day:'numeric',year:'numeric'})} · ${clock(original)} (${original.zone}). The original timestamp is retained.`:'No original finish time was recorded. Enter the actual time if you know it; otherwise cancel to leave the chart blank.';
     prepareDialogOpening(finishEditor);finishEditor.showModal();editDate.focus();
   }
   function closeFinishEditor() {if(!finishSaving)closeDialogAnimated(finishEditor);}
@@ -55,6 +55,46 @@
     } catch(error) {editStatus.textContent=error.message || 'The corrected finish time could not be saved. Please try again.';editStatus.hidden=false;}
     finally {finishSaving=false;editSave.disabled=false;editSave.textContent='Save changes';editDate.disabled=editTime.disabled=editLabel.disabled=false;}
   });
+  const rateEditor=document.querySelector('#stats-rate-editor'),rateForm=document.querySelector('#stats-rate-form'),rateList=document.querySelector('#stats-rate-edit-tasks'),rateSave=document.querySelector('#stats-rate-edit-save'),rateStatus=document.querySelector('#stats-rate-edit-status');
+  let rateDay=null,rateSaving=false,rateChoices=[];
+  function updateRateCount(details) {
+    const added=rateChoices.filter(item=>!item.task.onTime && item.input.checked).length;
+    const original=details.cohort?.completed || 0,total=details.total || 0;
+    document.querySelector('#stats-rate-edit-count').textContent=total?`${original+added}/${total} completed on time · ${Math.round((original+added)/total*100)}%`:'';
+  }
+  function openRateEditor(row) {
+    if(viewTransition || row.day>=H.localDay(new Date()) || !row.rate)return;
+    hideTooltip();hideBonus();closeInfo(false);rateDay=row.day;rateChoices=[];rateList.replaceChildren();
+    const details=window.TodoTaskHistory.rateDetails(row.day);
+    document.querySelector('#stats-rate-edit-date').textContent=dateLabel(row.day,{month:'short',day:'numeric',year:'numeric'});
+    for(const task of details.tasks) {
+      const label=document.createElement('label'),input=document.createElement('input'),body=document.createElement('span'),name=document.createElement('span'),hint=document.createElement('small');
+      label.className='stats-rate-task';input.type='checkbox';input.checked=task.confirmed;input.disabled=!details.available || task.onTime;
+      name.textContent=task.title;hint.textContent=task.onTime?'Already recorded on time':'Confirm finished on time';body.append(name,hint);label.append(input,body);rateList.append(label);
+      rateChoices.push({task,input});input.addEventListener('change',()=>updateRateCount(details));
+    }
+    rateSave.disabled=!details.available;rateStatus.hidden=details.available;rateStatus.textContent=details.reason || '';updateRateCount(details);
+    prepareDialogOpening(rateEditor);rateEditor.showModal();(rateChoices.find(item=>!item.input.disabled)?.input || document.querySelector('#stats-rate-edit-cancel')).focus();
+  }
+  function closeRateEditor() {if(!rateSaving)closeDialogAnimated(rateEditor);}
+  document.querySelector('#stats-rate-edit-close').addEventListener('click',closeRateEditor);
+  document.querySelector('#stats-rate-edit-cancel').addEventListener('click',closeRateEditor);
+  rateEditor.addEventListener('cancel',event=>{event.preventDefault();closeRateEditor()});
+  rateEditor.addEventListener('click',event=>{if(event.target===rateEditor)closeRateEditor()});
+  rateEditor.addEventListener('close',()=>{rateDay=null;rateEditor.classList.remove('is-closing','is-opening');tabs.find(tab=>tab.dataset.statsTab===activeTab)?.focus()});
+  rateForm.addEventListener('submit',async event=>{
+    event.preventDefault();if(rateSaving || !rateDay || rateSave.disabled)return;
+    rateSaving=true;rateSave.disabled=true;rateSave.textContent='Saving…';rateStatus.hidden=true;rateChoices.forEach(item=>item.input.disabled=true);
+    try {await window.TodoTaskHistory.editRate(rateDay,rateChoices.filter(item=>item.input.checked).map(item=>item.task.id));render();closeDialogAnimated(rateEditor);}
+    catch(error){rateStatus.textContent=error.message || 'The confirmations could not be saved. Please try again.';rateStatus.hidden=false;}
+    finally {rateSaving=false;rateSave.disabled=false;rateSave.textContent='Save confirmations';rateChoices.forEach(item=>item.input.disabled=item.task.onTime);}
+  });
+  function rateAction(node,row) {
+    if(!row.rate || row.day>=H.localDay(new Date()))return;
+    node.setAttribute('tabindex','0');node.setAttribute('role','button');node.setAttribute('aria-haspopup','dialog');node.setAttribute('aria-controls','stats-rate-editor');
+    node.setAttribute('aria-label',`${dateLabel(row.day)}: ${rateLabel(row.rate)}. Correct on-time tasks.`);
+    node.classList.add('stats-rate-target');node.addEventListener('click',()=>openRateEditor(row));node.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openRateEditor(row)}});
+  }
   const infoPanel = document.querySelector('#stats-info');
   const infoCopy = {
     finish:['Finish Time','Shows when the last regular task due that day was finished.'],
@@ -228,7 +268,7 @@
     }
     const tickIndices = new Set(indices);
     rows.forEach((row,index) => {
-      if (tickIndices.has(index)) svg.append(element('text',{x:x(index),y:height-12,'text-anchor':'middle',class:'stats-axis-label'},dateLabel(row.day)));
+      if (tickIndices.has(index)) {const label=element('text',{x:x(index),y:height-12,'text-anchor':'middle',class:'stats-axis-label'},dateLabel(row.day));if(type==='rate')rateAction(label,row);svg.append(label);}
     });
     if (type === 'bonus') {
       rows.forEach((row,index) => {
@@ -278,7 +318,7 @@
         }
       } else {
         dot.setAttribute('tabindex','0'); dot.setAttribute('aria-label',label);
-        dot.classList.add('stats-mark'); dot.append(element('title',{},label)); svg.append(dot);
+        dot.classList.add('stats-mark');if(type==='rate')rateAction(dot,row); dot.append(element('title',{},label)); svg.append(dot);
       }
     });
   }
@@ -306,8 +346,14 @@
         [dateLabel(row.day,{month:'short',day:'numeric',year:'numeric'}),finish,row.count===null?'—':String(row.count),row.rate?rateLabel(row.rate):'—'].forEach((text,index)=>{
           const td=document.createElement('td');td.textContent=text;
           if(index===1&&row.finishEdit?.showEdited)td.textContent+=' · Edited';
-          if(index===1&&!row.finish)td.title=reasons[row.reason]||'';
+          if(index===1&&!row.finish)td.title=row.rate && row.rate.completed===row.rate.total?'The actual finish time has not been entered or recorded.':reasons[row.reason]||'';
           if(index===3&&!row.rate)td.title='No eligible tasks or no completion-rate history recorded';
+          if(index===0 && row.rate && row.day<H.localDay(new Date())) {
+            td.textContent='';const action=document.createElement('button');action.type='button';action.className='stats-data-action';action.textContent=text;action.setAttribute('aria-label',`Correct on-time tasks for ${text}`);action.addEventListener('click',()=>openRateEditor(row));td.append(action);
+          }
+          if(index===1 && row.regularTotal>0) {
+            const action=document.createElement('button');action.type='button';action.className='stats-data-action';action.textContent='Edit Finish Time';action.addEventListener('click',()=>openFinishEditor(row,action));td.append(action);
+          }
           tr.append(td);
         });
         body.append(tr);

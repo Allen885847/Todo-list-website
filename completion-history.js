@@ -37,7 +37,7 @@
     const result=Object.create(null);
     for(const [day,entry] of Object.entries(value || {})) {
       const original=cleanStamp(entry?.original),corrected=cleanStamp(entry?.corrected);
-      if(validDay(day) && original && corrected && iso(entry.updatedAt)) result[day]={original,corrected,showEdited:entry.showEdited===true,updatedAt:entry.updatedAt};
+      if(validDay(day) && (entry?.original == null || original) && corrected && iso(entry.updatedAt)) result[day]={original,corrected,showEdited:entry.showEdited===true,updatedAt:entry.updatedAt};
     }
     return result;
   }
@@ -47,23 +47,72 @@
   };
   function editFinish(value,day,{date,time,showEdited=false},{now=new Date()}={}) {
     const history=read(value),entry=history.days[day];
-    if(!validDay(day) || !entry?.finish) throw new Error('This point no longer has a recorded finish time. Reopen Task stats and try again.');
+    if(!validDay(day) || !entry || !entry.regularTotal) throw new Error('No regular task history was recorded for this date.');
     if(!validDay(date) || !/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(time || '')) throw new Error('Enter a valid finish date and time.');
     const [year,month,d]=date.split('-').map(Number),[hours,minutes,seconds=0]=time.split(':').map(Number);
     const selected=new Date(year,month-1,d,hours,minutes,seconds);
     if(localDay(selected)!==date || selected.getHours()!==hours || selected.getMinutes()!==minutes || selected.getSeconds()!==seconds) throw new Error('That local time does not exist because the clocks change. Choose another time.');
     const previous=history.finishEdits[day],current=previous?.corrected || entry.finish;
-    const unchanged=current.day===date && timeInput(current)===(time.length===5?time+':00':time);
+    const unchanged=current?.day===date && timeInput(current)===(time.length===5?time+':00':time);
     const corrected=unchanged?current:stamp(selected);
     const updatedAt=new Date(Math.max(now.getTime(),previous?Date.parse(previous.updatedAt)+1:0)).toISOString();
-    history.finishEdits[day]={original:previous?.original || entry.finish,corrected,showEdited:showEdited===true,updatedAt};
+    history.finishEdits[day]={original:previous ? previous.original : entry.finish,corrected,showEdited:showEdited===true,updatedAt};
+    return history;
+  }
+  function cleanCohorts(value) {
+    const result=Object.create(null);
+    for(const [day,entry] of Object.entries(value || {})) {
+      if(!validDay(day) || !iso(entry?.updatedAt) || !Number.isInteger(entry.total) || !Number.isInteger(entry.completed) || entry.total<0 || entry.completed<0 || entry.completed>entry.total)continue;
+      const tasks=Object.create(null);
+      for(const [id,task] of Object.entries(entry.tasks || {}))if(validId(id) && typeof task?.title==='string')tasks[id]={title:task.title.slice(0,1000),onTime:task.onTime===true};
+      result[day]={updatedAt:entry.updatedAt,total:entry.total,completed:entry.completed,tasks};
+    }
+    return result;
+  }
+  function cleanRateEdits(value) {
+    const result=Object.create(null);
+    for(const [day,entry] of Object.entries(value || {}))if(validDay(day) && iso(entry?.updatedAt) && Array.isArray(entry.onTimeIds)) result[day]={updatedAt:entry.updatedAt,onTimeIds:[...new Set(entry.onTimeIds.filter(validId))].sort()};
+    return result;
+  }
+  function completeCohort(cohort) {
+    return cohort && Object.keys(cohort.tasks).length===cohort.total && Object.values(cohort.tasks).filter(task=>task.onTime).length===cohort.completed;
+  }
+  function correctedRate(history,day,rate) {
+    const edit=history.rateEdits[day],cohort=history.rateCohorts[day];
+    if(!edit || !completeCohort(cohort) || cohort.total!==rate.total || cohort.completed!==rate.completed)return rate;
+    const additional=edit.onTimeIds.filter(id=>cohort.tasks[id] && !cohort.tasks[id].onTime).length;
+    return {...rate,completed:Math.min(rate.total,rate.completed+additional)};
+  }
+  function rateDetails(value,day,tasks=[],{now=new Date()}={}) {
+    const history=read(value),rate=history.days[day]?.rate;
+    if(!validDay(day) || day>=localDay(now) || !rate?.total)return {available:false,tasks:[],reason:'Choose a past date with recorded regular task totals.'};
+    let cohort=history.rateCohorts[day];
+    if(!cohort) {
+      const entries=Object.create(null);
+      for(const task of tasks.filter(task=>!isExtra(task) && dueDay(task)===day)) {
+        const id=String(task.id),known=history.completions[id]?.completion;
+        if(validId(id))entries[id]={title:String(task.task || 'Untitled task'),onTime:Boolean(task.completed && ((known && known.day<=day) || (validDay(task.completedOn) && task.completedOn<=day)))};
+      }
+      cohort={total:rate.total,completed:rate.completed,updatedAt:rate.updatedAt,tasks:entries};
+    }
+    const available=completeCohort(cohort) && cohort.total===rate.total && cohort.completed===rate.completed;
+    const selected=new Set(history.rateEdits[day]?.onTimeIds || []);
+    return {available,reason:available?'':'The original per-task history could not be fully matched. No counts have been changed.',cohort,total:rate.total,completed:correctedRate({...history,rateCohorts:{...history.rateCohorts,[day]:cohort}},day,rate).completed,tasks:Object.entries(cohort.tasks).map(([id,task])=>({id,...task,confirmed:task.onTime || selected.has(id)}))};
+  }
+  function editRate(value,day,onTimeIds,tasks=[],{now=new Date()}={}) {
+    const history=read(value),details=rateDetails(history,day,tasks,{now});
+    if(!details.available)throw new Error(details.reason);
+    if(!Array.isArray(onTimeIds) || onTimeIds.some(id=>!validId(id) || !Object.hasOwn(details.cohort.tasks,id)))throw new Error('Only regular tasks originally due on this date can be corrected.');
+    const previous=history.rateEdits[day];
+    history.rateCohorts[day]=details.cohort;
+    history.rateEdits[day]={updatedAt:new Date(Math.max(now.getTime(),previous?Date.parse(previous.updatedAt)+1:0)).toISOString(),onTimeIds:[...new Set(onTimeIds.filter(id=>!details.cohort.tasks[id].onTime))].sort()};
     return history;
   }
   function read(value) {
     if (typeof value === 'string' && value) value = JSON.parse(value);
-    if (value == null || value === '') return {schemaVersion:1,started:null,rateStarted:null,finishEdits:Object.create(null),completions:Object.create(null),days:Object.create(null)};
+    if (value == null || value === '') return {schemaVersion:1,started:null,rateStarted:null,finishEdits:Object.create(null),rateCohorts:Object.create(null),rateEdits:Object.create(null),completions:Object.create(null),days:Object.create(null)};
     if (value.schemaVersion !== 1 || !value.days || typeof value.days !== 'object' || !value.completions || typeof value.completions !== 'object') throw new Error('Completion history is not a supported format.');
-    const result = {schemaVersion:1,started:cleanStamp(value.started),rateStarted:cleanStamp(value.rateStarted),finishEdits:cleanFinishEdits(value.finishEdits),completions:Object.create(null),days:Object.create(null)};
+    const result = {schemaVersion:1,started:cleanStamp(value.started),rateStarted:cleanStamp(value.rateStarted),finishEdits:cleanFinishEdits(value.finishEdits),rateCohorts:cleanCohorts(value.rateCohorts),rateEdits:cleanRateEdits(value.rateEdits),completions:Object.create(null),days:Object.create(null)};
     for (const [id,entry] of Object.entries(value.completions)) {
       if (!validId(id) || !iso(entry?.updatedAt)) continue;
       result.completions[id] = {updatedAt:entry.updatedAt,completion:cleanStamp(entry.completion)};
@@ -86,6 +135,16 @@
     for(const [day,entry] of Object.entries(incoming.finishEdits)) {
       const old=current.finishEdits[day];
       if(!old || entry.updatedAt>old.updatedAt || (entry.updatedAt===old.updatedAt && JSON.stringify(entry)>JSON.stringify(old))) current.finishEdits[day]=entry;
+    }
+    for(const [day,entry] of Object.entries(incoming.rateCohorts)) {
+      const tasks=Object.create(null);
+      for(const [source,task] of Object.entries(entry.tasks)) {const id=remap(source);if(validId(id))tasks[id]={...task,onTime:task.onTime || tasks[id]?.onTime || false};}
+      const mapped={...entry,tasks},old=current.rateCohorts[day];
+      if(!old || mapped.updatedAt>old.updatedAt || (mapped.updatedAt===old.updatedAt && JSON.stringify(mapped)>JSON.stringify(old)))current.rateCohorts[day]=mapped;
+    }
+    for(const [day,entry] of Object.entries(incoming.rateEdits)) {
+      const mapped={...entry,onTimeIds:[...new Set(entry.onTimeIds.map(remap).filter(validId))].sort()},old=current.rateEdits[day];
+      if(!old || mapped.updatedAt>old.updatedAt || (mapped.updatedAt===old.updatedAt && JSON.stringify(mapped)>JSON.stringify(old)))current.rateEdits[day]=mapped;
     }
     for (const [source,entry] of Object.entries(incoming.completions)) {
       const id = remap(source); if (!validId(id)) continue;
@@ -152,6 +211,9 @@
     const completed = regular.filter(task => task.completed && (!validDay(task.completedOn) || task.completedOn <= today)).length;
     const rateUnchanged = !taskMutation && !changed && old?.rate && old.rate.total === regular.length && old.rate.completed === completed && !old.rate.finalized;
     const rate = {total:regular.length,completed,updatedAt:rateUnchanged ? old.rate.updatedAt : time.at,finalized:false};
+    const cohortTasks=Object.create(null);
+    for(const task of regular)if(validId(String(task.id)))cohortTasks[String(task.id)]={title:String(task.task || 'Untitled task'),onTime:Boolean(task.completed && (!validDay(task.completedOn) || task.completedOn<=today))};
+    history.rateCohorts[today]={updatedAt:rate.updatedAt,total:rate.total,completed:rate.completed,tasks:cohortTasks};
     const entry = {regularTotal:regular.length,regularIncomplete:incomplete,finish,reason,bonus:[...bonus].sort(),bonusDetails,rate};
     const same = old && JSON.stringify({...old,updatedAt:undefined}) === JSON.stringify({...entry,updatedAt:undefined});
     history.days[today] = {...entry,updatedAt:same ? old.updatedAt : time.at};
@@ -160,12 +222,12 @@
   function rows(value, {now = new Date(),range = 7} = {}) {
     const history = read(value), size = range === 30 ? 30 : 7, result = [];
     for (let ago = size-1; ago >= 0; ago--) {
-      const date = new Date(now.getFullYear(),now.getMonth(),now.getDate()-ago,12), day = localDay(date), record = history.days[day];
-      result.push({day,finish:record?.finish ? history.finishEdits[day]?.corrected || record.finish : null,finishEdit:record?.finish ? history.finishEdits[day] || null : null,count:record ? record.bonus.length : null,bonusTasks:record ? record.bonus.filter(id=>record.bonusDetails[id]).map(id=>{const item=record.bonusDetails[id];return {id,...item,earlyDays:item.due?Math.max(0,dayNumber(item.due)-dayNumber(day)):0};}) : [],reason:record?.reason || 'unrecorded',regularTotal:record?.regularTotal ?? null,rate:record?.rate?.total > 0 ? {...record.rate,percent:Math.round(record.rate.completed / record.rate.total * 100)} : null});
+      const date = new Date(now.getFullYear(),now.getMonth(),now.getDate()-ago,12), day = localDay(date), record = history.days[day],rate=record?.rate?correctedRate(history,day,record.rate):null;
+      result.push({day,finish:record?.regularTotal>0 ? history.finishEdits[day]?.corrected || record.finish || null : null,finishEdit:record?.regularTotal>0 ? history.finishEdits[day] || null : null,count:record ? record.bonus.length : null,bonusTasks:record ? record.bonus.filter(id=>record.bonusDetails[id]).map(id=>{const item=record.bonusDetails[id];return {id,...item,earlyDays:item.due?Math.max(0,dayNumber(item.due)-dayNumber(day)):0};}) : [],reason:record?.reason || 'unrecorded',regularTotal:record?.regularTotal ?? null,rate:rate?.total > 0 ? {...rate,percent:Math.round(rate.completed / rate.total * 100),edited:Boolean(history.rateEdits[day])} : null});
     }
     return result;
   }
-  const api = {KEY,localDay,read,merge,update,rows,stamp,editFinish,timeInput};
+  const api = {KEY,localDay,read,merge,update,rows,stamp,editFinish,timeInput,rateDetails,editRate};
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.TodoCompletionHistory = api;
 })(globalThis);

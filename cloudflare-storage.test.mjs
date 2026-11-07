@@ -69,3 +69,12 @@ const stripped=JSON.parse(JSON.stringify(correctedHistory));delete stripped.fini
 assert.equal((await handleDataRequest(new Request('https://test.invalid/api/storage',{method:'PUT',body:JSON.stringify({data:{...combined.data,[History.KEY]:JSON.stringify(stripped)}})}),env,'account-a')).status,200);
 const persistedEdit=History.read((await (await handleDataRequest(get(),env,'account-a')).json()).data[History.KEY]).finishEdits[day];
 assert.equal(persistedEdit.corrected.minutes,1215);assert.equal(persistedEdit.original.at,now.toISOString());assert(persistedEdit.showEdited);
+
+const missed={id:'missed-past',task:'Forgotten check-off',date:regular.date,completed:false};
+let pastSource=History.update(null,[regular,missed],{now,transition:{id:regular.id,before:false,after:true}});
+pastSource=History.editRate(pastSource,day,[missed.id],[regular,missed],{now:new Date(now.getTime()+86400000)});
+assert.equal((await handleDataRequest(new Request('https://test.invalid/api/storage',{method:'PUT',body:JSON.stringify({data:{...combined.data,[History.KEY]:JSON.stringify(pastSource)}})}),env,'rate-account')).status,200);
+const oldRateClient=JSON.parse(JSON.stringify(pastSource));delete oldRateClient.rateCohorts;delete oldRateClient.rateEdits;
+assert.equal((await handleDataRequest(new Request('https://test.invalid/api/storage',{method:'PUT',body:JSON.stringify({data:{...combined.data,[History.KEY]:JSON.stringify(oldRateClient)}})}),env,'rate-account')).status,200);
+const savedPast=History.read((await (await handleDataRequest(get(),env,'rate-account')).json()).data[History.KEY]);
+assert(savedPast.rateEdits[day].onTimeIds.includes(missed.id));assert.equal(History.rows(savedPast,{now:new Date(now.getTime()+86400000)})[5].rate.percent,100);assert.equal(History.rows(savedPast,{now:new Date(now.getTime()+86400000)})[5].finish,null);
