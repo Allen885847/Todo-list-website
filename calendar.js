@@ -643,6 +643,7 @@ function renderDay() {
 function renderWeek() {
   const weekStart = startOfMondayWeek(selectedDate);
   const weekEnd = addDays(weekStart, 6);
+  const today = startOfDay(new Date());
   const startLabel = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(weekStart);
   const endLabel = new Intl.DateTimeFormat(undefined, {
     month: weekStart.getMonth() === weekEnd.getMonth() ? undefined : "short",
@@ -660,12 +661,14 @@ function renderWeek() {
     const holidayEvents = dayEvents.filter((event) => event.holiday);
     const column = document.createElement("section");
     column.className = "week-day";
-    if (sameDate(date, selectedDate)) column.classList.add("selected-day");
+    const isToday = sameDate(date, today);
+    if (isToday) column.classList.add("is-today");
     if (holidayEvents.length) column.classList.add("holiday-day");
     else if (isWeekend(date)) column.classList.add("weekend-day");
     const header = document.createElement("button");
     header.type = "button";
     header.className = "week-day-header";
+    if (isToday) header.setAttribute("aria-current", "date");
     const name = document.createElement("span");
     name.textContent = weekdayNames[date.getDay()];
     const number = document.createElement("strong");
@@ -717,7 +720,7 @@ function renderCalendar() {
 function scheduleDateRefresh() {
   clearTimeout(dateRefreshTimer);
   const now = new Date();
-  const nextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+  const nextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, calendarView === "week" ? 0 : 1);
   dateRefreshTimer = window.setTimeout(() => {
     taskState = loadTaskState();
     renderCalendar();
@@ -1396,6 +1399,9 @@ window.addEventListener("pageshow", () => {
   taskState = loadTaskState();
   events = loadEvents();
   renderCalendar();
+});
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && calendarView === "week") renderCalendar();
 });
 window.addEventListener("pagehide", () => eventVoiceInput.cancel());
 

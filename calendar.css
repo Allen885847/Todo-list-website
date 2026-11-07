@@ -1238,11 +1238,6 @@ html[data-theme="dark"] .calendar-label-badge {
   border-radius: 15px;
 }
 
-.week-day.selected-day {
-  border-color: var(--accent);
-  box-shadow: inset 0 3px var(--accent);
-}
-
 .week-day.weekend-day {
   background: var(--weekend-background);
   border-color: var(--weekend-border);
@@ -1252,6 +1247,12 @@ html[data-theme="dark"] .calendar-label-badge {
   background: var(--holiday-background);
   border-color: var(--holiday-border);
 }
+
+.week-day.is-today {
+  border-color: var(--accent);
+  box-shadow: inset 0 3px var(--accent);
+}
+
 
 .day-view.weekend-day {
   padding: 14px;

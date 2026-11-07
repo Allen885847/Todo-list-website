@@ -1,0 +1,19 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),{execFileSync}=require('node:child_process');
+if(!process.env.WEEK_TODAY_ZONE){for(const zone of ['Asia/Shanghai','America/Los_Angeles'])execFileSync(process.execPath,[__filename],{env:{...process.env,TZ:zone,WEEK_TODAY_ZONE:zone},stdio:'inherit'});process.exit();}
+const source=fs.readFileSync('calendar.js','utf8');
+const fn=name=>source.slice(source.indexOf(`function ${name}(`),source.indexOf('\n}\n',source.indexOf(`function ${name}(`))+3);
+let now=Date.parse('2026-11-07T00:30:00Z'),timer;
+class Clock extends Date{constructor(...args){super(...(args.length?args:[now]))}static now(){return now}}
+class Node{constructor(){this.children=[];this.attrs={};this.classes=new Set();this.events={};this.classList={add:c=>this.classes.add(c)}}append(...n){this.children.push(...n)}replaceChildren(...n){this.children=n}setAttribute(k,v){this.attrs[k]=v}addEventListener(k,fn){this.events[k]=fn}}
+const stage=new Node(),context={Date:Clock,Intl,document:{createElement:()=>new Node()},stage,periodLabel:new Node(),monthNames:Array.from({length:12},(_,i)=>new Intl.DateTimeFormat('en',{month:'long'}).format(new Date(2026,i,1))),weekdayNames:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],tasksOnDate:()=>[],eventsOnDate:()=>[],isWeekend:d=>d.getDay()===0||d.getDay()===6,sortTimedEvents:x=>x,createHolidayBanner:()=>new Node(),localStorage:{setItem(){}},CALENDAR_VIEW_KEY:'view',clearTimeout(){},window:{setTimeout(fn,delay){timer={fn,delay}}},loadTaskState:()=>({})};
+vm.createContext(context);vm.runInContext(`let selectedDate=new Date(),calendarView='week',dateRefreshTimer,taskState;${['startOfDay','addDays','startOfMondayWeek','toIsoDate','sameDate','renderWeek','openDate','scheduleDateRefresh'].map(fn).join('\n')}function renderCalendar(){if(calendarView==='week')renderWeek()}globalThis.select=day=>{openDate(new Date(day+'T12:00:00'));calendarView='week';renderWeek()};globalThis.paint=()=>renderWeek();globalThis.current=()=>toIsoDate(selectedDate);globalThis.localToday=()=>toIsoDate(new Date());`,context);
+const marked=()=>stage.children[0].children.filter(n=>n.classes.has('is-today'));
+const title=column=>column.children[0].children[1].textContent;
+const today=context.localToday();context.select(today);assert.equal(marked().length,1);const original=title(marked()[0]);assert.equal(marked()[0].children[0].attrs['aria-current'],'date');
+const earlier=new Clock(today+'T12:00:00');earlier.setDate(earlier.getDate()===6?5:6);context.select(context.toIsoDate(earlier));assert.equal(title(marked()[0]),original,'Day navigation must not move today border');
+context.select('2026-11-16');assert.equal(marked().length,0,'Weeks without today must have no today border');
+assert.equal(today,process.env.TZ==='Asia/Shanghai'?'2026-11-07':'2026-11-06','Use local calendar date rather than UTC day');
+now=new Clock(2026,10,8,23,59,59,500).getTime();context.select('2026-11-02');context.scheduleDateRefresh();assert.equal(timer.delay,500);assert.equal(marked().length,1);now+=500;timer.fn();assert.equal(marked().length,0,'Local midnight removes today highlight if next day is outside displayed week');assert.equal(context.current(),'2026-11-02');
+now=new Clock(2026,11,31,12).getTime();context.select('2027-01-01');assert.equal(marked().length,1);assert.equal(title(marked()[0]),'Dec 31','Cross-year weeks still identify the real current date');
+const css=fs.readFileSync('calendar.css','utf8');assert(css.indexOf('.week-day.is-today {')>css.indexOf('.week-day.holiday-day {'),'Today border wins over holiday/weekend borders');assert(!source.includes('column.classList.add("selected-day")'));
+console.log(`Week today highlight passed (${process.env.TZ}): independent navigation, absent weeks, local/UTC boundaries, midnight and year rollover.`);
