@@ -34,8 +34,8 @@ class Node {
  assert.equal(stage.children.length,1,'Queued transitions replace the snapshot atomically');assert(!get('stats-rate-panel').hidden);
  await settle();assert.equal(stage.children.length,0);assert.equal(get('stats-rate-panel').inert,false);
  assert.equal(get('stats-rate-summary').textContent,'Today · 4/5 completed · 80%');
- get('stats-info-toggle').events.click();assert(!info.hidden);let prevented=false;dialog.events.keydown({key:'Escape',preventDefault(){prevented=true},stopPropagation(){}});assert(prevented);assert(info.inert);info.animations.at(-1).finish();await new Promise(resolve=>setImmediate(resolve));assert(info.hidden);assert(get('stats-info-toggle').focused);
- tabs[1].events.click();await settle();
+ get('stats-info-toggle').events.click();assert(!info.hidden);assert.equal(get('stats-info-title').textContent,'Completion Rate');assert.equal(get('stats-info-summary').textContent,'Shows the percentage of regular tasks due that day that were finished by day’s end.');let prevented=false;dialog.events.keydown({key:'Escape',preventDefault(){prevented=true},stopPropagation(){}});assert(prevented);assert(info.inert);info.animations.at(-1).finish();await new Promise(resolve=>setImmediate(resolve));assert(info.hidden);assert(get('stats-info-toggle').focused);
+ tabs[1].events.click();await settle();assert.equal(get('stats-info-title').textContent,'Extra & Early');assert.equal(get('stats-info-summary').textContent,'Counts extra or early tasks by completion date.');
  const bar=get('stats-bonus-chart').children.find(n=>n.attrs.class==='stats-bonus-target stats-mark');bar.events.click();
  assert.equal(get('stats-bonus-card').hidden,false);assert.equal(get('stats-bonus-card-items').children.length,3);assert.equal(get('stats-bonus-card-count').textContent,'4 tasks completed');
  assert.equal(get('stats-bonus-card-items').children[0].children[1].children.length,2,'Extra and early are both labeled on one entry');

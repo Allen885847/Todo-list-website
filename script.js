@@ -805,7 +805,10 @@ function activateSubjectDrag(drag) {
   ghost.className = "task-list drag-ghost subject-drag-ghost";
   ghost.inert = true; ghost.setAttribute("aria-hidden", "true");
   drag.nodes.forEach(node => ghost.append(node.cloneNode(true)));
-  Object.assign(ghost.style, { left: `${origin.left}px`, top: `${origin.top}px`, width: `${origin.width}px`, height: `${height}px` });
+  // Add the preview frame outside the original content bounds so cloned task
+  // widths and the normal list/placeholder geometry stay unchanged.
+  const previewPadding = 14;
+  Object.assign(ghost.style, { left: `${origin.left - previewPadding}px`, top: `${origin.top - previewPadding}px`, width: `${origin.width + previewPadding * 2}px`, height: "auto" });
   drag.source.before(placeholder);
   drag.nodes.forEach(node => node.classList.add("subject-drag-source"));
   document.body.append(ghost);

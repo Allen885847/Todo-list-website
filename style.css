@@ -2719,8 +2719,9 @@ html[data-theme="dark"] .task-label-badge { color: #d7ceff; background: #332d55;
 .subject-drag-source { display:none !important; }
 .subject-placeholder { position:relative; margin-bottom:0; padding:0; list-style:none; border-radius:10px; background:color-mix(in srgb,var(--soft-accent) 35%,transparent); }
 .subject-placeholder::before { content:""; position:absolute; top:0; inset-inline:0; height:2px; border-radius:1px; background:var(--accent); opacity:.65; }
-.subject-drag-ghost { padding:0; background:var(--paper); border:0; border-radius:10px; overflow:hidden; }
-.subject-drag-ghost .task-subject-heading { margin-top:0; }
+.subject-drag-ghost { box-sizing:border-box; padding:14px; background:var(--paper); opacity:1; border:0; border-radius:14px; overflow:visible; box-shadow:0 16px 36px rgba(10,24,48,.2); }
+.subject-drag-ghost .task-subject-heading { margin:0 0 12px; }
 .subject-drag-ghost .task-item { animation:none; }
+.subject-drag-ghost .task-item:last-child { margin-bottom:0; }
 @media (pointer:coarse) { .subject-drag-handle { width:44px; height:44px; flex-basis:44px; } }
 @media (prefers-reduced-motion:reduce) { .subject-drag-ghost.settling { transition:none; } }

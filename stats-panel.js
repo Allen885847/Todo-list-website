@@ -56,7 +56,18 @@
     finally {finishSaving=false;editSave.disabled=false;editSave.textContent='Save changes';editDate.disabled=editTime.disabled=editLabel.disabled=false;}
   });
   const infoPanel = document.querySelector('#stats-info');
+  const infoCopy = {
+    finish:['Finish Time','Shows when the last regular task due that day was finished.'],
+    bonus:['Extra & Early','Counts extra or early tasks by completion date.'],
+    rate:['Completion Rate','Shows the percentage of regular tasks due that day that were finished by day’s end.'],
+  };
+  function updateInfo() {
+    const [title,summary]=infoCopy[activeTab];
+    document.querySelector('#stats-info-title').textContent=title;
+    document.querySelector('#stats-info-summary').textContent=summary;
+  }
   function setInfo(expanded,animate=true) {
+    if(expanded)updateInfo();
     if (animate && info.getAttribute('aria-expanded') === String(expanded)) return;
     infoAnimation?.cancel(); infoAnimation = null;
     info.setAttribute('aria-expanded',String(expanded)); infoPanel.inert = !expanded;
@@ -155,7 +166,7 @@
     const panel=document.getElementById(`stats-${next.tab}-panel`);
     const transition=snapshot?{snapshot,panel,animation:null}:null;
     viewTransition=transition;
-    activeTab=next.tab;range=next.range;syncControls();renderCurrent();
+    activeTab=next.tab;range=next.range;syncControls();updateInfo();renderCurrent();
     if(!transition)return;
     panel.inert=true;chartStage.setAttribute('aria-busy','true');
     // Give the new SVG two paint frames at its final, fixed dimensions. Keep

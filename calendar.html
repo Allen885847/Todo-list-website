@@ -111,11 +111,8 @@
           </div>
         </div>
         <div id="stats-info" class="stats-info" role="region" aria-label="About task stats" tabindex="0" hidden>
-          <p><strong>Finish Time:</strong> The last completion time for regular tasks due on each local date. Gaps mean unfinished tasks, no tasks due, or an exact time that wasn’t recorded.</p>
-          <p><strong>Extra &amp; Early:</strong> Extra tasks and tasks finished before their due date, counted on the actual completion day. Each task counts once per day, even if it qualifies both ways or is unchecked and completed again.</p>
-          <p><strong>Completion Rate:</strong> Regular tasks due on each local date, including those finished early. Extra tasks are excluded. Today updates live; saved daily totals are sealed at midnight or when the app next opens. Late completions never change an earlier day’s rate. Dates with no eligible tasks or no tracking record stay blank.</p>
-          <p id="stats-history-note" class="stats-history-note"></p>
-          <p id="stats-rate-note" class="stats-history-note"></p>
+          <p><strong id="stats-info-title">Finish Time</strong></p>
+          <p id="stats-info-summary">Shows when the last regular task due that day was finished.</p>
         </div>
         <div class="stats-controls"><div class="stats-range" role="group" aria-label="Stats period"><button type="button" data-stats-range="7" aria-pressed="true">Last 7 days</button><button type="button" data-stats-range="30" aria-pressed="false">Last 30 days</button></div><p id="stats-period" class="stats-period"></p></div>
         <div class="stats-tabs" role="tablist" aria-label="Task statistic">
@@ -137,7 +134,11 @@
           <div class="stats-detail-heading"><div><h3 id="stats-bonus-detail-title"></h3><p id="stats-bonus-detail-count" class="stats-bonus-count"></p></div><button id="stats-bonus-detail-close" class="stats-detail-button" type="button">Back to chart</button></div>
           <div class="stats-detail-scroll"><ul id="stats-bonus-detail-items" class="stats-bonus-items"></ul><p id="stats-bonus-detail-note" class="stats-bonus-note" hidden></p></div>
         </section>
-        <details class="stats-data"><summary>View data</summary><div class="stats-table-wrap" tabindex="0" role="region" aria-label="Daily task statistics"><table><thead><tr><th scope="col">Date</th><th scope="col">Finish time</th><th scope="col">Extra &amp; Early</th><th scope="col">Completion rate</th></tr></thead><tbody id="stats-table-body"></tbody></table></div></details>
+        <details class="stats-data"><summary>View data</summary><div class="stats-table-wrap" tabindex="0" role="region" aria-label="Daily task statistics"><table><thead><tr><th scope="col">Date</th><th scope="col">Finish time</th><th scope="col">Extra &amp; Early</th><th scope="col">Completion rate</th></tr></thead><tbody id="stats-table-body"></tbody></table></div>
+          <p id="stats-history-note" class="stats-history-note"></p>
+          <p id="stats-rate-note" class="stats-history-note"></p>
+          <p class="stats-history-note">Gaps in Finish Time mean no regular tasks were due, work was unfinished, or an exact completion time was not recorded. Completion Rate is blank when there were no eligible tasks or no tracking history. Extra &amp; Early task details are available only where they were recorded.</p>
+        </details>
         <p id="stats-status" class="stats-history-note" role="status" hidden></p>
       </section>
     </dialog>
