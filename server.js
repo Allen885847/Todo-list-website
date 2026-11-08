@@ -5,6 +5,7 @@ const crypto = require("node:crypto");
 const zlib = require("node:zlib");
 const WebSocket = require("ws");
 const CompletionHistory = require("./completion-history.js");
+const weekContext = require("./week-context.cjs");
 
 const PORT = Number(process.env.PORT) || 4173;
 
@@ -509,6 +510,7 @@ Current local context:
 - IANA time zone: ${timeZone}
 - Today: ${today}
 - Current local date and time: ${localTime}
+${weekContext(today)}
 
 Return JSON only, in exactly this shape:
 {"tasks":[{"title":"Clear concise English task title","subject":"History","label":"Extra","emoji":"📚","date":{"day":9,"month":10,"year":2026},"dates":[],"dailyRange":null,"dateAmbiguous":false,"dateQuestion":""}]}
@@ -530,7 +532,7 @@ Rules:
   : `If a task has no explicit or clearly shared deadline, use today (${today}) for that task, even when another task in the same input has a date.`}
 13. Resolve relative dates using the local context above. "today"/“今天” is ${today}; "tomorrow"/“明天” is exactly one local calendar day after ${today}; and "the day after tomorrow"/“后天” is exactly two local calendar days after ${today}. These three expressions are never ambiguous: set dateAmbiguous false and do not ask for confirmation. Resolve a bare weekday such as "Saturday"/“周六” to its nearest upcoming occurrence (including today when appropriate) without confirmation. Do not treat a background date as a task deadline.
 14. Scheduling fields are mutually exclusive. For one due date, use date and leave dates empty and dailyRange null. If the user explicitly asks for the same task every day from one date through another, use dailyRange:{"start":{"day":1,"month":11,"year":2026},"end":{"day":5,"month":11,"year":2026}} and set date null. Both endpoints are inclusive. For several explicitly selected non-consecutive days, put each day in dates and set date null and dailyRange null. Do not create separate source task objects for each repeated day; the application expands them safely.
-15. Week-relative weekday phrases such as "next Monday"/“下周一”, "next Tuesday"/“下周二”, "the Monday after next"/“下下周一”, or equivalent wording require confirmation: calculate the most likely tentative ISO date, set dateAmbiguous true, and ask a short English dateQuestion so the user can edit or confirm it. Also flag numeric dates whose month/day order is unclear. Otherwise use false and an empty string.
+15. Week-relative weekday phrases such as "next Monday"/“下周一”, "next Tuesday"/“下周二”, "the Monday after next"/“下下周一”, or equivalent wording use the Monday–Sunday week boundaries above: calculate the exact weekday date, set dateAmbiguous false, and leave dateQuestion empty. Ask for confirmation only if the intended day is genuinely unclear. Also flag numeric dates whose month/day order is unclear. Otherwise use false and an empty string.
 16. day, month, and year must be integers. A daily range may contain at most 366 days. Return at most 30 source task objects. If the input contains no actionable task, return {"tasks":[]}.`,
         },
         { role: "user", content: input },
@@ -573,6 +575,7 @@ Current local context:
 - IANA time zone: ${timeZone}
 - Today: ${today}
 - Current local date and time: ${localTime}
+${weekContext(today)}
 
 Return JSON only in exactly this shape:
 {"events":[{"title":"Trip","startDate":"2026-10-20","endDate":"2026-10-23","allDay":true,"holiday":false,"startTime":"","endTime":"","dateMissing":false,"dateAmbiguous":false,"clarificationQuestion":""}]}
@@ -582,7 +585,7 @@ Rules:
 2. Correct spelling and produce a concise, natural English title for each event.
 3. Use inclusive ISO dates. For a single-day event, endDate equals startDate. Resolve relative dates separately for each event using the local context. "today"/“今天” is ${today}; "tomorrow"/“明天” is exactly one local calendar day after ${today}; and "the day after tomorrow"/“后天” is exactly two local calendar days after ${today}. These three expressions are never ambiguous: set dateAmbiguous false and use an empty clarificationQuestion. Resolve a bare weekday such as "Saturday"/“周六” to its nearest upcoming occurrence (including today when appropriate) without confirmation. Share a date or time only when the wording clearly applies it to multiple events.
 4. Never invent a date. If an event has no date, set dateMissing true, use empty date strings, and ask a short English clarificationQuestion for that event.
-5. Week-relative weekday phrases such as "next Monday"/“下周一”, "next Tuesday"/“下周二”, "the Monday after next"/“下下周一”, or equivalent wording require confirmation: calculate the most likely tentative dates first, set dateAmbiguous true, and ask a short English clarificationQuestion so the user can edit or confirm them. Also flag numeric dates whose month/day order is unclear. Otherwise set dateAmbiguous false.
+5. Week-relative weekday phrases such as "next Monday"/“下周一”, "next Tuesday"/“下周二”, "the Monday after next"/“下下周一”, or equivalent wording use the Monday–Sunday week boundaries above: calculate exact weekday dates, set dateAmbiguous false, and leave clarificationQuestion empty. Ask for confirmation only if the intended day is genuinely unclear. Also flag numeric dates whose month/day order is unclear. Otherwise set dateAmbiguous false.
 6. Set holiday true when the user describes a holiday, vacation, school break, public holiday, or named holiday period. Preserve its inclusive start and end dates, including when the range crosses a month or year. Otherwise set holiday false.
 7. Holidays are all-day events: set allDay true and use empty time strings. For other events, never invent or require a time. When no specific time is given, set allDay true and use empty time strings.
 8. When a specific time or time range is supplied for a non-holiday event, preserve it, set allDay false, and use 24-hour HH:MM values. A single supplied time must go in startTime and may use an empty endTime. Never return endTime without startTime.

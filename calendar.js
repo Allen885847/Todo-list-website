@@ -107,7 +107,7 @@ function addYears(date, amount) {
 }
 
 function startOfWeek(date) {
-  return addDays(date, -date.getDay());
+  return startOfMondayWeek(date);
 }
 
 function startOfMondayWeek(date) {
@@ -372,7 +372,7 @@ function renderMonth() {
   const fragment = document.createDocumentFragment();
   const weekdays = document.createElement("div");
   weekdays.className = "weekday-row";
-  weekdayNames.forEach((name) => {
+  [...weekdayNames.slice(1), weekdayNames[0]].forEach((name) => {
     const label = document.createElement("span");
     label.textContent = name;
     weekdays.append(label);
@@ -424,7 +424,7 @@ function renderYear() {
     heading.textContent = monthNames[month];
     const weekdays = document.createElement("div");
     weekdays.className = "mini-weekdays";
-    weekdayNames.forEach((name) => {
+    [...weekdayNames.slice(1), weekdayNames[0]].forEach((name) => {
       const label = document.createElement("span");
       label.textContent = name.charAt(0);
       weekdays.append(label);
@@ -432,7 +432,7 @@ function renderYear() {
     const days = document.createElement("div");
     days.className = "mini-month-grid";
     const first = new Date(selectedDate.getFullYear(), month, 1);
-    for (let blank = 0; blank < first.getDay(); blank += 1) {
+    for (let blank = 0; blank < (first.getDay() + 6) % 7; blank += 1) {
       const empty = document.createElement("span");
       empty.className = "mini-day empty";
       days.append(empty);
