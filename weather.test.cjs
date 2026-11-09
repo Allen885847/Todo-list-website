@@ -24,6 +24,8 @@ const fixture = (networkFails = false, options = {}) => {
   const result = { current: { temperature_2m: 20.6, weather_code: 2 }, daily: { time: ['2026-11-01','2026-11-02','2026-11-03','2026-11-04'], weather_code: [2,61,0,3], temperature_2m_max: [24,22,25,21], temperature_2m_min: [17,16,18,15], precipitation_probability_max: [10,80,0,40] } };
   const context = { localStorage: { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key,value) }, document: doc, window: { isSecureContext: true, addEventListener() {} }, navigator: { ...(permission ? { permissions: { query: async () => permission } } : {}), geolocation: { getCurrentPosition: (success,error) => { locationRequests++; locationRequest = { success,error }; } } }, matchMedia: () => ({ matches: false }), Intl, URL, URLSearchParams, AbortController, Date, setTimeout: () => 1, clearTimeout() {}, fetch: async (url) => {
     calls.push(url);
+    if(url.includes('todolist.uno/api/weather')) return {ok:true,json:async()=>options.qweather || {provider:'open-meteo'}};
+    if(options.placePending && url.includes('nominatim'))return new Promise(()=>{});
     if (networkFails || (options.airFails && url.includes('air-quality-api')) || (options.weatherFails && url.includes('/v1/forecast'))) throw new Error('Offline');
     return { ok: true, json: async () => url.includes('air-quality-api')
       ? { current: { us_aqi: Object.hasOwn(options, 'aqi') ? options.aqi : 42 } }
@@ -56,8 +58,8 @@ const settle = async () => { for (let i=0;i<4;i++) await new Promise(resolve => 
   const success = f.location.success;
   await success({ coords: { latitude: 51.5074, longitude: -0.1278 } });
   await settle();
-  assert.equal(f.calls.length,3);
-  assert.match(f.calls[0],/latitude=51.51/);
+  assert.equal(f.calls.length,4);
+  assert.match(f.calls.find(url=>url.includes('/v1/forecast')),/latitude=51.51/);
   assert.equal(get('.weather-city').textContent,'Test city');
   assert.equal(get('.weather-current-temp').textContent,'21°');
   assert.equal(get('.weather-aqi-compact').textContent,'42');
@@ -66,7 +68,7 @@ const settle = async () => { for (let i=0;i<4;i++) await new Promise(resolve => 
   assert.equal(f.widget.getAttribute('data-aqi-level'),'good');
   assert.match(get('.weather-aqi-status').textContent,/US AQI/);
   assert.match(get('.weather-toggle').getAttribute('aria-label'),/US AQI 42/);
-  const weatherURL = new URL(f.calls[0]), airURL = new URL(f.calls[2]);
+  const weatherURL = new URL(f.calls.find(url=>url.includes('/v1/forecast'))), airURL = new URL(f.calls.find(url=>url.includes('air-quality-api')));
   assert.equal(airURL.hostname,'air-quality-api.open-meteo.com');
   for (const key of ['latitude','longitude','timezone']) assert.equal(airURL.searchParams.get(key),weatherURL.searchParams.get(key));
   assert.equal(airURL.searchParams.get('current'),'us_aqi');
@@ -81,7 +83,7 @@ const settle = async () => { for (let i=0;i<4;i++) await new Promise(resolve => 
   assert.equal(f.widget.getAttribute('data-aqi-level'),'unknown');
   assert(f.days.every(day => day.querySelector('.weather-high').textContent === '—'));
   await success({ coords: { latitude: 51.5074, longitude: -0.1278 } });
-  assert.equal(f.calls.length,3, 'Stale location callbacks cannot re-enable weather');
+  assert.equal(f.calls.length,4, 'Stale location callbacks cannot re-enable weather');
   const offline = fixture(true);
   await offline.widget.querySelector('.weather-enable').click();
   await offline.location.success({ coords: { latitude: 51.5074, longitude: -0.1278 } });
@@ -101,7 +103,7 @@ const settle = async () => { for (let i=0;i<4;i++) await new Promise(resolve => 
   await settle();
   assert.equal(revisit.locationRequests, 1, 'Granted location automatically refreshes on a remembered visit');
   await revisit.location.success({ coords: { latitude: 51.5074, longitude: -0.1278 } });
-  assert.equal(revisit.calls.length, 3);
+  assert.equal(revisit.calls.length, 4);
   assert.equal(remembered.get(key), 'enabled');
   assert.equal(remembered.size, 1, 'Store only preference, never coordinates');
   revisit.changePermission('prompt');
@@ -148,6 +150,17 @@ const settle = async () => { for (let i=0;i<4;i++) await new Promise(resolve => 
     const levels = { 'Good':'good', 'Moderate':'moderate', 'Unhealthy for sensitive groups':'sensitive', 'Unhealthy':'unhealthy', 'Very unhealthy':'very-unhealthy', 'Hazardous':'hazardous', '—':'unknown' };
     assert.equal(sample.widget.getAttribute('data-aqi-level'),levels[label],`AQI color boundary ${aqi}`);
   }
+  const q = fixture(false,{qweather:{provider:'qweather',weather:{current:{temperature_2m:18,weather_code:2,condition:'Cloudy'},daily:{time:['2026-11-01','2026-11-02','2026-11-03','2026-11-04'],weather_code:[2,2,2,2],condition:['Cloudy','Cloudy','Cloudy','Cloudy'],temperature_2m_max:[20,21,22,23],temperature_2m_min:[10,11,12,13],precipitation_probability_max:[10,20,30,40]}},air:{value:29,display:'29',name:'China AQI',category:'Excellent',level:'good',scale:'cn-mee'}}});
+  await q.widget.querySelector('.weather-enable').click();await q.location.success({coords:{latitude:30.25,longitude:120.21}});
+  assert.equal(q.widget.querySelector('.weather-current-temp').textContent,'18°');
+  assert.equal(q.widget.querySelector('.weather-aqi-category').textContent,'Excellent');
+  assert.equal(q.widget.querySelector('.weather-air-quality-heading small').textContent,'China AQI');
+  assert.match(q.widget.querySelector('.weather-status').textContent,/QWeather/);
+  assert(q.calls.every(url=>!url.includes('qweatherapi.com')),'QWeather key and host stay server-side');
+  assert.equal(q.calls.length,2,'Only hosted weather plus a non-blocking place lookup');
+  const slowPlace=fixture(false,{placePending:true});await slowPlace.widget.querySelector('.weather-enable').click();await slowPlace.location.success({coords:{latitude:30.25,longitude:120.21}});
+  assert.equal(slowPlace.widget.querySelector('.weather-current-temp').textContent,'21°','A hanging city lookup never blocks weather');
+  assert.equal(slowPlace.widget.querySelector('.weather-aqi-value').textContent,'42');
   console.log('Air quality checks passed: consent gating, same coordinates, current US AQI, categories, zero/missing/invalid data, reset/revocation, partial failures and retry.');
   console.log('Weather preference checks passed: remembered grants, expired/denied permission, revocation race, opt-out, no coordinate storage.');
   console.log('Weather checks passed: disabled default, no requests before consent, collapse, denial, permission-based data, 4 days, disable/reset, stale callbacks, timeout.');

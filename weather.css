@@ -11,7 +11,7 @@
 .weather-aqi-value { color: var(--aqi-ink); font-size: 1.45rem; font-variant-numeric: tabular-nums; line-height: 1.25; }
 .weather-aqi-category { margin: 3px 0 0; color: var(--aqi-ink); line-height: 1.45; overflow-wrap: anywhere; }
 .weather-aqi-status { margin: 4px 0 0; color: var(--aqi-ink); font-size: .68rem; line-height: 1.5; }
-/* Severity colors follow the US AQI bands; labels remain visible alongside color. */
+/* Severity colors follow the active provider’s AQI levels; labels identify the selected standard. */
 .weather-widget[data-aqi-level="good"] { --aqi-background: #e4f5ed; --aqi-ink: #145b4f; --aqi-border: #90ceba; }
 .weather-widget[data-aqi-level="moderate"] { --aqi-background: #fff4c2; --aqi-ink: #6d4b05; --aqi-border: #dac470; }
 .weather-widget[data-aqi-level="sensitive"] { --aqi-background: #fff0df; --aqi-ink: #8b3a10; --aqi-border: #e8b183; }

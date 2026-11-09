@@ -11,6 +11,11 @@ const health = await worker.fetch(new Request("https://example.com/api/health"),
 assert.equal(health.status, 200);
 assert.equal((await health.json()).database, "ready");
 
+const weather = await worker.fetch(new Request("https://example.com/api/weather?latitude=30.25&longitude=120.21"),env);
+assert.equal(weather.status,200);
+assert.equal((await weather.json()).provider,'open-meteo','Login-free weather must fail safely without credentials');
+assert.equal(weather.headers.get('Access-Control-Allow-Origin'),'*');
+
 const protectedRoute = await worker.fetch(new Request("https://example.com/api/tasks"), env);
 assert.equal(protectedRoute.status, 503);
 assert.equal((await protectedRoute.json()).code, "AUTH_NOT_CONFIGURED");

@@ -14,6 +14,9 @@
   const aqiValue = widget.querySelector('.weather-aqi-value');
   const aqiCategory = widget.querySelector('.weather-aqi-category');
   const aqiStatus = widget.querySelector('.weather-aqi-status');
+  const aqiScale = widget.querySelector('.weather-air-quality-heading small');
+  const credits = widget.querySelector('.weather-credits');
+  let airName = 'AQI';
   const days = [...widget.querySelectorAll('.weather-day')];
   let enabled = false;
   let busy = false;
@@ -67,28 +70,33 @@
   const numeric = value => typeof value === 'number' && Number.isFinite(value);
   const degrees = value => numeric(value) ? `${Math.round(value)}°` : '—';
   function blankAirQuality(message = 'Enable location to see air quality.') {
+    airName = 'AQI';
+    aqiScale.textContent = 'AQI';
     widget.setAttribute('data-aqi-level', 'unknown');
     aqiCompact.textContent = '—';
     aqiValue.textContent = '—';
     aqiCategory.textContent = '—';
-    aqiSummary.setAttribute('title', 'US Air Quality Index: unavailable');
+    aqiSummary.setAttribute('title', 'Air Quality Index: unavailable');
     aqiStatus.textContent = message;
   }
   function showAirQuality(result) {
-    const value = result.status === 'fulfilled' ? result.value?.current?.us_aqi : null;
+    const data = result.status === 'fulfilled' ? result.value : null;
+    const air = data?.air;
+    const value = air ? air.value : data?.current?.us_aqi;
     if (!numeric(value) || value < 0) {
       blankAirQuality('Air quality is unavailable. Retry to refresh.');
       return false;
     }
     const score = Math.round(value);
     const band = AQI_BANDS.find(entry => score <= entry.max);
-    const category = band.label;
-    widget.setAttribute('data-aqi-level', band.level);
-    aqiCompact.textContent = String(score);
-    aqiValue.textContent = String(score);
-    aqiCategory.textContent = category;
-    aqiSummary.setAttribute('title', `US Air Quality Index: ${score} · ${category}`);
-    aqiStatus.textContent = 'US AQI · CAMS model estimate';
+    airName = air?.name || 'US AQI';
+    aqiScale.textContent = airName;
+    widget.setAttribute('data-aqi-level', air?.level || band.level);
+    aqiCompact.textContent = air?.display || String(score);
+    aqiValue.textContent = air?.display || String(score);
+    aqiCategory.textContent = air?.category || band.label;
+    aqiSummary.setAttribute('title', `${airName}: ${aqiValue.textContent} · ${aqiCategory.textContent}`);
+    aqiStatus.textContent = air ? `${airName} · QWeather` : 'US AQI · CAMS model estimate';
     return true;
   }
   function blank() {
@@ -142,14 +150,31 @@
     const timeout = setTimeout(() => currentController.abort(), 15000);
     const { latitude, longitude } = coordinates;
     const params = new URLSearchParams({ latitude, longitude, current: 'temperature_2m,weather_code', daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'auto', forecast_days: '4' });
-    const reverse = new URLSearchParams({ lat: latitude, lon: longitude, format: 'jsonv2', zoom: '10', 'accept-language': 'en' });
     const airParams = new URLSearchParams({ latitude, longitude, current: 'us_aqi', timezone: params.get('timezone') });
-    aqiStatus.textContent = 'Updating air quality…'; // Keep the last reading/color until the new result arrives.
+    const reverse = new URLSearchParams({ lat: latitude, lon: longitude, format: 'jsonv2', zoom: '10', 'accept-language': 'en' });
+    const nameController = new AbortController();
+    currentController.signal.addEventListener('abort', () => nameController.abort(), { once: true });
+    const nameTimeout = setTimeout(() => nameController.abort(), 2500);
+    // A slow place-name service must never hold up weather or AQI.
+    json(`https://nominatim.openstreetmap.org/reverse?${reverse}`, nameController.signal).then(data => {
+      if (id !== requestId || !enabled) return;
+      const address = data?.address;
+      city.textContent = address?.city || address?.town || address?.village || address?.municipality || '—';
+      if (temperature.textContent !== '—') toggle.setAttribute('aria-label', `${city.textContent}, ${temperature.textContent}, ${currentIcon.getAttribute('aria-label')}, ${airName} ${aqiCompact.textContent}, ${aqiCategory.textContent}. Toggle forecast`);
+    }).catch(() => {}).finally(() => clearTimeout(nameTimeout));
+    aqiStatus.textContent = 'Updating air quality…';
     status.textContent = 'Fetching weather and air quality…';
+    const hostedController = new AbortController();
+    currentController.signal.addEventListener('abort', () => hostedController.abort(), { once: true });
+    const hostedTimeout = setTimeout(() => hostedController.abort(), 7000);
+    const hostedParams = new URLSearchParams({ latitude, longitude });
+    let hosted;
+    try { hosted = await json(`https://todolist.uno/api/weather?${hostedParams}`, hostedController.signal); } catch { hosted = null; }
+    finally { clearTimeout(hostedTimeout); }
+    if (id !== requestId || !enabled) { clearTimeout(timeout); return; }
     const results = await Promise.allSettled([
-      json(`https://api.open-meteo.com/v1/forecast?${params}`, controller.signal),
-      json(`https://nominatim.openstreetmap.org/reverse?${reverse}`, controller.signal),
-      json(`https://air-quality-api.open-meteo.com/v1/air-quality?${airParams}`, controller.signal),
+      hosted?.weather || json(`https://api.open-meteo.com/v1/forecast?${params}`, currentController.signal),
+      hosted?.air ? { air: hosted.air } : json(`https://air-quality-api.open-meteo.com/v1/air-quality?${airParams}`, currentController.signal),
     ]);
     clearTimeout(timeout);
     if (id !== requestId || !enabled) return;
@@ -158,25 +183,28 @@
     enable.textContent = 'Retry';
     enable.setAttribute('data-short-label', 'Retry');
     const weather = results[0];
+    const source = hosted?.weather ? 'QWeather' : 'Open-Meteo';
+    credits.innerHTML = `${hosted?.weather || hosted?.air ? '<a href="https://www.qweather.com/" target="_blank" rel="noopener noreferrer">QWeather</a> · <a href="https://developer.qweather.com/attribution.html" target="_blank" rel="noopener noreferrer">Data sources</a> · ' : ''}${!hosted?.weather || !hosted?.air ? '<a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a> · <a href="https://atmosphere.copernicus.eu/" target="_blank" rel="noopener noreferrer">CAMS</a> · ' : ''}<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>`;
     if (weather.status !== 'fulfilled' || !weather.value.current || !Array.isArray(weather.value.daily?.time) || weather.value.daily.time.length < 4) {
+      const place = city.textContent;
       blank();
-      const airAvailable = showAirQuality(results[2]);
-      toggle.setAttribute('aria-label', `Weather unavailable. US AQI ${aqiCompact.textContent}. Toggle forecast`);
+      city.textContent = place;
+      const airAvailable = showAirQuality(results[1]);
+      toggle.setAttribute('aria-label', `Weather unavailable. ${airName} ${aqiCompact.textContent}. Toggle forecast`);
       enable.hidden = false;
       status.textContent = airAvailable ? 'Weather could not be loaded. Air quality is available; retry to refresh weather.' : 'Weather could not be loaded. Please retry.';
       return;
     }
-    const address = results[1].status === 'fulfilled' ? results[1].value.address : null;
-    city.textContent = address?.city || address?.town || address?.village || address?.municipality || '—';
     const { current, daily } = weather.value;
     temperature.textContent = degrees(current.temperature_2m);
     setIcon(currentIcon, current.weather_code);
-    const airAvailable = showAirQuality(results[2]);
-    toggle.setAttribute('aria-label', `${city.textContent}, ${temperature.textContent}, ${describe(current.weather_code)[0]}, US AQI ${aqiCompact.textContent}, ${aqiCategory.textContent}. Toggle forecast`);
+    if (current.condition) currentIcon.setAttribute('aria-label', current.condition);
+    const airAvailable = showAirQuality(results[1]);
+    toggle.setAttribute('aria-label', `${city.textContent}, ${temperature.textContent}, ${current.condition || describe(current.weather_code)[0]}, ${airName} ${aqiCompact.textContent}, ${aqiCategory.textContent}. Toggle forecast`);
     days.forEach((day, index) => {
       const date = new Date(`${daily.time[index]}T12:00:00`);
       day.querySelector('.weather-day-name').textContent = index === 0 ? 'Today' : index === 1 ? 'Tomorrow' : date.toLocaleDateString('en', { weekday: 'short' });
-      day.querySelector('.weather-day-condition').textContent = describe(daily.weather_code?.[index])[0];
+      day.querySelector('.weather-day-condition').textContent = daily.condition?.[index] || describe(daily.weather_code?.[index])[0];
       day.querySelector('.weather-high').textContent = degrees(daily.temperature_2m_max?.[index]);
       day.querySelector('.weather-low').textContent = degrees(daily.temperature_2m_min?.[index]);
       const rain = daily.precipitation_probability_max?.[index];
@@ -184,7 +212,7 @@
       setIcon(day.querySelector('.weather-icon'), daily.weather_code?.[index]);
     });
     enable.hidden = airAvailable;
-    status.textContent = !airAvailable ? 'Weather updated. Air quality is unavailable; retry to refresh.' : city.textContent === '—' ? 'Weather and air quality updated. City name is unavailable.' : 'Updated just now · °C · US AQI';
+    status.textContent = !airAvailable ? 'Weather updated. Air quality is unavailable; retry to refresh.' : `Weather loaded · ${source} · °C · ${airName}`;
     clearTimeout(refreshTimer);
     refreshTimer = setTimeout(() => { if (enabled && !document.hidden) checkPermission(); }, 15 * 60 * 1000);
   }
