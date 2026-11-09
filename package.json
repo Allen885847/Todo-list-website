@@ -13,7 +13,7 @@
     "cloudflare:migrate:remote": "wrangler d1 migrations apply todo-list-online --remote",
     "cloudflare:deploy": "npm run cloudflare:build && wrangler deploy",
     "shortcut:build": "node scripts/build-shortcut.mjs",
-    "test:shortcut": "node backup-merge.test.cjs && node desktop-merge.test.mjs && node desktop-shortcut/local-server.test.cjs && node desktop-ui.test.cjs",
+    "test:shortcut": "node desktop-shortcut/local-refresh.test.cjs && node backup-merge.test.cjs && node desktop-merge.test.mjs && node desktop-shortcut/local-server.test.cjs && node desktop-ui.test.cjs",
     "test:browser-local": "node browser-local/storage.test.cjs && node browser-local/persistence.test.cjs && node browser-local/ai-client.test.cjs && node local-ai.test.mjs && node browser-local/build.test.mjs"
   },
   "dependencies": {

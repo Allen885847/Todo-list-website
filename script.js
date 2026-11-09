@@ -886,7 +886,7 @@ function renderTodayProgress(today) {
   document.querySelector('#today-progress-fill').style.transform = `scaleX(${percent / 100})`;
 }
 
-function renderTasks() {
+function renderTasks({ preserveDrafts = false } = {}) {
   if (pointerDrag?.kind === "subject") cancelPointerDrag();
   const content = [];
   groupTasks(state.tasks).forEach((dateGroup) => {
@@ -904,7 +904,7 @@ function renderTasks() {
     });
   });
   taskList.replaceChildren(...content);
-  titleInput.value = state.title;
+  if (!preserveDrafts) titleInput.value = state.title;
   const today = TodoTaskRules.localDateIso();
   renderTodayProgress(today);
   const visibleTasks = activeTasks(today);
@@ -914,7 +914,7 @@ function renderTasks() {
   emptyState.hidden = activeCount > 0;
   copyButton.hidden = activeCount === 0;
   shareButton.disabled = activeCount === 0 || isExporting;
-  if (activeCount === 0 && !composerOpen) setComposerOpen(true, { focus: true });
+  if (activeCount === 0 && !composerOpen && !preserveDrafts) setComposerOpen(true, { focus: true });
   updateComposerToggle();
   window.parent.TodoTimer?.sync();
   scheduleDateRefresh();
@@ -922,6 +922,10 @@ function renderTasks() {
 
 function scheduleDateRefresh() {
   clearTimeout(dateRefreshTimer);
+  if (window.TodoLocalRefresh) {
+    window.TodoLocalRefresh.schedule();
+    return;
+  }
   const now = new Date();
   const nextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
   dateRefreshTimer = window.setTimeout(() => {
@@ -2379,6 +2383,11 @@ if (!navigator.mediaDevices?.getUserMedia) {
   recordButton.disabled = true;
   setStatus("Voice recording is not supported in this browser. Use the latest Google Chrome, or continue typing.", "warning");
 }
+window.TodoLocalRefresh?.registerTasks(() => {
+  window.TodoTaskHistory?.observe();
+  state = loadState();
+  renderTasks({ preserveDrafts: true });
+});
 applyAppearance();
 renderTasks();
 renderPreview();

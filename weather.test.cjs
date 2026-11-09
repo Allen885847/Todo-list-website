@@ -22,7 +22,7 @@ const fixture = (networkFails = false, options = {}) => {
   const events = {};
   const doc = { hidden: false, getElementById: () => widget, addEventListener: (name, handler) => { events[name] = handler; } };
   const result = { current: { temperature_2m: 20.6, weather_code: 2 }, daily: { time: ['2026-11-01','2026-11-02','2026-11-03','2026-11-04'], weather_code: [2,61,0,3], temperature_2m_max: [24,22,25,21], temperature_2m_min: [17,16,18,15], precipitation_probability_max: [10,80,0,40] } };
-  const context = { localStorage: { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key,value) }, document: doc, window: { isSecureContext: true, addEventListener() {} }, navigator: { ...(permission ? { permissions: { query: async () => permission } } : {}), geolocation: { getCurrentPosition: (success,error) => { locationRequests++; locationRequest = { success,error }; } } }, matchMedia: () => ({ matches: false }), Intl, URL, URLSearchParams, AbortController, Date, setTimeout: () => 1, clearTimeout() {}, fetch: async (url) => {
+  const context = { localStorage: { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key,value) }, document: doc, window: { isSecureContext: true, addEventListener() {}, ...(options.refresh ? {TodoLocalRefresh:{registerWeather: options.refresh}} : {}) }, navigator: { ...(permission ? { permissions: { query: async () => permission } } : {}), geolocation: { getCurrentPosition: (success,error) => { locationRequests++; locationRequest = { success,error }; } } }, matchMedia: () => ({ matches: false }), Intl, URL, URLSearchParams, AbortController, Date, setTimeout: () => 1, clearTimeout() {}, fetch: async (url) => {
     calls.push(url);
     if(url.includes('todolist.uno/api/weather')) return {ok:true,json:async()=>options.qweather || {provider:'open-meteo'}};
     if(options.placePending && url.includes('nominatim'))return new Promise(()=>{});
@@ -97,6 +97,18 @@ const settle = async () => { for (let i=0;i<4;i++) await new Promise(resolve => 
   failed.location.error({ code: 3 });
   assert.match(failed.widget.querySelector('.weather-status').textContent,/timed out/);
   assert.equal(failed.widget.querySelector('.weather-enable').disabled,false);
+  let localRefresh;
+  const local = fixture(false, { permission: 'granted', saved: new Map([['todo-weather-enabled-v1','enabled']]), refresh: fn => { localRefresh = fn; } });
+  await settle();
+  await local.location.success({ coords: { latitude: 30.25, longitude: 120.21 } });
+  const beforeRefresh = local.calls.length;
+  await localRefresh();
+  assert.equal(local.calls.length, beforeRefresh + 4, 'Shortcut refresh updates weather and AQI');
+  assert.equal(local.locationRequests, 1, 'Reuse the granted location without another geolocation wait');
+  local.changePermission('denied');
+  const deniedCalls = local.calls.length;
+  await localRefresh();
+  assert.equal(local.calls.length, deniedCalls, 'Refresh respects revoked permission');
   const key = 'todo-weather-enabled-v1';
   const remembered = new Map([[key,'enabled']]);
   const revisit = fixture(false, { saved: remembered, permission: 'granted' });

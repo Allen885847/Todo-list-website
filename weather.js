@@ -252,7 +252,7 @@
       reset('Location permission is off or has expired. Enable location to see weather.');
     } else if (preference() !== 'disabled') requestLocation(true);
   }
-  async function checkPermission() {
+  async function checkPermission({ reuseLocation = false } = {}) {
     if (!navigator.permissions?.query) {
       if (preference() === 'enabled' && !enabled) status.textContent = 'Enable location to reconnect weather in this browser.';
       return;
@@ -264,7 +264,13 @@
         permission = result;
         permission.addEventListener('change', permissionChanged);
       }
-      if (permission.state === 'granted' && preference() !== 'disabled') requestLocation(true);
+      if (permission.state === 'granted' && preference() !== 'disabled') {
+        if (reuseLocation && coordinates && !busy) {
+          busy = true;
+          enable.disabled = true;
+          await fetchWeather(++requestId);
+        } else if (!busy) requestLocation(true);
+      }
       else if (permission.state !== 'granted' && !(busy && permission.state === 'prompt')) {
         reset(preference() === 'enabled' ? 'Location permission is off or has expired. Enable location to see weather.' : 'Weather is off. Enable location to see your forecast.');
       }
@@ -284,5 +290,6 @@
   window.addEventListener('pageshow', checkPermission);
   window.addEventListener('pagehide', () => { requestId++; busy = false; controller?.abort(); clearTimeout(refreshTimer); });
   blank();
+  window.TodoLocalRefresh?.registerWeather(() => checkPermission({ reuseLocation: true }));
   checkPermission();
 })();
