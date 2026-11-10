@@ -151,6 +151,10 @@
         <p id="stats-rate-edit-count" class="stats-edit-context" aria-live="polite"></p>
         <div id="stats-rate-edit-tasks" class="stats-rate-edit-tasks"></div>
         <p id="stats-rate-edit-status" class="stats-edit-status" role="alert" hidden></p>
+        <label id="stats-rate-finish-field" class="stats-rate-finish-field" hidden>Finish time (optional)
+          <input id="stats-rate-finish-time" type="time" step="60" aria-describedby="stats-rate-finish-help" disabled>
+          <small id="stats-rate-finish-help">Leave blank if unknown. No finish time will be recorded.</small>
+        </label>
         <div class="dialog-actions"><button id="stats-rate-edit-cancel" class="dialog-secondary" type="button">Cancel</button><span class="dialog-spacer"></span><button id="stats-rate-edit-save" class="dialog-primary" type="submit">Save confirmations</button></div>
       </form>
     </dialog>

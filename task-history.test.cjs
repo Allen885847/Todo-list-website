@@ -27,5 +27,11 @@ const assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('nod
  await window.TodoTaskHistory.editRate(pastDay,['forgotten']);
  assert.equal(values.get('todo-list-mvp'),originalTasks);assert.deepEqual(eventTypes,['todo-history-changed']);
  const pastRow=H.rows(values.get(H.KEY),{now:new Date(2026,10,5,12)})[5];assert.equal(pastRow.rate.percent,100);assert.equal(pastRow.finish,null);
+ eventTypes.length=0;const savesBeforeCombined=saves;
+ await window.TodoTaskHistory.editRate(pastDay,['forgotten'],{finishTime:'21:16'});
+ const combined=H.rows(values.get(H.KEY),{now:new Date(2026,10,5,12)})[5];
+ assert.equal(combined.rate.percent,100);assert.equal(combined.finish.day,pastDay);assert.equal(combined.finish.minutes,1276);
+ assert.equal(saves,savesBeforeCombined+1,'Rate and optional finish time persist in one save');
+ assert.equal(values.get('todo-list-mvp'),originalTasks);assert.deepEqual(eventTypes,['todo-history-changed']);
  console.log('History startup passed: deferred persistence hydration cannot replay stale observations or erase restored timestamps.');
 })().catch(error=>{console.error(error);process.exitCode=1});

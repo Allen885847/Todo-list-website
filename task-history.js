@@ -30,9 +30,9 @@
     const next=history.editFinish(localStorage.getItem(history.KEY),day,values);
     return saveCorrection(next);
   }
-  async function editRate(day,ids) {
+  async function editRate(day,ids,{finishTime=''}={}) {
     if(!ready)throw new Error('Your saved history is still loading. Please try again in a moment.');
-    return saveCorrection(history.editRate(localStorage.getItem(history.KEY),day,ids,tasks()));
+    return saveCorrection(history.editRate(localStorage.getItem(history.KEY),day,ids,tasks(),{finishTime}));
   }
 
   function observe() { record(tasks()); }

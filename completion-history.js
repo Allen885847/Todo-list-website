@@ -99,13 +99,17 @@
     const selected=new Set(history.rateEdits[day]?.onTimeIds || []);
     return {available,reason:available?'':'The original per-task history could not be fully matched. No counts have been changed.',cohort,total:rate.total,completed:correctedRate({...history,rateCohorts:{...history.rateCohorts,[day]:cohort}},day,rate).completed,tasks:Object.entries(cohort.tasks).map(([id,task])=>({id,...task,confirmed:task.onTime || selected.has(id)}))};
   }
-  function editRate(value,day,onTimeIds,tasks=[],{now=new Date()}={}) {
+  function editRate(value,day,onTimeIds,tasks=[],{now=new Date(),finishTime=''}={}) {
     const history=read(value),details=rateDetails(history,day,tasks,{now});
     if(!details.available)throw new Error(details.reason);
     if(!Array.isArray(onTimeIds) || onTimeIds.some(id=>!validId(id) || !Object.hasOwn(details.cohort.tasks,id)))throw new Error('Only regular tasks originally due on this date can be corrected.');
     const previous=history.rateEdits[day];
     history.rateCohorts[day]=details.cohort;
     history.rateEdits[day]={updatedAt:new Date(Math.max(now.getTime(),previous?Date.parse(previous.updatedAt)+1:0)).toISOString(),onTimeIds:[...new Set(onTimeIds.filter(id=>!details.cohort.tasks[id].onTime))].sort()};
+    const recordedFinish=history.finishEdits[day]?.corrected || history.days[day]?.finish;
+    if(finishTime && !recordedFinish && correctedRate(history,day,history.days[day].rate).completed===details.total) {
+      return editFinish(history,day,{date:day,time:finishTime,showEdited:false},{now});
+    }
     return history;
   }
   function read(value) {

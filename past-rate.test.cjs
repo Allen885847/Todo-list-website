@@ -8,6 +8,18 @@ let details=H.rateDetails(history,day,tasks,{now:after});assert(details.availabl
 history=H.editRate(history,day,['missed','missed'],tasks,{now:after});row=H.rows(history,{now:after})[5];assert.equal(row.rate.completed,2);assert.equal(row.rate.percent,67);assert.equal(row.finish,null,'Manual confirmations must never invent a finish time');
 assert.equal(JSON.stringify(history.days[day]),original);assert.equal(JSON.stringify(tasks),currentTasks);assert.equal(JSON.stringify(history.completions),stamps);
 history=H.editRate(history,day,['missed','late'],tasks,{now:after});row=H.rows(history,{now:after})[5];assert.equal(row.rate.percent,100);assert.equal(row.finish,null,'Even 100% remains blank until an actual finish time is entered');
+const blank=H.editRate(history,day,['missed','late'],tasks,{now:after,finishTime:''});
+assert.equal(H.rows(blank,{now:after})[5].rate.percent,100);
+assert.equal(H.rows(blank,{now:after})[5].finish,null,'Blank optional input does not use the correction timestamp');
+const combined=H.editRate(history,day,['missed','late'],tasks,{now:after,finishTime:'21:16'});
+const combinedRow=H.rows(H.read(JSON.stringify(combined)),{now:after})[5];
+assert.equal(combinedRow.rate.percent,100);assert.equal(combinedRow.finish.day,day);assert.equal(combinedRow.finish.minutes,1276);
+assert.equal(combinedRow.finishEdit.original,null);assert.notEqual(combinedRow.finish.at,after.toISOString());
+const repeat=H.editRate(combined,day,['missed','late'],tasks,{now:after,finishTime:'22:00'});
+assert.equal(H.rows(repeat,{now:after})[5].finish.minutes,1276,'Existing finish records are not overwritten by rate corrections');
+const partial=H.editRate(history,day,['missed'],tasks,{now:after,finishTime:'21:16'});
+assert.equal(H.rows(partial,{now:after})[5].finish,null,'Incomplete corrections cannot add a finish time');
+assert.throws(()=>H.editRate(history,day,['missed','late'],tasks,{now:after,finishTime:'25:00'}),/valid finish date and time/);
 const edited=H.editFinish(history,day,{date:day,time:'20:15:30',showEdited:true},{now:after});row=H.rows(edited,{now:after})[5];assert.equal(row.finish.minutes,1215.5);assert.equal(row.finish.day,day);assert.equal(row.finishEdit.original,null);assert.notEqual(row.finish.at,after.toISOString());assert.equal(H.read(JSON.stringify(edited)).finishEdits[day].original,null);
 assert.throws(()=>H.editFinish(history,day,{date:day,time:''},{now:after}),/valid finish date and time/);
 assert.throws(()=>H.editRate(history,day,['extra'],tasks,{now:after}),/Only regular tasks/);assert.throws(()=>H.editRate(history,'2026-11-05',[],tasks,{now:after}),/past date/);

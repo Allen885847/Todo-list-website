@@ -56,15 +56,18 @@
     finally {finishSaving=false;editSave.disabled=false;editSave.textContent='Save changes';editDate.disabled=editTime.disabled=editLabel.disabled=false;}
   });
   const rateEditor=document.querySelector('#stats-rate-editor'),rateForm=document.querySelector('#stats-rate-form'),rateList=document.querySelector('#stats-rate-edit-tasks'),rateSave=document.querySelector('#stats-rate-edit-save'),rateStatus=document.querySelector('#stats-rate-edit-status');
-  let rateDay=null,rateSaving=false,rateChoices=[];
+  const rateFinishField=document.querySelector('#stats-rate-finish-field'),rateFinishTime=document.querySelector('#stats-rate-finish-time');
+  let rateDay=null,rateSaving=false,rateChoices=[],rateHasFinish=false;
   function updateRateCount(details) {
     const added=rateChoices.filter(item=>!item.task.onTime && item.input.checked).length;
     const original=details.cohort?.completed || 0,total=details.total || 0;
     document.querySelector('#stats-rate-edit-count').textContent=total?`${original+added}/${total} completed on time · ${Math.round((original+added)/total*100)}%`:'';
+    rateFinishField.hidden=!(details.available && total>0 && original+added===total && !rateHasFinish);
+    rateFinishTime.disabled=rateFinishField.hidden || rateSaving;
   }
   function openRateEditor(row) {
     if(viewTransition || row.day>=H.localDay(new Date()) || !row.rate)return;
-    hideTooltip();hideBonus();closeInfo(false);rateDay=row.day;rateChoices=[];rateList.replaceChildren();
+    hideTooltip();hideBonus();closeInfo(false);rateDay=row.day;rateChoices=[];rateList.replaceChildren();rateHasFinish=Boolean(row.finish);rateFinishTime.value='';
     const details=window.TodoTaskHistory.rateDetails(row.day);
     document.querySelector('#stats-rate-edit-date').textContent=dateLabel(row.day,{month:'short',day:'numeric',year:'numeric'});
     for(const task of details.tasks) {
@@ -84,10 +87,11 @@
   rateEditor.addEventListener('close',()=>{rateDay=null;rateEditor.classList.remove('is-closing','is-opening');tabs.find(tab=>tab.dataset.statsTab===activeTab)?.focus()});
   rateForm.addEventListener('submit',async event=>{
     event.preventDefault();if(rateSaving || !rateDay || rateSave.disabled)return;
-    rateSaving=true;rateSave.disabled=true;rateSave.textContent='Saving…';rateStatus.hidden=true;rateChoices.forEach(item=>item.input.disabled=true);
-    try {await window.TodoTaskHistory.editRate(rateDay,rateChoices.filter(item=>item.input.checked).map(item=>item.task.id));render();closeDialogAnimated(rateEditor);}
+    const finishTime=rateFinishField.hidden?'':rateFinishTime.value;
+    rateSaving=true;rateSave.disabled=true;rateSave.textContent='Saving…';rateStatus.hidden=true;rateChoices.forEach(item=>item.input.disabled=true);rateFinishTime.disabled=true;
+    try {await window.TodoTaskHistory.editRate(rateDay,rateChoices.filter(item=>item.input.checked).map(item=>item.task.id),{finishTime});render();closeDialogAnimated(rateEditor);}
     catch(error){rateStatus.textContent=error.message || 'The confirmations could not be saved. Please try again.';rateStatus.hidden=false;}
-    finally {rateSaving=false;rateSave.disabled=false;rateSave.textContent='Save confirmations';rateChoices.forEach(item=>item.input.disabled=item.task.onTime);}
+    finally {rateSaving=false;rateSave.disabled=false;rateSave.textContent='Save confirmations';rateChoices.forEach(item=>item.input.disabled=item.task.onTime);rateFinishTime.disabled=rateFinishField.hidden;}
   });
   function rateAction(node,row) {
     if(!row.rate || row.day>=H.localDay(new Date()))return;
